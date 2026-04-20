@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from ..models import MatchOut, MatchSummary, GenerateRequest, GenerateResponse, JobStatus
-from ..mock_data import MOCK_MATCHES, MOCK_MATCH_DETAIL
+from models import MatchOut, MatchSummary, GenerateRequest, GenerateResponse, JobStatus
+from mock_data import MOCK_MATCHES, MOCK_MATCH_DETAIL
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 

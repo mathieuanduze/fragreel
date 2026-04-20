@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes.matches import router as matches_router
-from .routes.demo import router as demo_router
+from routes.matches import router as matches_router
+from routes.demo import router as demo_router
 
 app = FastAPI(title="FragReel API", version="0.1.0")
 
