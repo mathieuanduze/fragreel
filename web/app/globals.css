@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg:          #0D0D1A;
+  --color-surface:     #1A1A2E;
+  --color-card:        #16213E;
+  --color-border:      #2D2D44;
+  --color-dim:         #3A3A55;
+  --color-muted:       #666680;
+  --color-orange:      #FF6B35;
+  --color-orange-dim:  #CC4A1A;
+  --color-orange-glow: #FF6B3520;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --animate-fade-in:   fade-in 0.4s ease-out;
+  --animate-slide-up:  slide-up 0.5s ease-out;
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4,0,0.6,1) infinite;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: #0D0D1A;
+    color: #E8E8F0;
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #1A1A2E; }
+  ::-webkit-scrollbar-thumb { background: #3A3A55; border-radius: 3px; }
+}
+
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #FF6B35;
+    color: white;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 8px;
+    transition: background 0.2s;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary:hover { background: #CC4A1A; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #2D2D44;
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: border-color 0.2s, color 0.2s;
+    background: transparent;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { border-color: #FF6B35; color: #FF6B35; }
+
+  .card {
+    background: #16213E;
+    border: 1px solid #2D2D44;
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #FF6B35;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #1A1A2E;
+    border: 1px solid #2D2D44;
+  }
+}
