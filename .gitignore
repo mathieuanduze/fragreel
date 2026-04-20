@@ -1,0 +1,33 @@
+# Dependencies
+web/node_modules/
+web/.next/
+web/.turbo/
+
+# Python
+api/__pycache__/
+api/*.pyc
+client/__pycache__/
+client/*.pyc
+*.pyc
+*.pyo
+__pycache__/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Env files
+.env
+.env.local
+web/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Demos (podem ser grandes)
+demos/
+
+# Editor
+.vscode/
+.idea/
