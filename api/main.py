@@ -7,7 +7,12 @@ app = FastAPI(title="FragReel API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3033"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3033",
+        "https://fragreel.vercel.app",
+        "https://*.vercel.app",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
