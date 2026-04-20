@@ -1,7 +1,7 @@
 """
 Mock match data — replaced by real parser output once client sends demos.
 """
-from .models import MatchSummary, MatchOut, MatchStats, HighlightOut, KillOut
+from models import MatchSummary, MatchOut, MatchStats, HighlightOut, KillOut
 
 MOCK_MATCHES: list[MatchSummary] = [
     MatchSummary(
