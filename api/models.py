@@ -25,7 +25,7 @@ class KillOut(BaseModel):
 
 class HighlightOut(BaseModel):
     rank: int
-    round_num: int
+    round_num: int = 1
     label: str
     score: float
     start: float
