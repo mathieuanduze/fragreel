@@ -51,9 +51,13 @@ export default function MatchList() {
             : "Instale o client FragReel no Windows, jogue uma partida e a demo aparecerá aqui automaticamente."}
         </p>
         {!error && (
-          <button className="btn-primary" style={{ cursor: "pointer" }}>
-            ↓ Baixar Client · Windows
-          </button>
+          <a
+            href="https://github.com/mathieuanduze/fragreel/releases/download/latest-build/FragReel.exe"
+            className="btn-primary"
+            style={{ textDecoration: "none" }}
+          >
+            ↓ Baixar Client · Windows (.exe)
+          </a>
         )}
       </div>
     );

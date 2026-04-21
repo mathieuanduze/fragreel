@@ -48,7 +48,13 @@ export default function Dashboard() {
               Instala uma vez e esqueça. O client detecta suas demos automaticamente e processa tudo em background.
             </p>
           </div>
-          <button className="btn-primary" style={{ whiteSpace: "nowrap" }}>↓ Baixar · v0.1-beta</button>
+          <a
+            href="https://github.com/mathieuanduze/fragreel/releases/download/latest-build/FragReel.exe"
+            className="btn-primary"
+            style={{ whiteSpace: "nowrap", textDecoration: "none" }}
+          >
+            ↓ Baixar · Windows (.exe)
+          </a>
         </div>
       </div>
     </div>
