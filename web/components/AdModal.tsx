@@ -49,25 +49,34 @@ export default function AdModal({ onClose, formatLabel, renderDuration }: AdModa
   const [closing, setClosing]           = useState(false);
 
   const renderDone    = renderElapsed >= renderDuration;
+  const adDone        = adElapsed >= AD_DURATION;
+  const canDownload   = renderDone && adDone;
   const adRemaining   = Math.max(0, AD_DURATION - adElapsed);
   const adProgress    = Math.min(1, adElapsed / AD_DURATION);
   const renderProgress = Math.min(1, renderElapsed / renderDuration);
   const renderRemaining = Math.max(0, renderDuration - renderElapsed);
   const adCount       = Math.floor(renderElapsed / AD_DURATION) + 1;
 
-  // Ad timer — loops every 30 s
+  // Ad timer — counts up to AD_DURATION (mínimo obrigatório)
+  // Se o render ainda estiver rodando quando o ad terminar, reinicia com outro anúncio
   useEffect(() => {
     const id = setInterval(() => {
       setAdElapsed((e) => {
-        if (e + 1 >= AD_DURATION) {
-          setAdIndex((i) => (i + 1) % ADS.length);
-          return 0;
+        const next = e + 1;
+        if (next >= AD_DURATION) {
+          // Se render ainda está rodando, troca de anúncio e reinicia o contador
+          if (!renderDone) {
+            setAdIndex((i) => (i + 1) % ADS.length);
+            return 0;
+          }
+          // Render já terminou: trava o ad em AD_DURATION (libera o botão)
+          return AD_DURATION;
         }
-        return e + 1;
+        return next;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [renderDone]);
 
   // Render timer — counts up to renderDuration
   useEffect(() => {
@@ -173,7 +182,7 @@ export default function AdModal({ onClose, formatLabel, renderDuration }: AdModa
           style={{
             marginTop: 12, padding: "18px 22px",
             background: "#13131f",
-            border: `1px solid ${renderDone ? "rgba(76,175,130,0.4)" : "#2D2D44"}`,
+            border: `1px solid ${canDownload ? "rgba(76,175,130,0.4)" : "#2D2D44"}`,
             borderRadius: 12,
             transition: "border-color 0.4s",
           }}
@@ -209,7 +218,7 @@ export default function AdModal({ onClose, formatLabel, renderDuration }: AdModa
               FragReel é 100% gratuito · sustentado por anúncios
             </div>
 
-            {renderDone ? (
+            {canDownload ? (
               <button
                 onClick={handleDownload}
                 className="btn-primary"
@@ -219,7 +228,11 @@ export default function AdModal({ onClose, formatLabel, renderDuration }: AdModa
               </button>
             ) : (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
-                O botão aparece quando terminar
+                {renderDone && !adDone
+                  ? `Aguarde o fim do anúncio · ${adRemaining}s`
+                  : !renderDone && adDone
+                  ? "Renderização em andamento..."
+                  : "O botão aparece quando terminar"}
               </div>
             )}
           </div>

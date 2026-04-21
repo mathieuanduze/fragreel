@@ -53,7 +53,7 @@ export default function Home() {
             <span style={{ color: "#FF6B35" }}>cinematografia</span>
             <br />
             de Major.{" "}
-            <span style={{ color: "rgba(255,255,255,0.3)" }}>No automático.</span>
+            <span style={{ color: "rgba(255,255,255,0.3)" }}>De graça.</span>
           </h1>
 
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 560, margin: "0 auto 16px" }}>
