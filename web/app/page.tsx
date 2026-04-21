@@ -20,10 +20,10 @@ const STATS = [
 ];
 
 const steps = [
-  { num: "01", title: "Entre com Steam",   desc: "Conecte sua conta Steam em 1 clique. Sem senha, sem cadastro manual." },
-  { num: "02", title: "Jogue uma partida", desc: "Finalize sua partida no CS2. O jogo salva a demo automaticamente na pasta de replays." },
-  { num: "03", title: "Envie a demo",      desc: "No dashboard, arraste o arquivo .dem. Está em csgo/replays/ na pasta do Steam." },
-  { num: "04", title: "Escolha e compartilhe", desc: "Reel 9:16, Recap 16:9 ou Story Card. Assista 1 anúncio de 30s e baixe. Grátis pra sempre." },
+  { num: "01", title: "Baixe o client",      desc: "FragReel.exe para Windows. Instalação em 30 segundos, login com Steam uma vez só." },
+  { num: "02", title: "Jogue normalmente",   desc: "O client detecta o CS2 aberto e grava em background. Sem OBS, sem configuração, sem travar o jogo." },
+  { num: "03", title: "IA detecta highlights", desc: "Ao fim da partida, a IA lê a demo, escolhe os melhores frags e recorta só os clipes que importam." },
+  { num: "04", title: "Vídeo pronto no site", desc: "Reel 9:16, Recap 16:9 ou Story Card. Assista 1 anúncio de 30s e baixe. Grátis pra sempre." },
 ];
 
 const outputs = [
@@ -53,13 +53,13 @@ export default function Home() {
             <span style={{ color: "#FF6B35" }}>cinematografia</span>
             <br />
             de Major.{" "}
-            <span style={{ color: "rgba(255,255,255,0.3)" }}>De graça.</span>
+            <span style={{ color: "rgba(255,255,255,0.3)" }}>No automático.</span>
           </h1>
 
-          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 520, margin: "0 auto 16px" }}>
-            Envie a demo da sua partida no CS2 e seus{" "}
-            <b style={{ color: "rgba(255,255,255,0.8)" }}>ACEs, clutches e frags</b> viram
-            vídeo editado automaticamente — pronto pra TikTok, Reels e WhatsApp.
+          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 560, margin: "0 auto 16px" }}>
+            Instala uma vez e esquece. O client grava suas partidas em background,
+            a IA escolhe os melhores <b style={{ color: "rgba(255,255,255,0.8)" }}>ACEs, clutches e frags</b> e
+            entrega o vídeo editado pronto pra TikTok, Reels e WhatsApp.
           </p>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 36 }}>
@@ -73,15 +73,15 @@ export default function Home() {
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/login" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px" }}>
-              Começar agora · Grátis
+              ⬇ Baixar client · Windows
             </Link>
             <Link href="/dashboard" className="btn-ghost" style={{ fontSize: 16 }}>
-              Ver demo →
+              Ver dashboard →
             </Link>
           </div>
 
           <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            Login com Steam · Sem instalação · Sem assinatura
+            Windows 10/11 · ~25 MB · Login com Steam · Sem assinatura
           </p>
         </div>
       </section>
@@ -139,10 +139,10 @@ export default function Home() {
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, textAlign: "left" }}>
             {[
-              { label: "2 câmeras por frag",   sub: "POV do atirador + POV da vítima em slow-mo. Igual transmissão de Major." },
-              { label: "Upload simples",        sub: "Envie o .dem e a IA cuida do resto. Funciona em qualquer computador, sem instalação." },
-              { label: "Scoring por IA",        sub: "ACE, clutch 1vN, knife kill, noscope — a IA prioriza os frags mais insanos." },
-              { label: "100% gratuito",         sub: "Sustentado por anúncios. O tempo do ad = tempo de renderização. Honesto." },
+              { label: "Gravação automática, sem OBS", sub: "O client grava o CS2 em background. Zero setup, zero lag perceptível, zero fricção." },
+              { label: "2 câmeras por frag",            sub: "POV do atirador + POV da vítima em slow-mo. Igual transmissão de Major." },
+              { label: "Scoring por IA",                sub: "ACE, clutch 1vN, knife kill, noscope — a IA prioriza os frags mais insanos." },
+              { label: "100% gratuito",                 sub: "Sustentado por anúncios. O tempo do ad = tempo de renderização. Honesto." },
             ].map((f) => (
               <div key={f.label} style={{ padding: "18px 20px", background: "#0D0D1A", border: "1px solid #2D2D44", borderRadius: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "#FF6B35" }}>✓ {f.label}</div>
@@ -186,7 +186,7 @@ export default function Home() {
         <div style={{ display: "inline-flex", alignItems: "center", gap: 16, padding: "14px 22px", background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 12, fontSize: 13, color: "rgba(255,255,255,0.45)", flexWrap: "wrap", justifyContent: "center" }}>
           <span>🎮 Jogue</span>
           <span style={{ color: "#2D2D44" }}>→</span>
-          <span>📁 Envie a demo</span>
+          <span>🔴 Client grava</span>
           <span style={{ color: "#2D2D44" }}>→</span>
           <span>📺 Assista 30s de ad</span>
           <span style={{ color: "#2D2D44" }}>→</span>
@@ -200,13 +200,13 @@ export default function Home() {
           Pronto para se sentir um pro?
         </h2>
         <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 32, fontSize: 15 }}>
-          Envie sua demo. Escolha seus highlights. Compartilhe sempre.
+          Baixe o client. Jogue uma partida. Compartilhe seus melhores momentos.
         </p>
         <Link href="/login" className="btn-primary" style={{ fontSize: 16, padding: "14px 36px" }}>
-          Começar agora · Grátis
+          ⬇ Baixar client · Grátis
         </Link>
         <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-          Requer Counter-Strike 2 instalado · Login com Steam obrigatório
+          Windows 10/11 · Requer Counter-Strike 2 instalado · Login com Steam obrigatório
         </p>
       </section>
 
