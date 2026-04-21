@@ -31,6 +31,7 @@ class HighlightOut(BaseModel):
     start: float
     end: float
     kills: list[KillOut]
+    clip_url: Optional[str] = None   # URL do clipe de vídeo, se disponível
 
 
 class MatchStats(BaseModel):

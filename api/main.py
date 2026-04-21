@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.matches import router as matches_router
 from routes.demo import router as demo_router
 from routes.auth import router as auth_router
+from routes.clips import router as clips_router
 
 # ── Logging — must run before any module imports loggers ──────────────────────
 logging.basicConfig(
@@ -35,6 +36,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(matches_router)
 app.include_router(demo_router)
+app.include_router(clips_router)
 
 
 @app.get("/health")

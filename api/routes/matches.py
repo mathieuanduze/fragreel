@@ -121,6 +121,7 @@ def _to_match_out(doc: dict) -> MatchOut:
             start=h.get("start", 0.0),
             end=h.get("end", 0.0),
             kills=kills,
+            clip_url=h.get("clip_url"),
         ))
 
     return MatchOut(

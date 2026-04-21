@@ -169,15 +169,29 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                     #{h.rank}
                   </div>
 
-                  {/* Preview thumbnail */}
-                  <div style={{ width: 142, height: 80, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative", background: h.rank === 1 ? "linear-gradient(135deg,#2A1A10,#1A1020)" : "linear-gradient(135deg,#131325,#0D0D1A)", border: on ? "1px solid rgba(255,107,53,0.15)" : "1px solid #2D2D44" }}>
-                    <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,rgba(255,255,255,0.02) 0px,rgba(255,255,255,0.02) 1px,transparent 1px,transparent 3px)" }} />
-                    <div style={{ position: "absolute", top: 6, left: 8, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>{match.map.replace("de_","")}</div>
-                    <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", background: "rgba(0,0,0,0.4)", padding: "1px 5px", borderRadius: 3 }}>{Math.round(h.end - h.start)}s</div>
-                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: on ? "rgba(255,107,53,0.85)" : "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, paddingLeft: 2 }}>▶</div>
-                    </div>
-                    <div style={{ position: "absolute", bottom: 6, left: 8, fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase" }}>preview</div>
+                  {/* Preview thumbnail — vídeo real se disponível, placeholder caso contrário */}
+                  <div style={{ width: 142, height: 80, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative", background: "linear-gradient(135deg,#131325,#0D0D1A)", border: on ? "1px solid rgba(255,107,53,0.3)" : "1px solid #2D2D44" }}>
+                    {h.clip_url ? (
+                      <video
+                        src={h.clip_url}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
+                        onMouseLeave={(e) => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                      />
+                    ) : (
+                      <>
+                        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,rgba(255,255,255,0.02) 0px,rgba(255,255,255,0.02) 1px,transparent 1px,transparent 3px)" }} />
+                        <div style={{ position: "absolute", top: 6, left: 8, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>{match.map.replace("de_","")}</div>
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, paddingLeft: 2, color: "rgba(255,255,255,0.3)" }}>▶</div>
+                        </div>
+                        <div style={{ position: "absolute", bottom: 6, left: 8, fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase" }}>sem client</div>
+                      </>
+                    )}
+                    <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 10, fontWeight: 600, color: "white", fontFamily: "monospace", background: "rgba(0,0,0,0.6)", padding: "1px 5px", borderRadius: 3 }}>{Math.round(h.end - h.start)}s</div>
                   </div>
 
                   <div>
