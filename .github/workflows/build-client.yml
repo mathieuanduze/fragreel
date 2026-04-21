@@ -45,13 +45,15 @@ jobs:
             exit 1
           }
 
-      - name: Upload to GitHub Release (rolling "latest-build")
+      - name: Upload to public releases repo (rolling "latest-build")
         uses: ncipollo/release-action@v1
         with:
+          repo: fragreel-releases
+          owner: mathieuanduze
           tag: latest-build
           name: "FragReel Client · Latest Build"
           body: |
-            **Build automático** do commit `${{ github.sha }}` em ${{ github.event.head_commit.message }}
+            **Build automático** do commit `${{ github.sha }}`
 
             ### Instalação
             1. Baixe o `FragReel.exe`
@@ -64,4 +66,4 @@ jobs:
           allowUpdates: true
           makeLatest: true
           prerelease: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASES_TOKEN }}

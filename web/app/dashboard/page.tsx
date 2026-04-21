@@ -49,7 +49,7 @@ export default function Dashboard() {
             </p>
           </div>
           <a
-            href="https://github.com/mathieuanduze/fragreel/releases/tag/latest-build"
+            href="https://github.com/mathieuanduze/fragreel-releases/releases/download/latest-build/FragReel.exe"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary"
