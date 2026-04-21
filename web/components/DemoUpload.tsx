@@ -46,7 +46,13 @@ export default function DemoUpload({ onUploaded }: { onUploaded?: () => void }) 
       onUploaded?.();
     } catch (e: unknown) {
       setState("error");
-      setMessage(e instanceof Error ? e.message : "Erro ao enviar a demo. Tente novamente.");
+      const raw = e instanceof Error ? e.message : "";
+      // "Erro de rede" = XHR onerror = API inacessível (offline ou URL errada)
+      if (raw === "Erro de rede") {
+        setMessage("API offline ou inacessível. Verifique se o servidor está rodando.");
+      } else {
+        setMessage(raw || "Erro ao enviar a demo. Tente novamente.");
+      }
     }
   }
 
