@@ -154,7 +154,7 @@ export default function Nav() {
                   textDecoration: "none",
                 }}
               >
-                Baixar Client
+                Começar agora
               </Link>
             </>
           )}

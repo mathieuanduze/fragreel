@@ -48,19 +48,8 @@ export default function MatchList() {
         <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 400, margin: "0 auto 24px" }}>
           {error
             ? "Não foi possível conectar à API. Tente novamente em instantes."
-            : "Instale o client FragReel no Windows, jogue uma partida e a demo aparecerá aqui automaticamente."}
+            : "Jogue uma partida no CS2 e envie o arquivo .dem acima. Seus highlights vão aparecer aqui."}
         </p>
-        {!error && (
-          <a
-            href="https://github.com/mathieuanduze/fragreel-releases/releases/download/latest-build/FragReel.exe"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary"
-            style={{ textDecoration: "none" }}
-          >
-            ↓ Baixar Client · Windows (.exe)
-          </a>
-        )}
       </div>
     );
   }

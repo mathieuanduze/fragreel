@@ -79,6 +79,45 @@ export async function getMatch(id: string): Promise<MatchOut> {
   return res.json();
 }
 
+export interface UploadDemoResponse {
+  status: string;
+  match_id: string;
+  map?: string;
+  kills?: number;
+  highlights?: number;
+  message?: string;
+}
+
+export async function uploadDemo(
+  file: File,
+  steamid: string,
+  onProgress?: (pct: number) => void
+): Promise<UploadDemoResponse> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE}/demo/upload?steamid=${encodeURIComponent(steamid)}`);
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("fragreel_token") : null;
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(xhr.responseText || "Upload falhou"));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Erro de rede"));
+    xhr.send(formData);
+  });
+}
+
 export async function generateVideo(
   matchId: string,
   format: string,

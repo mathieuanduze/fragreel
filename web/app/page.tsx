@@ -2,34 +2,34 @@ import Nav from "@/components/Nav";
 import Link from "next/link";
 
 const MAPS = [
-  { id: "de_dust2",   name: "Dust2" },
-  { id: "de_mirage",  name: "Mirage" },
-  { id: "de_inferno", name: "Inferno" },
-  { id: "de_nuke",    name: "Nuke" },
-  { id: "de_ancient", name: "Ancient" },
-  { id: "de_anubis",  name: "Anubis" },
-  { id: "de_vertigo", name: "Vertigo" },
-  { id: "de_overpass",name: "Overpass" },
+  { id: "de_dust2",    name: "Dust2" },
+  { id: "de_mirage",   name: "Mirage" },
+  { id: "de_inferno",  name: "Inferno" },
+  { id: "de_nuke",     name: "Nuke" },
+  { id: "de_ancient",  name: "Ancient" },
+  { id: "de_anubis",   name: "Anubis" },
+  { id: "de_vertigo",  name: "Vertigo" },
+  { id: "de_overpass", name: "Overpass" },
 ];
 
 const STATS = [
-  { label: "ACE",         sub: "5 kills · 1 round",    color: "#FF6B35" },
-  { label: "CLUTCH 1v4",  sub: "AWP · Dust2 · R22",    color: "#a78bfa" },
-  { label: "KNIFE KILL",  sub: "Pistol Round",          color: "#34d399" },
-  { label: "4K HS",       sub: "AK-47 · 4 headshots",  color: "#60a5fa" },
+  { label: "ACE",        sub: "5 kills · 1 round",    color: "#FF6B35" },
+  { label: "CLUTCH 1v4", sub: "AWP · Dust2 · R22",    color: "#a78bfa" },
+  { label: "KNIFE KILL", sub: "Pistol Round",          color: "#34d399" },
+  { label: "4K HS",      sub: "AK-47 · 4 headshots",  color: "#60a5fa" },
 ];
 
 const steps = [
-  { num: "01", title: "Instala o client", desc: "App leve para Windows. Conecta com sua conta Steam. Detecta o CS2 e suas demos automaticamente." },
-  { num: "02", title: "Joga normalmente", desc: "Nada muda na sua rotina. O FragReel fica na bandeja e monitora cada partida em background." },
-  { num: "03", title: "Recebe a notificação", desc: "Partida encerrada → notificação no desktop com seus melhores frags já rankeados pela IA." },
-  { num: "04", title: "Escolhe e compartilha", desc: "Reel 9:16, Recap 16:9 ou Story Card. Assiste 1 anúncio de 30s e baixa. Grátis pra sempre." },
+  { num: "01", title: "Entre com Steam",   desc: "Conecte sua conta Steam em 1 clique. Sem senha, sem cadastro manual." },
+  { num: "02", title: "Jogue uma partida", desc: "Finalize sua partida no CS2. O jogo salva a demo automaticamente na pasta de replays." },
+  { num: "03", title: "Envie a demo",      desc: "No dashboard, arraste o arquivo .dem. Está em csgo/replays/ na pasta do Steam." },
+  { num: "04", title: "Escolha e compartilhe", desc: "Reel 9:16, Recap 16:9 ou Story Card. Assista 1 anúncio de 30s e baixe. Grátis pra sempre." },
 ];
 
 const outputs = [
-  { icon: "🎬", label: "Highlights Reel", format: "9:16 vertical · 30–60s", desc: "2 câmeras por frag: POV do atirador + POV da vítima em câmera lenta. Música, cortes e efeitos automáticos.", dest: "TikTok · Reels · WhatsApp Status" },
-  { icon: "📺", label: "Recap Completo",  format: "16:9 horizontal · 2–3 min", desc: "Narrativa completa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.", dest: "YouTube · Discord · Twitter" },
-  { icon: "🖼️", label: "Story Card",      format: "9:16 imagem · estático", desc: "Card com nick, mapa, K/D, rating e top play do jogo. Gerado em segundos, sem renderização.", dest: "Instagram Stories · WhatsApp" },
+  { icon: "🎬", label: "Highlights Reel", format: "9:16 vertical · 30–60s",   desc: "2 câmeras por frag: POV do atirador + POV da vítima em câmera lenta. Música, cortes e efeitos automáticos.", dest: "TikTok · Reels · WhatsApp Status" },
+  { icon: "📺", label: "Recap Completo",  format: "16:9 horizontal · 2–3 min", desc: "Narrativa completa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",       dest: "YouTube · Discord · Twitter" },
+  { icon: "🖼️", label: "Story Card",      format: "9:16 imagem · estático",    desc: "Card com nick, mapa, K/D, rating e top play do jogo. Gerado em segundos, sem renderização.",              dest: "Instagram Stories · WhatsApp" },
 ];
 
 export default function Home() {
@@ -43,7 +43,6 @@ export default function Home() {
 
         <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
 
-          {/* CS2 badge */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 20, padding: "6px 14px", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 999, fontSize: 13, fontWeight: 600, color: "#FF6B35", letterSpacing: "0.03em" }}>
             <img src="/cs2-icon.png" alt="CS2" width={20} height={20} style={{ borderRadius: 4, objectFit: "cover" }} />
             Counter-Strike 2 · Exclusivo
@@ -58,12 +57,11 @@ export default function Home() {
           </h1>
 
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 520, margin: "0 auto 16px" }}>
-            Instala o client, joga normalmente. Depois de cada partida no CS2,
-            seus <b style={{ color: "rgba(255,255,255,0.8)" }}>ACEs, clutches e frags</b> viram
+            Envie a demo da sua partida no CS2 e seus{" "}
+            <b style={{ color: "rgba(255,255,255,0.8)" }}>ACEs, clutches e frags</b> viram
             vídeo editado automaticamente — pronto pra TikTok, Reels e WhatsApp.
           </p>
 
-          {/* Live stat badges */}
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 36 }}>
             {STATS.map((s) => (
               <div key={s.label} style={{ padding: "5px 12px", background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -75,7 +73,7 @@ export default function Home() {
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/login" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px" }}>
-              ↓ Baixar Client · Windows · Grátis
+              Começar agora · Grátis
             </Link>
             <Link href="/dashboard" className="btn-ghost" style={{ fontSize: 16 }}>
               Ver demo →
@@ -83,7 +81,7 @@ export default function Home() {
           </div>
 
           <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            Integração nativa com Steam · Sem upload de vídeo · Sem assinatura
+            Login com Steam · Sem instalação · Sem assinatura
           </p>
         </div>
       </section>
@@ -109,7 +107,7 @@ export default function Home() {
       <section style={{ padding: "72px 24px", maxWidth: 1100, margin: "0 auto" }}>
         <div className="tag" style={{ textAlign: "center", marginBottom: 12 }}>O que você recebe</div>
         <h2 style={{ textAlign: "center", fontSize: 34, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 10 }}>
-          Você escolhe o formato, a gente gera
+          Escolha o formato, a gente gera
         </h2>
         <p style={{ textAlign: "center", fontSize: 15, color: "rgba(255,255,255,0.4)", marginBottom: 48 }}>
           3 opções por partida. Cada geração = 1 anúncio de 30s. Sem assinatura, sem taxa.
@@ -131,7 +129,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── VS AllStar / diferencial ───────────────────────────────── */}
+      {/* ── Por que FragReel ───────────────────────────────────────── */}
       <section style={{ padding: "72px 24px", background: "#1A1A2E", borderTop: "1px solid #2D2D44", borderBottom: "1px solid #2D2D44" }}>
         <div style={{ maxWidth: 700, margin: "0 auto", textAlign: "center" }}>
           <div className="tag" style={{ marginBottom: 12 }}>Por que FragReel?</div>
@@ -141,10 +139,10 @@ export default function Home() {
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, textAlign: "left" }}>
             {[
-              { label: "2 câmeras por frag", sub: "POV do atirador + POV da vítima em slow-mo. Igual transmissão de Major." },
-              { label: "Integração nativa Steam", sub: "Client detecta sua demo automaticamente. Sem copiar link, sem upload manual." },
-              { label: "Scoring por IA", sub: "ACE, clutch 1vN, knife kill, noscope — a IA prioriza os frags mais insanos." },
-              { label: "100% gratuito", sub: "Sustentado por anúncios. O tempo do ad = tempo de renderização. Honesto." },
+              { label: "2 câmeras por frag",   sub: "POV do atirador + POV da vítima em slow-mo. Igual transmissão de Major." },
+              { label: "Upload simples",        sub: "Envie o .dem e a IA cuida do resto. Funciona em qualquer computador, sem instalação." },
+              { label: "Scoring por IA",        sub: "ACE, clutch 1vN, knife kill, noscope — a IA prioriza os frags mais insanos." },
+              { label: "100% gratuito",         sub: "Sustentado por anúncios. O tempo do ad = tempo de renderização. Honesto." },
             ].map((f) => (
               <div key={f.label} style={{ padding: "18px 20px", background: "#0D0D1A", border: "1px solid #2D2D44", borderRadius: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "#FF6B35" }}>✓ {f.label}</div>
@@ -155,7 +153,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── How it works ───────────────────────────────────────────── */}
+      {/* ── Como funciona ──────────────────────────────────────────── */}
       <section style={{ padding: "72px 24px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div className="tag" style={{ textAlign: "center", marginBottom: 12 }}>Como funciona</div>
@@ -186,11 +184,11 @@ export default function Home() {
           Sem assinatura. Sem surpresa.
         </p>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 16, padding: "14px 22px", background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 12, fontSize: 13, color: "rgba(255,255,255,0.45)", flexWrap: "wrap", justifyContent: "center" }}>
-          <span>🎮 Você joga</span>
+          <span>🎮 Jogue</span>
           <span style={{ color: "#2D2D44" }}>→</span>
-          <span>📺 Assiste 30s de ad</span>
+          <span>📁 Envie a demo</span>
           <span style={{ color: "#2D2D44" }}>→</span>
-          <span>⚙️ Renderizamos</span>
+          <span>📺 Assista 30s de ad</span>
           <span style={{ color: "#2D2D44" }}>→</span>
           <span style={{ color: "#FF6B35", fontWeight: 700 }}>🎬 Vídeo pronto</span>
         </div>
@@ -202,13 +200,13 @@ export default function Home() {
           Pronto para se sentir um pro?
         </h2>
         <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 32, fontSize: 15 }}>
-          Instala uma vez. Joga normalmente. Compartilha sempre.
+          Envie sua demo. Escolha seus highlights. Compartilhe sempre.
         </p>
         <Link href="/login" className="btn-primary" style={{ fontSize: 16, padding: "14px 36px" }}>
-          ↓ Baixar FragReel · Windows · Grátis
+          Começar agora · Grátis
         </Link>
         <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-          Requer Counter-Strike 2 instalado · Steam obrigatório
+          Requer Counter-Strike 2 instalado · Login com Steam obrigatório
         </p>
       </section>
 
