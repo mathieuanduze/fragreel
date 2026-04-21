@@ -21,6 +21,7 @@ export interface HighlightOut {
   start: number;
   end: number;
   kills: KillOut[];
+  clip_url?: string | null;
 }
 
 export interface MatchStats {
