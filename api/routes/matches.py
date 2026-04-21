@@ -59,18 +59,46 @@ def get_match(match_id: str, request: Request):
 
 
 @router.post("/{match_id}/generate", response_model=GenerateResponse)
-def generate_video(match_id: str, body: GenerateRequest):
+def generate_video(match_id: str, body: GenerateRequest, request: Request):
     if not body.highlight_ranks:
         raise HTTPException(status_code=422, detail="Select at least one highlight")
 
-    format_times = {"reel": 45, "recap": 150, "card": 5}
+    # Carrega a partida para passar de props pro Remotion
+    st = _get_store()
+    if not st:
+        raise HTTPException(status_code=503, detail="Storage indisponível")
+    doc = st.load_match(match_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    match_out = _to_match_out(doc)
+
+    # Player name: usa o fornecido, ou cai para steamid curto, ou "player"
+    player_name = body.player_name or (doc.get("steamid") or "")[-6:] or "player"
+
+    # Monta as props exatamente como o ReelProps/CardProps do editor/src/types.ts
+    props = {
+        "match": match_out.model_dump(),
+        "selectedRanks": body.highlight_ranks,
+        "mood": body.mood.value,
+        "playerName": player_name,
+    }
+
+    # Dispara render em background
+    from routes.renders import spawn_render
+    job = spawn_render(match_id=match_id, fmt=body.format.value, props=props)
+
+    # Estimativa (Railway CPU é ~10-15x slower que local)
+    format_times = {"reel": 90, "recap": 180, "card": 15}
     estimated = format_times.get(body.format.value, 60)
 
     return GenerateResponse(
-        job_id=str(uuid.uuid4()),
+        job_id=job.job_id,
         status=JobStatus.pending,
         estimated_seconds=estimated,
         message=f"Gerando {body.format.value} com {len(body.highlight_ranks)} highlight(s). Aguarde o anúncio.",
+        render_url=f"/renders/{match_id}/{body.format.value}",
+        status_url=f"/renders/{match_id}/{body.format.value}/status",
     )
 
 

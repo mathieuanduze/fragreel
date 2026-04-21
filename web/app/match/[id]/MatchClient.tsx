@@ -2,14 +2,21 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { MatchOut, generateVideo, getMatch } from "@/lib/api";
+import { MatchOut, Mood, generateVideo, getMatch, renderDownloadUrl } from "@/lib/api";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
 
 const FORMATS = [
-  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "9:16 vertical · ~47s",      desc: "2 câmeras por frag: POV do atirador + vítima em câmera lenta. Música e cortes automáticos.", dest: "TikTok · Reels · WhatsApp Status" },
-  { id: "recap", icon: "📺", label: "Recap Completo",   format: "16:9 horizontal · ~2m34s",   desc: "Narrativa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",    dest: "YouTube · Discord · Twitter" },
-  { id: "card",  icon: "🖼️", label: "Story Card",       format: "9:16 imagem estática",       desc: "Card com nick, mapa, K/D, rating e top play. Gerado em segundos, sem renderização.",         dest: "Instagram Stories · WhatsApp" },
+  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "9:16 vertical · ~20s",       desc: "Intro com player/mapa, rank badges, kill feed animado por frag e stats no outro. Música sincronizada com os cortes.", dest: "TikTok · Reels · WhatsApp Status" },
+  { id: "card",  icon: "🖼️", label: "Story Card",       format: "9:16 imagem estática",       desc: "Card com nick, mapa, K/D, HS%, ADR, rating e top play. Perfeito para stories.",         dest: "Instagram Stories · WhatsApp" },
+  { id: "recap", icon: "📺", label: "Recap Completo",   format: "16:9 horizontal · em breve", desc: "Narrativa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",    dest: "YouTube · Discord · Twitter" },
+];
+
+const MOODS: { id: Mood; icon: string; label: string; desc: string; color: string }[] = [
+  { id: "acao",       icon: "⚡", label: "Ação",       desc: "128 BPM · heavy bass",    color: "#FF6B35" },
+  { id: "eletronica", icon: "🎧", label: "Eletrônica", desc: "140 BPM · dnb / dubstep", color: "#a78bfa" },
+  { id: "heroico",    icon: "🦸", label: "Heroico",    desc: "120 BPM · orchestral",    color: "#fbbf24" },
+  { id: "chill",      icon: "😎", label: "Chill",      desc: "90 BPM · lo-fi",          color: "#4CAF82" },
 ];
 
 function fmt(sec: number) {
@@ -24,9 +31,11 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     new Set(initialMatch.highlights.slice(0, 3).map((h) => h.rank))
   );
   const [format, setFormat] = useState("reel");
+  const [mood, setMood] = useState<Mood>("acao");
   const [generating, setGenerating] = useState(false);
   const [jobMsg, setJobMsg] = useState<string | null>(null);
   const [showAd, setShowAd] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [renderDuration, setRenderDuration] = useState(90);
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,10 +79,12 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     if (selected.size === 0 || generating) return;
     setGenerating(true);
     setJobMsg(null);
+    setDownloadUrl(null);
     try {
-      const res = await generateVideo(match.id, format, Array.from(selected));
+      const res = await generateVideo(match.id, format, Array.from(selected), mood);
       setRenderDuration(res.estimated_seconds ?? 90);
       setJobMsg(res.message);
+      setDownloadUrl(renderDownloadUrl(match.id, format));
       setShowAd(true);
     } catch {
       setJobMsg("Erro ao iniciar geração. Tente novamente.");
@@ -91,6 +102,9 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         <AdModal
           formatLabel={formatLabel}
           renderDuration={renderDuration}
+          downloadUrl={downloadUrl}
+          matchId={match.id}
+          format={format}
           onClose={() => setShowAd(false)}
         />
       )}
@@ -242,6 +256,42 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
             })}
           </div>
         </div>
+
+        {/* Mood selector — só faz sentido pro reel (tem música) */}
+        {format === "reel" && (
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Escolha a trilha</h2>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>A música sincroniza com os cortes do vídeo. Todas royalty-free.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+              {MOODS.map((m) => {
+                const active = mood === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => setMood(m.id)}
+                    style={{
+                      padding: "14px 16px",
+                      borderRadius: 10,
+                      border: active ? `2px solid ${m.color}` : "1px solid #2D2D44",
+                      background: active ? `${m.color}12` : "#16213E",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      position: "relative",
+                      transition: "border-color 0.15s, background 0.15s",
+                    }}
+                  >
+                    {active && (
+                      <div style={{ position: "absolute", top: 10, right: 10, width: 16, height: 16, borderRadius: "50%", background: m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "white" }}>✓</div>
+                    )}
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{m.icon}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: active ? m.color : "#E8E8F0", marginBottom: 2 }}>{m.label}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>{m.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Job result */}
         {jobMsg && (

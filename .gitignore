@@ -2,6 +2,12 @@
 web/node_modules/
 web/.next/
 web/.turbo/
+editor/node_modules/
+editor/out/
+editor/.remotion-cache/
+
+# Renders gerados localmente
+data/renders/
 
 # Python
 api/__pycache__/

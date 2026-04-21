@@ -1,0 +1,27 @@
+{
+  "name": "fragreel-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Remotion compositions para FragReel — HighlightsReel + StoryCard",
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "render:reel": "remotion render HighlightsReel out/reel.mp4",
+    "render:card": "remotion render StoryCard out/card.png --frame=60",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.180",
+    "@remotion/cli": "4.0.180",
+    "@remotion/renderer": "4.0.180",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.180"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "typescript": "^5.6.3"
+  }
+}

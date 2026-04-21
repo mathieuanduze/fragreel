@@ -65,9 +65,18 @@ class MatchSummary(BaseModel):
     kd: str
 
 
+class Mood(str, Enum):
+    eletronica = "eletronica"
+    acao = "acao"
+    heroico = "heroico"
+    chill = "chill"
+
+
 class GenerateRequest(BaseModel):
     format: VideoFormat
     highlight_ranks: list[int]
+    mood: Mood = Mood.acao
+    player_name: Optional[str] = None
 
 
 class GenerateResponse(BaseModel):
@@ -75,3 +84,5 @@ class GenerateResponse(BaseModel):
     status: JobStatus
     estimated_seconds: int
     message: str
+    render_url: Optional[str] = None  # URL para baixar quando render terminar
+    status_url: Optional[str] = None  # URL para polling de status

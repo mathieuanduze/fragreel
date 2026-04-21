@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { getRenderStatus, RenderStatus } from "@/lib/api";
 
 const AD_DURATION = 30;
 
@@ -35,6 +36,9 @@ type AdModalProps = {
   onClose: () => void;
   formatLabel: string;
   renderDuration: number;
+  downloadUrl?: string | null;
+  matchId?: string;
+  format?: string;
 };
 
 function fmtTime(sec: number) {
@@ -42,13 +46,32 @@ function fmtTime(sec: number) {
   return `${sec}s`;
 }
 
-export default function AdModal({ onClose, formatLabel, renderDuration }: AdModalProps) {
+export default function AdModal({ onClose, formatLabel, renderDuration, downloadUrl, matchId, format }: AdModalProps) {
   const [adElapsed, setAdElapsed]       = useState(0);
   const [adIndex, setAdIndex]           = useState(0);
   const [renderElapsed, setRenderElapsed] = useState(0);
   const [closing, setClosing]           = useState(false);
+  const [serverStatus, setServerStatus] = useState<RenderStatus | null>(null);
 
-  const renderDone    = renderElapsed >= renderDuration;
+  // Poll real render status a cada 3s
+  useEffect(() => {
+    if (!matchId || !format) return;
+    const id = setInterval(async () => {
+      try {
+        const s = await getRenderStatus(matchId, format);
+        setServerStatus(s);
+        if (s.status === "done" || s.status === "error") clearInterval(id);
+      } catch {
+        // status ainda não pronto, segue tentando
+      }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [matchId, format]);
+
+  // renderDone: se temos status do servidor, usa ele; senão, usa o timer local como estimativa
+  const renderDone    = serverStatus
+    ? serverStatus.status === "done"
+    : renderElapsed >= renderDuration;
   const adDone        = adElapsed >= AD_DURATION;
   const canDownload   = renderDone && adDone;
   const adRemaining   = Math.max(0, AD_DURATION - adElapsed);
@@ -88,9 +111,19 @@ export default function AdModal({ onClose, formatLabel, renderDuration }: AdModa
   }, [renderDone, renderDuration]);
 
   const handleDownload = useCallback(() => {
+    if (downloadUrl) {
+      // Trigger real download
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = "";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
     setClosing(true);
     setTimeout(onClose, 600);
-  }, [onClose]);
+  }, [onClose, downloadUrl]);
 
   const ad = ADS[adIndex];
 

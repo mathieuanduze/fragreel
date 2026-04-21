@@ -1,0 +1,15 @@
+# Exclui artefatos locais que não devem ir pro container
+editor/node_modules
+editor/out
+editor/.remotion-cache
+web/
+client/
+demos/
+data/
+**/__pycache__
+**/*.pyc
+.git
+.venv
+.env
+.env.local
+*.log

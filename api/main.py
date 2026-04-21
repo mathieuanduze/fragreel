@@ -7,6 +7,7 @@ from routes.matches import router as matches_router
 from routes.demo import router as demo_router
 from routes.auth import router as auth_router
 from routes.clips import router as clips_router
+from routes.renders import router as renders_router
 
 # ── Logging — must run before any module imports loggers ──────────────────────
 logging.basicConfig(
@@ -37,6 +38,7 @@ app.include_router(auth_router)
 app.include_router(matches_router)
 app.include_router(demo_router)
 app.include_router(clips_router)
+app.include_router(renders_router)
 
 
 @app.get("/health")

@@ -55,11 +55,43 @@ export interface MatchSummary {
   kd: string;
 }
 
+export type Mood = "eletronica" | "acao" | "heroico" | "chill";
+
 export interface GenerateResponse {
   job_id: string;
   status: string;
   estimated_seconds: number;
   message: string;
+  render_url?: string | null;
+  status_url?: string | null;
+}
+
+export interface RenderStatus {
+  job_id: string;
+  match_id: string;
+  format: string;
+  status: "pending" | "rendering" | "done" | "error";
+  progress: number;
+  path?: string | null;
+  error?: string | null;
+  started_at: number;
+  finished_at?: number | null;
+}
+
+export async function getRenderStatus(
+  matchId: string,
+  format: string
+): Promise<RenderStatus> {
+  const res = await fetch(`${BASE}/renders/${matchId}/${format}/status`, {
+    cache: "no-store",
+    headers: authHeader(),
+  });
+  if (!res.ok) throw new Error("Render status not available");
+  return res.json();
+}
+
+export function renderDownloadUrl(matchId: string, format: string): string {
+  return `${BASE}/renders/${matchId}/${format}`;
 }
 
 export async function getMatches(): Promise<MatchSummary[]> {
@@ -122,12 +154,19 @@ export async function uploadDemo(
 export async function generateVideo(
   matchId: string,
   format: string,
-  highlightRanks: number[]
+  highlightRanks: number[],
+  mood: Mood = "acao",
+  playerName?: string
 ): Promise<GenerateResponse> {
   const res = await fetch(`${BASE}/matches/${matchId}/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader() },
-    body: JSON.stringify({ format, highlight_ranks: highlightRanks }),
+    body: JSON.stringify({
+      format,
+      highlight_ranks: highlightRanks,
+      mood,
+      player_name: playerName,
+    }),
   });
   if (!res.ok) throw new Error("Failed to generate video");
   return res.json();
