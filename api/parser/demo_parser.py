@@ -107,37 +107,50 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
 
 def _parse_kills(dp, tickrate: float) -> list[Kill]:
     """Extract kill events from demo."""
-    try:
-        df = dp.parse_event(
-            "player_death",
-            player=["steamid", "name"],
-            other=[
-                "attacker_steamid",
-                "attacker_name",
-                "weapon",
-                "headshot",
-                "total_rounds_played",
-            ],
-        )
-    except Exception as e:
-        log.error(f"Failed to parse player_death events: {e}")
-        return []
+    # Try progressively simpler calls for API compatibility across versions
+    df = None
+    for kwargs in [
+        {"other": ["total_rounds_played"]},   # minimal — works on 0.41.x
+        {},                                     # bare — fallback
+    ]:
+        try:
+            df = dp.parse_event("player_death", **kwargs)
+            if df is not None:
+                break
+        except Exception as e:
+            log.debug(f"parse_event attempt failed ({kwargs}): {e}")
 
     if df is None or df.is_empty():
+        log.warning("No player_death events found in demo")
         return []
+
+    cols = set(df.columns)
+    log.info(f"player_death columns: {cols}")
 
     kills: list[Kill] = []
     for row in df.iter_rows(named=True):
         try:
-            attacker = str(row.get("attacker_steamid") or "").strip()
+            # Attacker steamid — several possible column names
+            attacker = (
+                str(row.get("attacker_steamid") or
+                    row.get("attacker_steamID") or "")
+            ).strip()
             if not attacker or attacker in ("0", "None", ""):
-                continue  # world/suicide
+                continue  # world kill / suicide
 
-            tick      = int(row.get("tick") or 0)
-            weapon    = _clean_weapon(str(row.get("weapon") or "unknown"))
-            headshot  = bool(row.get("headshot", False))
+            tick = int(row.get("tick") or 0)
+            weapon = _clean_weapon(str(row.get("weapon") or "unknown"))
+            headshot = bool(row.get("headshot", False))
+
+            # Round number — "total_rounds_played" is 0-indexed
             round_raw = row.get("total_rounds_played")
             round_num = (int(round_raw) + 1) if round_raw is not None else 1
+
+            # Victim steamid — may be user_steamid or victim_steamid
+            victim = str(
+                row.get("user_steamid") or
+                row.get("victim_steamid") or ""
+            ).strip()
 
             kills.append(Kill(
                 tick=tick,
@@ -146,10 +159,10 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
                 weapon=weapon,
                 headshot=headshot,
                 attacker_steamid=attacker,
-                victim_steamid=str(row.get("user_steamid") or "").strip(),
+                victim_steamid=victim,
             ))
         except Exception as e:
-            log.debug(f"Skipping kill row due to error: {e}")
+            log.debug(f"Skipping kill row: {e}")
             continue
 
     return kills
