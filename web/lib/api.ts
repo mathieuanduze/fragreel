@@ -1,5 +1,11 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
+function authHeader(): HeadersInit {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("fragreel_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export interface KillOut {
   label: string;
   weapon: string;
@@ -56,13 +62,19 @@ export interface GenerateResponse {
 }
 
 export async function getMatches(): Promise<MatchSummary[]> {
-  const res = await fetch(`${BASE}/matches`, { cache: "no-store" });
+  const res = await fetch(`${BASE}/matches`, {
+    cache: "no-store",
+    headers: authHeader(),
+  });
   if (!res.ok) throw new Error("Failed to fetch matches");
   return res.json();
 }
 
 export async function getMatch(id: string): Promise<MatchOut> {
-  const res = await fetch(`${BASE}/matches/${id}`, { cache: "no-store" });
+  const res = await fetch(`${BASE}/matches/${id}`, {
+    cache: "no-store",
+    headers: authHeader(),
+  });
   if (!res.ok) throw new Error("Failed to fetch match");
   return res.json();
 }
@@ -74,7 +86,7 @@ export async function generateVideo(
 ): Promise<GenerateResponse> {
   const res = await fetch(`${BASE}/matches/${matchId}/generate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader() },
     body: JSON.stringify({ format, highlight_ranks: highlightRanks }),
   });
   if (!res.ok) throw new Error("Failed to generate video");

@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+const STEAM_LOGIN_URL = `${API_URL}/auth/steam/login`;
+
 export default function LoginPage() {
   return (
     <div
@@ -78,8 +81,8 @@ export default function LoginPage() {
         </p>
 
         {/* Steam button */}
-        <Link
-          href="/dashboard"
+        <a
+          href={STEAM_LOGIN_URL}
           style={{
             width: "100%",
             display: "flex",
@@ -106,7 +109,7 @@ export default function LoginPage() {
             <circle cx="20.5" cy="13.5" r="3.5" fill="#c6d4df"/>
           </svg>
           Entrar com Steam
-        </Link>
+        </a>
 
         {/* Divider */}
         <div

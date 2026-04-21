@@ -1,10 +1,23 @@
 "use client";
+
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getUser, logout, type SessionUser } from "@/lib/session";
 
 export default function Nav() {
-  const path = usePathname();
+  const path      = usePathname();
+  const router    = useRouter();
   const isLoggedIn = path === "/dashboard" || path.startsWith("/match");
+
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  useEffect(() => {
+    setUser(getUser());
+  }, []);
+
+  const displayName = user?.name ?? "Player";
+  const initials    = displayName.slice(0, 2).toUpperCase();
 
   return (
     <nav
@@ -52,6 +65,8 @@ export default function Nav() {
               >
                 Minhas Partidas
               </Link>
+
+              {/* User chip */}
               <div
                 style={{
                   display: "flex",
@@ -65,22 +80,52 @@ export default function Nav() {
                   color: "rgba(255,255,255,0.6)",
                 }}
               >
-                <div
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: "#2D2D44",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 12,
-                  }}
-                >
-                  👤
-                </div>
-                <span style={{ fontWeight: 500 }}>Player123</span>
+                {user?.avatar ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={user.avatar}
+                    alt=""
+                    width={24}
+                    height={24}
+                    style={{ borderRadius: "50%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: "50%",
+                      background: "#FF6B35",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "white",
+                    }}
+                  >
+                    {initials}
+                  </div>
+                )}
+                <span style={{ fontWeight: 500 }}>{displayName}</span>
               </div>
+
+              {/* Logout */}
+              <button
+                onClick={logout}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "rgba(255,255,255,0.3)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Sair
+              </button>
             </>
           ) : (
             <>
