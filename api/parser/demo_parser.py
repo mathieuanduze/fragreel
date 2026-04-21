@@ -266,18 +266,34 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
 
 def _parse_score(dp) -> tuple[int, int]:
     """Extract final CT and T round wins from round_end events."""
-    try:
-        df = dp.parse_event(
-            "round_end",
-            other=["ct_win_rounds", "t_win_rounds"],
-        )
-        if not _df_is_empty(df):
+    # Try with cumulative score columns first, then without
+    for kwargs in [{"other": ["ct_win_rounds", "t_win_rounds"]}, {}]:
+        try:
+            df = dp.parse_event("round_end", **kwargs)
+            if _df_is_empty(df):
+                continue
+            cols = set(df.columns) if hasattr(df, "columns") else set()
+            log.info(f"round_end columns: {sorted(cols)}")
             last = _df_last_row(df)
-            ct = int(last.get("ct_win_rounds") or 0)
-            t  = int(last.get("t_win_rounds") or 0)
-            return ct, t
-    except Exception as e:
-        log.debug(f"Could not parse round scores: {e}")
+            if not last:
+                continue
+            # Try cumulative columns
+            ct = last.get("ct_win_rounds")
+            t  = last.get("t_win_rounds")
+            if ct is not None and t is not None:
+                return int(ct or 0), int(t or 0)
+            # Try winner column: 2=CT, 3=T
+            winner_col = next((c for c in ("winner", "win_reason", "round_win_reason") if c in cols), None)
+            if winner_col:
+                # Count CT/T wins across all rows
+                rows = _df_iter_rows(df)
+                ct_w = sum(1 for r in rows if int(r.get(winner_col) or 0) == 2)
+                t_w  = len(rows) - ct_w
+                if ct_w + t_w > 0:
+                    return ct_w, t_w
+        except Exception as e:
+            log.warning(f"_parse_score attempt {kwargs} failed: {e}")
+    log.warning("_parse_score: could not determine score, returning 0-0")
     return 0, 0
 
 
