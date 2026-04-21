@@ -134,23 +134,39 @@ def _get_steam_profile(steamid: str) -> tuple[str, str]:
     default_name   = f"Player{steamid[-4:]}"
     default_avatar = ""
 
-    if not STEAM_API_KEY:
-        return default_name, default_avatar
-
-    try:
-        url = (
-            "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/"
-            f"?key={STEAM_API_KEY}&steamids={steamid}"
-        )
-        with urllib.request.urlopen(url, timeout=5) as resp:
-            data   = json.loads(resp.read())
-            player = data["response"]["players"][0]
-            return (
-                player.get("personaname", default_name),
-                player.get("avatarmedium", default_avatar),
+    # Try official API first (requires key, richer data)
+    if STEAM_API_KEY:
+        try:
+            url = (
+                "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/"
+                f"?key={STEAM_API_KEY}&steamids={steamid}"
             )
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                data   = json.loads(resp.read())
+                player = data["response"]["players"][0]
+                return (
+                    player.get("personaname", default_name),
+                    player.get("avatarmedium", default_avatar),
+                )
+        except Exception as e:
+            log.debug(f"Steam API profile fetch failed: {e}")
+
+    # Fallback: public XML profile (no API key needed)
+    try:
+        xml_url = f"https://steamcommunity.com/profiles/{steamid}/?xml=1"
+        with urllib.request.urlopen(xml_url, timeout=5) as resp:
+            body = resp.read().decode("utf-8")
+
+        def _extract(tag: str) -> str:
+            import re
+            m = re.search(rf"<{tag}><!\[CDATA\[(.+?)\]\]></{tag}>", body)
+            return m.group(1).strip() if m else ""
+
+        name   = _extract("steamID")   or default_name
+        avatar = _extract("avatarMedium") or default_avatar
+        return name, avatar
     except Exception as e:
-        log.debug(f"Steam profile fetch failed: {e}")
+        log.debug(f"Steam XML profile fetch failed: {e}")
         return default_name, default_avatar
 
 
