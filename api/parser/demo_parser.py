@@ -6,6 +6,7 @@ demoparser2 docs: https://github.com/LaihoE/demoparser
 from __future__ import annotations
 
 import logging
+import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -43,6 +44,59 @@ class ParsedDemo:
     all_kills: list[Kill]
     ct_score: int
     t_score: int
+
+
+# ── DataFrame compat helpers (Polars 0.x and 1.x) ────────────────────────────
+
+def _df_is_empty(df) -> bool:
+    """Works for both Polars 0.x (is_empty) and 1.x (len == 0)."""
+    if df is None:
+        return True
+    try:
+        if hasattr(df, "is_empty"):
+            return df.is_empty()
+    except Exception:
+        pass
+    try:
+        return len(df) == 0
+    except Exception:
+        return True
+
+
+def _df_iter_rows(df):
+    """Iterate rows as dicts — handles Polars 0.x and 1.x APIs."""
+    # Polars 1.x: rows(named=True)
+    if hasattr(df, "rows"):
+        try:
+            yield from df.rows(named=True)
+            return
+        except Exception:
+            pass
+    # Polars 0.x: iter_rows(named=True)
+    if hasattr(df, "iter_rows"):
+        try:
+            yield from df.iter_rows(named=True)
+            return
+        except Exception:
+            pass
+    # Fallback: to_dicts
+    if hasattr(df, "to_dicts"):
+        yield from df.to_dicts()
+
+
+def _df_last_row(df) -> dict:
+    """Return the last row as a dict."""
+    try:
+        tail = df.tail(1)
+        if hasattr(tail, "rows"):
+            rows = tail.rows(named=True)
+            return rows[-1] if rows else {}
+        if hasattr(tail, "to_dicts"):
+            dicts = tail.to_dicts()
+            return dicts[-1] if dicts else {}
+    except Exception as e:
+        log.debug(f"_df_last_row fallback: {e}")
+    return {}
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -88,7 +142,6 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
         player_kills = [k for k in kills if k.attacker_steamid == steamid_str]
         log.info(f"Player {steamid_str} kills: {len(player_kills)}")
     else:
-        # No steamid: return ALL kills (useful for testing)
         player_kills = kills
 
     return ParsedDemo(
@@ -107,11 +160,10 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
 
 def _parse_kills(dp, tickrate: float) -> list[Kill]:
     """Extract kill events from demo."""
-    # Try progressively simpler calls for API compatibility across versions
     df = None
     for kwargs in [
-        {"other": ["total_rounds_played"]},   # minimal — works on 0.41.x
-        {},                                     # bare — fallback
+        {"other": ["total_rounds_played"]},
+        {},
     ]:
         try:
             df = dp.parse_event("player_death", **kwargs)
@@ -120,7 +172,7 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
         except Exception as e:
             log.debug(f"parse_event attempt failed ({kwargs}): {e}")
 
-    if df is None or df.is_empty():
+    if _df_is_empty(df):
         log.warning("No player_death events found in demo")
         return []
 
@@ -128,25 +180,22 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
     log.info(f"player_death columns: {cols}")
 
     kills: list[Kill] = []
-    for row in df.iter_rows(named=True):
+    for row in _df_iter_rows(df):
         try:
-            # Attacker steamid — several possible column names
             attacker = (
                 str(row.get("attacker_steamid") or
                     row.get("attacker_steamID") or "")
             ).strip()
             if not attacker or attacker in ("0", "None", ""):
-                continue  # world kill / suicide
+                continue
 
-            tick = int(row.get("tick") or 0)
-            weapon = _clean_weapon(str(row.get("weapon") or "unknown"))
+            tick    = int(row.get("tick") or 0)
+            weapon  = _clean_weapon(str(row.get("weapon") or "unknown"))
             headshot = bool(row.get("headshot", False))
 
-            # Round number — "total_rounds_played" is 0-indexed
             round_raw = row.get("total_rounds_played")
             round_num = (int(round_raw) + 1) if round_raw is not None else 1
 
-            # Victim steamid — may be user_steamid or victim_steamid
             victim = str(
                 row.get("user_steamid") or
                 row.get("victim_steamid") or ""
@@ -175,8 +224,8 @@ def _parse_score(dp) -> tuple[int, int]:
             "round_end",
             other=["ct_win_rounds", "t_win_rounds"],
         )
-        if df is not None and not df.is_empty():
-            last = df.tail(1).to_dicts()[0]
+        if not _df_is_empty(df):
+            last = _df_last_row(df)
             ct = int(last.get("ct_win_rounds") or 0)
             t  = int(last.get("t_win_rounds") or 0)
             return ct, t
@@ -186,5 +235,4 @@ def _parse_score(dp) -> tuple[int, int]:
 
 
 def _clean_weapon(weapon: str) -> str:
-    """Remove 'weapon_' prefix from weapon names."""
     return weapon.removeprefix("weapon_").strip()

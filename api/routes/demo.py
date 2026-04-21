@@ -12,6 +12,7 @@ Flow:
 from __future__ import annotations
 
 import logging
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -140,7 +141,7 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         raise HTTPException(status_code=500, detail="Demo save failed")
 
     except Exception as e:
-        log.error(f"Parse error for {file.filename}: {type(e).__name__}: {e}")
+        log.error(f"Parse error for {file.filename}: {type(e).__name__}: {e}\n{traceback.format_exc()}")
         # Queued record already saved — client can poll for status
         return {
             "status":   "queued",
