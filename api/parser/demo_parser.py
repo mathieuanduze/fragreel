@@ -161,6 +161,7 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
 def _parse_kills(dp, tickrate: float) -> list[Kill]:
     """Extract kill events from demo."""
     df = None
+    last_err = None
     for kwargs in [
         {"other": ["total_rounds_played"]},
         {},
@@ -170,36 +171,62 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
             if df is not None:
                 break
         except Exception as e:
-            log.debug(f"parse_event attempt failed ({kwargs}): {e}")
+            last_err = e
+            log.warning(f"parse_event attempt failed ({kwargs}): {e}")
 
     if _df_is_empty(df):
-        log.warning("No player_death events found in demo")
+        log.warning(f"No player_death events found in demo (last_err={last_err})")
         return []
 
     cols = set(df.columns)
-    log.info(f"player_death columns: {cols}")
+    log.info(f"player_death columns ({len(df)} rows): {sorted(cols)}")
+
+    # Try to detect attacker steamid column name automatically
+    # (varies across demoparser2 versions)
+    _ATTACKER_COLS = [
+        "attacker_steamid", "attacker_steamID",
+        "attacker_steam_id", "attacker_xuid",
+    ]
+    _VICTIM_COLS = [
+        "user_steamid", "victim_steamid",
+        "victim_steam_id", "user_xuid",
+    ]
+    attacker_col = next((c for c in _ATTACKER_COLS if c in cols), None)
+    victim_col   = next((c for c in _VICTIM_COLS   if c in cols), None)
+
+    if attacker_col is None:
+        # Last resort: look for any column containing "attacker" and "id"
+        attacker_col = next(
+            (c for c in cols if "attacker" in c.lower() and ("id" in c.lower() or "xuid" in c.lower())),
+            None,
+        )
+    if victim_col is None:
+        victim_col = next(
+            (c for c in cols if ("victim" in c.lower() or "user" in c.lower()) and ("id" in c.lower() or "xuid" in c.lower())),
+            None,
+        )
+
+    log.info(f"Using attacker_col={attacker_col!r}, victim_col={victim_col!r}")
 
     kills: list[Kill] = []
+    skipped = 0
     for row in _df_iter_rows(df):
         try:
-            attacker = (
-                str(row.get("attacker_steamid") or
-                    row.get("attacker_steamID") or "")
-            ).strip()
-            if not attacker or attacker in ("0", "None", ""):
+            raw_attacker = row.get(attacker_col) if attacker_col else None
+            attacker = str(raw_attacker or "").strip()
+            if not attacker or attacker in ("0", "None", "nan", ""):
+                skipped += 1
                 continue
 
-            tick    = int(row.get("tick") or 0)
-            weapon  = _clean_weapon(str(row.get("weapon") or "unknown"))
+            tick     = int(row.get("tick") or 0)
+            weapon   = _clean_weapon(str(row.get("weapon") or "unknown"))
             headshot = bool(row.get("headshot", False))
 
             round_raw = row.get("total_rounds_played")
             round_num = (int(round_raw) + 1) if round_raw is not None else 1
 
-            victim = str(
-                row.get("user_steamid") or
-                row.get("victim_steamid") or ""
-            ).strip()
+            raw_victim = row.get(victim_col) if victim_col else None
+            victim = str(raw_victim or "").strip()
 
             kills.append(Kill(
                 tick=tick,
@@ -212,8 +239,10 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
             ))
         except Exception as e:
             log.debug(f"Skipping kill row: {e}")
+            skipped += 1
             continue
 
+    log.info(f"Kills extracted: {len(kills)} (skipped {skipped})")
     return kills
 
 
