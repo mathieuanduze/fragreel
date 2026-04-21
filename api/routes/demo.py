@@ -67,11 +67,22 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         highlights = score_kills(parsed) if parsed.player_kills else []
 
         # ── Build full match document ──────────────────────────────────────────
-        total_kills  = len(parsed.player_kills)
-        total_rounds = parsed.ct_score + parsed.t_score or 1
-        hs_kills     = sum(1 for k in parsed.player_kills if k.headshot)
-        adr_approx   = round((total_kills * 100) / total_rounds, 1)
-        kd_approx    = f"{total_kills}/{len(parsed.all_kills) - total_kills}"
+        total_kills = len(parsed.player_kills)
+        hs_kills    = sum(1 for k in parsed.player_kills if k.headshot)
+
+        # Deaths: times the player was killed (victim in all_kills)
+        player_deaths = sum(
+            1 for k in parsed.all_kills
+            if k.victim_steamid == parsed.player_steamid
+        ) if parsed.player_steamid else (len(parsed.all_kills) - total_kills)
+
+        # Rounds: prefer parsed score; fall back to max round_num seen in kills
+        rounds_from_score = parsed.ct_score + parsed.t_score
+        rounds_from_kills = max((k.round_num for k in parsed.all_kills), default=1)
+        total_rounds      = max(rounds_from_score, rounds_from_kills, 1)
+
+        adr_approx = round((total_kills * 100) / total_rounds, 1)
+        kd_approx  = f"{total_kills}/{player_deaths}"
 
         match_doc = {
             # Identity

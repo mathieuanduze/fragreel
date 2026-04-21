@@ -107,15 +107,11 @@ def _df_iter_rows(df) -> list[dict]:
 
 
 def _df_last_row(df) -> dict:
-    """Return the last row as a dict."""
+    """Return the last row as a dict (Polars and pandas)."""
     try:
         tail = df.tail(1)
-        if hasattr(tail, "rows"):
-            rows = tail.rows(named=True)
-            return rows[-1] if rows else {}
-        if hasattr(tail, "to_dicts"):
-            dicts = tail.to_dicts()
-            return dicts[-1] if dicts else {}
+        rows = _df_iter_rows(tail)
+        return rows[0] if rows else {}
     except Exception as e:
         log.debug(f"_df_last_row fallback: {e}")
     return {}
