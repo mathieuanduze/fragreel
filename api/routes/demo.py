@@ -64,6 +64,8 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         kd_approx = f"{total_kills}/{len(parsed.all_kills) - total_kills}"
 
         match_doc = {
+            # Identity
+            "steamid":          steamid,
             # Summary fields (for list view)
             "id":               match_id,
             "map":              parsed.map_name,

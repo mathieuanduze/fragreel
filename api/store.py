@@ -33,13 +33,18 @@ def load_match(match_id: str) -> dict | None:
         return None
 
 
-def list_matches(limit: int = 50) -> list[dict]:
-    """Return all stored matches, sorted by most recently modified."""
+def list_matches(steamid: str | None = None, limit: int = 50) -> list[dict]:
+    """Return stored matches, optionally filtered by steamid, sorted by most recently modified."""
     results = []
     files = sorted(STORE_DIR.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
-    for f in files[:limit]:
+    for f in files:
+        if len(results) >= limit:
+            break
         try:
-            results.append(json.loads(f.read_text()))
+            doc = json.loads(f.read_text())
+            if steamid and doc.get("steamid") != steamid:
+                continue
+            results.append(doc)
         except Exception:
             continue
     return results

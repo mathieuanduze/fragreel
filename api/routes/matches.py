@@ -1,18 +1,17 @@
 """
-Match endpoints — serve parsed match data from store, fall back to mock data.
+Match endpoints — serve parsed match data from store (per authenticated user).
+No mock data is returned to authenticated users.
 """
 from __future__ import annotations
 
 import uuid
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from models import MatchOut, MatchSummary, GenerateRequest, GenerateResponse, JobStatus
-from mock_data import MOCK_MATCHES, MOCK_MATCH_DETAIL
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 
 
 def _get_store():
-    """Lazy import store to avoid crash if store dir isn't ready yet."""
     try:
         import store
         return store
@@ -20,41 +19,47 @@ def _get_store():
         return None
 
 
+def _steamid_from_request(request: Request) -> str | None:
+    """Extract steamid from Bearer JWT, or None if unauthenticated."""
+    auth = request.headers.get("authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    try:
+        from routes.auth import decode_jwt
+        payload = decode_jwt(auth[7:])
+        return payload.get("steamid")
+    except Exception:
+        return None
+
+
 @router.get("", response_model=list[MatchSummary])
-def list_matches():
-    store = _get_store()
-    if store:
-        real = store.list_matches()
+def list_matches(request: Request):
+    steamid = _steamid_from_request(request)
+    st = _get_store()
+    if st:
+        real = st.list_matches(steamid=steamid)
         if real:
             return [_to_summary(m) for m in real]
-    return MOCK_MATCHES
+    # Return empty list — frontend shows the "no matches yet" empty state
+    return []
 
 
 @router.get("/{match_id}", response_model=MatchOut)
-def get_match(match_id: str):
-    # 1. Try real store first
-    store = _get_store()
-    if store:
-        doc = store.load_match(match_id)
+def get_match(match_id: str, request: Request):
+    steamid = _steamid_from_request(request)
+    st = _get_store()
+    if st:
+        doc = st.load_match(match_id)
         if doc:
+            # Basic ownership check
+            if steamid and doc.get("steamid") and doc["steamid"] != steamid:
+                raise HTTPException(status_code=403, detail="Not your match")
             return _to_match_out(doc)
-
-    # 2. Fall back to mock data
-    match = MOCK_MATCH_DETAIL.get(match_id) or MOCK_MATCH_DETAIL.get("match-001")
-    if not match:
-        raise HTTPException(status_code=404, detail="Match not found")
-    return match
+    raise HTTPException(status_code=404, detail="Match not found")
 
 
 @router.post("/{match_id}/generate", response_model=GenerateResponse)
 def generate_video(match_id: str, body: GenerateRequest):
-    # Verify match exists (real or mock)
-    store = _get_store()
-    exists = store and store.match_exists(match_id)
-    if not exists and match_id not in MOCK_MATCH_DETAIL:
-        # Accept anyway — generation queue doesn't need the match doc
-        pass
-
     if not body.highlight_ranks:
         raise HTTPException(status_code=422, detail="Select at least one highlight")
 
