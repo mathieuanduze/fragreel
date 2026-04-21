@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { MatchOut, generateVideo } from "@/lib/api";
+import { MatchOut, generateVideo, getMatch } from "@/lib/api";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
 
@@ -18,15 +18,45 @@ function fmt(sec: number) {
   return `${m}:${Number(s) < 10 ? "0" : ""}${s}`;
 }
 
-export default function MatchClient({ match }: { match: MatchOut }) {
+export default function MatchClient({ match: initialMatch }: { match: MatchOut }) {
+  const [match, setMatch] = useState(initialMatch);
   const [selected, setSelected] = useState<Set<number>>(
-    new Set(match.highlights.slice(0, 3).map((h) => h.rank))
+    new Set(initialMatch.highlights.slice(0, 3).map((h) => h.rank))
   );
   const [format, setFormat] = useState("reel");
   const [generating, setGenerating] = useState(false);
   const [jobMsg, setJobMsg] = useState<string | null>(null);
   const [showAd, setShowAd] = useState(false);
   const [renderDuration, setRenderDuration] = useState(90);
+  const [elapsed, setElapsed] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isQueued = match.highlights.length === 0;
+
+  // When queued: tick elapsed counter + poll for highlights every 15s
+  useEffect(() => {
+    if (!isQueued) return;
+
+    intervalRef.current = setInterval(() => {
+      setElapsed((e) => {
+        const next = e + 1;
+        // Every 15s, refetch the match
+        if (next % 15 === 0) {
+          getMatch(match.id).then((fresh) => {
+            if (fresh.highlights.length > 0) {
+              setMatch(fresh);
+              setSelected(new Set(fresh.highlights.slice(0, 3).map((h) => h.rank)));
+            }
+          }).catch(() => {});
+        }
+        return next;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isQueued, match.id]);
 
   function toggle(rank: number) {
     setSelected((prev) => {
@@ -98,13 +128,35 @@ export default function MatchClient({ match }: { match: MatchOut }) {
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Selecione os highlights</h2>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>A IA já escolheu os melhores. Você pode ajustar antes de gerar.</p>
 
-          {match.highlights.length === 0 && (
+          {isQueued && (
             <div style={{ padding: "40px 32px", background: "#16213E", border: "1px solid #2D2D44", borderRadius: 14, textAlign: "center" }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>⚙️</div>
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Demo em processamento</div>
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 380, margin: "0 auto" }}>
-                A IA ainda está analisando seus frags. Volte em alguns instantes — a página atualiza sozinha.
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Analisando seus frags...</div>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 380, margin: "0 auto 20px" }}>
+                A IA está processando a demo. Esta página atualiza sozinha quando os highlights ficarem prontos.
               </p>
+
+              {/* Progress bar animada */}
+              <div style={{ height: 4, background: "#2D2D44", borderRadius: 99, maxWidth: 320, margin: "0 auto 16px", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  width: "60%",
+                  background: "linear-gradient(90deg, #FF6B35, #a78bfa)",
+                  borderRadius: 99,
+                  animation: "pulse 1.5s ease-in-out infinite",
+                }} />
+              </div>
+
+              {/* Counter */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
+                <span>
+                  ⏱ {elapsed < 60
+                    ? `${elapsed}s`
+                    : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`}
+                </span>
+                <span>·</span>
+                <span>próxima verificação em {15 - (elapsed % 15)}s</span>
+              </div>
             </div>
           )}
 
