@@ -64,28 +64,45 @@ def _df_is_empty(df) -> bool:
 
 
 def _df_iter_rows(df) -> list[dict]:
-    """Return rows as a list of dicts — handles Polars 0.x, 1.x and future APIs."""
+    """Return rows as a list of dicts — handles Polars, pandas, and future APIs."""
+    log.info(f"_df_iter_rows: df type={type(df).__module__}.{type(df).__name__}")
+
+    # ── Pandas DataFrame ──────────────────────────────────────────────────────
+    # pandas: df.to_dict(orient="records") → list[dict]
+    to_dict = getattr(df, "to_dict", None)
+    if to_dict is not None:
+        try:
+            result = to_dict(orient="records")
+            if isinstance(result, list) and result and isinstance(result[0], dict):
+                log.info(f"_df_iter_rows: pandas to_dict → {len(result)} dicts")
+                return result
+        except Exception as e:
+            log.debug(f"_df_iter_rows: to_dict(orient='records') failed: {e}")
+
+    # ── Polars DataFrame ──────────────────────────────────────────────────────
     attempts = [
-        ("to_dicts",   {},                 None),
-        ("rows",       {"named": True},    None),
-        ("iter_rows",  {"named": True},    None),
-        ("rows",       {},                 None),   # tuples fallback — filtered below
+        ("to_dicts",  {}),
+        ("rows",      {"named": True}),
+        ("iter_rows", {"named": True}),
     ]
-    for method_name, kwargs, _ in attempts:
+    for method_name, kwargs in attempts:
         method = getattr(df, method_name, None)
         if method is None:
+            log.debug(f"_df_iter_rows: {method_name} not found on {type(df).__name__}")
             continue
         try:
             result = list(method(**kwargs))
             if not result:
+                log.debug(f"_df_iter_rows: {method_name}({kwargs}) returned empty list")
                 continue
-            # Only accept dicts; rows() without named=True returns tuples
             if isinstance(result[0], dict):
                 log.info(f"_df_iter_rows: {method_name}({kwargs}) → {len(result)} dicts")
                 return result
+            log.debug(f"_df_iter_rows: {method_name}({kwargs}) returned {type(result[0])}, not dict")
         except Exception as e:
-            log.debug(f"_df_iter_rows: {method_name}({kwargs}) failed: {e}")
-    log.warning("_df_iter_rows: all methods exhausted — returning []")
+            log.warning(f"_df_iter_rows: {method_name}({kwargs}) raised {type(e).__name__}: {e}")
+
+    log.warning(f"_df_iter_rows: all methods exhausted — df type={type(df)}, attrs={[a for a in dir(df) if not a.startswith('_')][:20]}")
     return []
 
 
