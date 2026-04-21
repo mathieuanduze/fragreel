@@ -52,7 +52,9 @@ export default function MatchList() {
         </p>
         {!error && (
           <a
-            href="https://github.com/mathieuanduze/fragreel/releases/download/latest-build/FragReel.exe"
+            href="https://github.com/mathieuanduze/fragreel/releases/tag/latest-build"
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn-primary"
             style={{ textDecoration: "none" }}
           >
