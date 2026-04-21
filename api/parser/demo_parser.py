@@ -63,25 +63,30 @@ def _df_is_empty(df) -> bool:
         return True
 
 
-def _df_iter_rows(df):
-    """Iterate rows as dicts — handles Polars 0.x and 1.x APIs."""
-    # Polars 1.x: rows(named=True)
-    if hasattr(df, "rows"):
+def _df_iter_rows(df) -> list[dict]:
+    """Return rows as a list of dicts — handles Polars 0.x, 1.x and future APIs."""
+    attempts = [
+        ("to_dicts",   {},                 None),
+        ("rows",       {"named": True},    None),
+        ("iter_rows",  {"named": True},    None),
+        ("rows",       {},                 None),   # tuples fallback — filtered below
+    ]
+    for method_name, kwargs, _ in attempts:
+        method = getattr(df, method_name, None)
+        if method is None:
+            continue
         try:
-            yield from df.rows(named=True)
-            return
-        except Exception:
-            pass
-    # Polars 0.x: iter_rows(named=True)
-    if hasattr(df, "iter_rows"):
-        try:
-            yield from df.iter_rows(named=True)
-            return
-        except Exception:
-            pass
-    # Fallback: to_dicts
-    if hasattr(df, "to_dicts"):
-        yield from df.to_dicts()
+            result = list(method(**kwargs))
+            if not result:
+                continue
+            # Only accept dicts; rows() without named=True returns tuples
+            if isinstance(result[0], dict):
+                log.info(f"_df_iter_rows: {method_name}({kwargs}) → {len(result)} dicts")
+                return result
+        except Exception as e:
+            log.debug(f"_df_iter_rows: {method_name}({kwargs}) failed: {e}")
+    log.warning("_df_iter_rows: all methods exhausted — returning []")
+    return []
 
 
 def _df_last_row(df) -> dict:
