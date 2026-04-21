@@ -98,6 +98,16 @@ export default function MatchClient({ match }: { match: MatchOut }) {
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Selecione os highlights</h2>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>A IA já escolheu os melhores. Você pode ajustar antes de gerar.</p>
 
+          {match.highlights.length === 0 && (
+            <div style={{ padding: "40px 32px", background: "#16213E", border: "1px solid #2D2D44", borderRadius: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>⚙️</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Demo em processamento</div>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 380, margin: "0 auto" }}>
+                A IA ainda está analisando seus frags. Volte em alguns instantes — a página atualiza sozinha.
+              </p>
+            </div>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {match.highlights.map((h) => {
               const on = selected.has(h.rank);

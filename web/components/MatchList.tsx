@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getMatches, type MatchSummary } from "@/lib/api";
 
-export default function MatchList() {
+export default function MatchList({ refreshKey = 0 }: { refreshKey?: number }) {
   const [matches, setMatches] = useState<MatchSummary[] | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    setMatches(null);
+    setError(false);
     getMatches()
       .then(setMatches)
       .catch(() => { setError(true); setMatches([]); });
-  }, []);
+  }, [refreshKey]);
 
   // Loading
   if (matches === null) {

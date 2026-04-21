@@ -66,6 +66,7 @@ export default function DemoUpload({ onUploaded }: { onUploaded?: () => void }) 
 
   // ── Done state ──────────────────────────────────────────────────────────────
   if (state === "done") {
+    const isParsed = message.includes("highlights");
     return (
       <div style={{
         padding: "20px 24px",
@@ -81,18 +82,20 @@ export default function DemoUpload({ onUploaded }: { onUploaded?: () => void }) 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 24 }}>✅</span>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>Demo processada!</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>
+              {isParsed ? "Demo analisada!" : "Demo recebida!"}
+            </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>{message}</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          {matchId && (
+          {matchId && isParsed && (
             <button
               onClick={() => router.push(`/match/${matchId}`)}
               className="btn-primary"
               style={{ fontSize: 13, padding: "8px 18px" }}
             >
-              🎬 Ver highlights
+              🎬 Escolher highlights
             </button>
           )}
           <button

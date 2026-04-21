@@ -2,12 +2,12 @@
 Demo upload endpoint.
 
 Flow:
-  1. Receive .dem file from Windows client
+  1. Receive .dem file from browser (drag-and-drop) or Windows client
   2. Save to disk
-  3. Parse with demoparser2 (if available)
-  4. Score kills → highlights
-  5. Persist match JSON to store
-  6. Return status + highlight count
+  3. Persist a minimal "queued" record immediately (so the match is always
+     findable even if parsing fails or demoparser2 is absent)
+  4. Parse with demoparser2 (if available) → update the stored record
+  5. Return status + highlight count
 """
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ MAX_DEMO_BYTES = 500 * 1024 * 1024  # 500 MB guard
 async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
     """
     Receive a CS2 .dem file, parse it, and return highlight summary.
+    Only the .dem is needed — the companion .info file is CS2 UI metadata only.
     """
     # ── Validate ───────────────────────────────────────────────────────────────
     if not file.filename or not file.filename.endswith(".dem"):
@@ -44,8 +45,16 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         raise HTTPException(status_code=413, detail="Demo too large (max 500 MB)")
 
     dest.write_bytes(content)
-    match_id = dest.stem   # e.g. "match-abc123" from "match-abc123.dem"
+    match_id = dest.stem   # e.g. "match730_003abc" from "match730_003abc.dem"
     log.info(f"Demo saved: {dest.name} ({len(content) // 1024} KB) | steamid={steamid}")
+
+    # ── Always persist a minimal queued record right away ──────────────────────
+    # This guarantees GET /matches/{id} won't 404 even if parsing fails below.
+    try:
+        from store import save_match
+        _save_queued(save_match, match_id, steamid)
+    except Exception as e:
+        log.warning(f"Could not persist queued record for {match_id}: {e}")
 
     # ── Parse ──────────────────────────────────────────────────────────────────
     try:
@@ -56,12 +65,12 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         parsed     = parse(dest, player_steamid=steamid or None)
         highlights = score_kills(parsed) if parsed.player_kills else []
 
-        # ── Build match document ───────────────────────────────────────────────
-        total_kills = len(parsed.player_kills)
+        # ── Build full match document ──────────────────────────────────────────
+        total_kills  = len(parsed.player_kills)
         total_rounds = parsed.ct_score + parsed.t_score or 1
-        hs_kills = sum(1 for k in parsed.player_kills if k.headshot)
-        adr_approx = round((total_kills * 100) / total_rounds, 1)
-        kd_approx = f"{total_kills}/{len(parsed.all_kills) - total_kills}"
+        hs_kills     = sum(1 for k in parsed.player_kills if k.headshot)
+        adr_approx   = round((total_kills * 100) / total_rounds, 1)
+        kd_approx    = f"{total_kills}/{len(parsed.all_kills) - total_kills}"
 
         match_doc = {
             # Identity
@@ -118,12 +127,12 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         }
 
     except RuntimeError:
-        # demoparser2 not installed — accept and queue
+        # demoparser2 not installed — queued record already saved above
         log.warning("demoparser2 not available, demo queued")
         return {
-            "status":    "queued",
-            "match_id":  match_id,
-            "message":   "Demo recebida. Parser será executado quando demoparser2 estiver disponível.",
+            "status":   "queued",
+            "match_id": match_id,
+            "message":  "Demo recebida. Parser será executado quando demoparser2 estiver disponível.",
         }
 
     except FileNotFoundError as e:
@@ -132,7 +141,7 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
 
     except Exception as e:
         log.error(f"Parse error for {file.filename}: {type(e).__name__}: {e}")
-        # Still acknowledge receipt — don't make the client retry on parse errors
+        # Queued record already saved — client can poll for status
         return {
             "status":   "queued",
             "match_id": match_id,
@@ -141,6 +150,25 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _save_queued(save_fn, match_id: str, steamid: str) -> None:
+    """Persist a minimal placeholder so the match is immediately discoverable."""
+    save_fn(match_id, {
+        "steamid":          steamid,
+        "id":               match_id,
+        "map":              "unknown",
+        "date":             _today(),
+        "score":            "—",
+        "side":             "ct",
+        "status":           "queued",
+        "highlights_count": 0,
+        "top_play":         "—",
+        "rating":           "1.00",
+        "kd":               "—",
+        "stats":            {"kd": "—", "hs": "—", "adr": "—", "rating": "1.00"},
+        "highlights":       [],
+    })
+
 
 def _today() -> str:
     return datetime.now(timezone.utc).strftime("%-d de %b, %Y")
@@ -151,6 +179,5 @@ def _estimate_rating(kills: int, rounds: int) -> str:
     if rounds == 0:
         return "1.00"
     kpr = kills / rounds
-    # Rating ≈ 0.68 + 1.3 * KPR (simplified linear)
     r = 0.68 + 1.3 * kpr
     return f"{min(r, 2.5):.2f}"
