@@ -21,9 +21,9 @@ const STATS = [
 
 const steps = [
   { num: "01", title: "Baixe o client",      desc: "FragReel.exe para Windows. Instalação em 30 segundos, login com Steam uma vez só." },
-  { num: "02", title: "Jogue normalmente",   desc: "O client detecta o CS2 aberto e grava em background. Sem OBS, sem configuração, sem travar o jogo." },
-  { num: "03", title: "IA detecta highlights", desc: "Ao fim da partida, a IA lê a demo, escolhe os melhores frags e recorta só os clipes que importam." },
-  { num: "04", title: "Vídeo pronto no site", desc: "Reel 9:16, Recap 16:9 ou Story Card. Assista 1 anúncio de 30s e baixe. Grátis pra sempre." },
+  { num: "02", title: "Abra a Biblioteca",   desc: "O client lê as demos que o CS2 já gera no seu PC e mostra a lista no site. Sem upload manual, sem OBS." },
+  { num: "03", title: "Escolha a partida",   desc: "Clique numa partida pra virar FragReel. A IA lê a demo, escolhe os melhores frags e monta o vídeo." },
+  { num: "04", title: "1 ad, vídeo pronto",  desc: "Enquanto renderiza, você assiste 1 anúncio de 30s. Reel 9:16, Recap 16:9 ou Story Card. Grátis." },
 ];
 
 const outputs = [
@@ -57,7 +57,7 @@ export default function Home() {
           </h1>
 
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 560, margin: "0 auto 16px" }}>
-            Instala uma vez e esquece. O client grava suas partidas em background,
+            O client lê as demos que o CS2 já gera no seu PC. Você escolhe a partida,
             a IA escolhe os melhores <b style={{ color: "rgba(255,255,255,0.8)" }}>ACEs, clutches e frags</b> e
             entrega o vídeo editado pronto pra TikTok, Reels e WhatsApp.
           </p>
@@ -72,11 +72,11 @@ export default function Home() {
           </div>
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/login" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px" }}>
+            <a href="https://github.com/mathieuanduze/fragreel-client/releases/latest" target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px", textDecoration: "none" }}>
               ⬇ Baixar client · Windows
-            </Link>
-            <Link href="/dashboard" className="btn-ghost" style={{ fontSize: 16 }}>
-              Ver dashboard →
+            </a>
+            <Link href="/login" className="btn-ghost" style={{ fontSize: 16 }}>
+              Entrar com Steam →
             </Link>
           </div>
 
@@ -139,7 +139,7 @@ export default function Home() {
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, textAlign: "left" }}>
             {[
-              { label: "Gravação automática, sem OBS", sub: "O client grava o CS2 em background. Zero setup, zero lag perceptível, zero fricção." },
+              { label: "Sem upload manual, sem OBS",   sub: "O client lê localmente as demos que o CS2 já salva no seu PC. Você só clica." },
               { label: "2 câmeras por frag",            sub: "POV do atirador + POV da vítima em slow-mo. Igual transmissão de Major." },
               { label: "Scoring por IA",                sub: "ACE, clutch 1vN, knife kill, noscope — a IA prioriza os frags mais insanos." },
               { label: "100% gratuito",                 sub: "Sustentado por anúncios. O tempo do ad = tempo de renderização. Honesto." },
@@ -191,6 +191,10 @@ export default function Home() {
           <span>📺 Assista 30s de ad</span>
           <span style={{ color: "#2D2D44" }}>→</span>
           <span style={{ color: "#FF6B35", fontWeight: 700 }}>🎬 Vídeo pronto</span>
+        </div>
+
+        <div style={{ marginTop: 22, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+          🔒 Suas demos nunca saem do seu PC sem você clicar — o client é open source (MIT).
         </div>
       </section>
 

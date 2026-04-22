@@ -8,7 +8,7 @@ import { getUser, logout, type SessionUser } from "@/lib/session";
 export default function Nav() {
   const path      = usePathname();
   const router    = useRouter();
-  const isLoggedIn = path === "/dashboard" || path.startsWith("/match");
+  const isLoggedIn = path === "/dashboard" || path === "/library" || path.startsWith("/match");
 
   const [user, setUser] = useState<SessionUser | null>(null);
 
@@ -53,9 +53,22 @@ export default function Nav() {
           {isLoggedIn ? (
             <>
               <Link
+                href="/library"
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: path === "/library" ? "#FF6B35" : "rgba(255,255,255,0.6)",
+                  textDecoration: "none",
+                }}
+              >
+                Minhas Demos
+              </Link>
+              <Link
                 href="/dashboard"
                 style={{
-                  padding: "6px 16px",
+                  padding: "6px 14px",
                   borderRadius: 6,
                   fontSize: 14,
                   fontWeight: 500,
@@ -63,7 +76,7 @@ export default function Nav() {
                   textDecoration: "none",
                 }}
               >
-                Minhas Partidas
+                Meus FragReels
               </Link>
 
               {/* User chip */}

@@ -35,25 +35,27 @@ export default function DashboardContent() {
             <span style={{ fontSize: 11, background: "#FF6B35", color: "white", padding: "3px 9px", borderRadius: 5, fontWeight: 700, letterSpacing: "0.04em" }}>BETA</span>
           </div>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, margin: "0 0 18px", maxWidth: 520 }}>
-            Instala uma vez e esquece. O client detecta suas partidas de CS2 automaticamente,
-            grava em background e envia os melhores momentos para cá — sem OBS, sem configuração.
+            O client lê as demos do CS2 que já estão no seu PC e expõe pra esta página.
+            Você escolhe qual partida virar FragReel — nenhuma demo sai do seu computador
+            sem você clicar.
           </p>
           <div style={{ display: "flex", gap: 20, fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ color: "#4CAF82", fontSize: 15 }}>✓</span> Gravação automática
+              <span style={{ color: "#4CAF82", fontSize: 15 }}>✓</span> Lê demos do CS2 localmente
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <span style={{ color: "#4CAF82", fontSize: 15 }}>✓</span> Detecção de highlights por IA
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ color: "#4CAF82", fontSize: 15 }}>✓</span> Clipes reais de gameplay
-            </span>
+              <span style={{ color: "#4CAF82", fontSize: 15 }}>✓</span> Open source · MIT</span>
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
           <a
-            href="#"
+            href="https://github.com/mathieuanduze/fragreel-client/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -81,8 +83,8 @@ export default function DashboardContent() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 40 }}>
         {[
           { step: "1", icon: "⬇", title: "Baixa e instala", desc: "Instalar FragReel.exe. Login com Steam uma vez só." },
-          { step: "2", icon: "🎮", title: "Joga normalmente", desc: "O client grava o CS2 em background. Sem configuração, sem OBS." },
-          { step: "3", icon: "✂️", title: "Vídeo pronto aqui", desc: "A IA detecta seus highlights e envia os clipes para esta página." },
+          { step: "2", icon: "📂", title: "Abre a Biblioteca", desc: "O client lista as demos do seu CS2. Você escolhe qual virar FragReel." },
+          { step: "3", icon: "🎬", title: "Assiste 1 ad, baixa o vídeo", desc: "Enquanto a IA monta o reel, você assiste 1 anúncio. Pronto, baixou." },
         ].map(({ step, icon, title, desc }) => (
           <div key={step} style={{ padding: "18px 20px", background: "#16213E", border: "1px solid #2D2D44", borderRadius: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
