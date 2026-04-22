@@ -59,6 +59,18 @@ async function fetchLocal<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export async function pingLocalClient(timeoutMs = 1500): Promise<boolean> {
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    const res = await fetch(`${LOCAL_BASE}/health`, { signal: ctl.signal, cache: "no-store" });
+    clearTimeout(t);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function getLocalDemos(refresh = false): Promise<LocalDemosResponse> {
   return fetchLocal<LocalDemosResponse>(`/demos${refresh ? "?refresh=1" : ""}`);
 }

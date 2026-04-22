@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUser, logout, type SessionUser } from "@/lib/session";
+import ClientStatusChip from "./ClientStatusChip";
 
 export default function Nav() {
   const path      = usePathname();
@@ -78,6 +79,9 @@ export default function Nav() {
               >
                 Meus FragReels
               </Link>
+
+              {/* Client status (online/offline) */}
+              <ClientStatusChip />
 
               {/* User chip */}
               <div
