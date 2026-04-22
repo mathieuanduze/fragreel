@@ -74,7 +74,7 @@ export default function DashboardContent() {
             ⬇ Baixar client · {CLIENT_VERSION}
           </a>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "right" }}>
-            Windows 10/11 · ~90 MB · Última versão {CLIENT_VERSION}
+            Windows 10/11 · ~120 MB · Última versão {CLIENT_VERSION}
           </span>
         </div>
       </div>

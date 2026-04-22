@@ -82,7 +82,7 @@ export default function Home() {
           </div>
 
           <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            Windows 10/11 · ~90 MB · Login com Steam · Sem assinatura · Última versão {CLIENT_VERSION}
+            Windows 10/11 · ~120 MB · Login com Steam · Sem assinatura · Última versão {CLIENT_VERSION}
           </p>
         </div>
       </section>

@@ -50,10 +50,14 @@ export default function LibraryContent() {
   useEffect(() => { load(false); }, [load]);
 
   // Enquanto o scan tá rolando no client, o /demos já retorna imediatamente
-  // com {scanning: true, scan_done: false}. Polling leve a cada 2.5s atualiza
-  // a UI quando o bg-thread terminar — sem disparar novo scan (refresh=false).
+  // com scanning=true. Polling leve a cada 2.5s atualiza a UI quando o
+  // bg-thread terminar — sem disparar novo scan (refresh=false).
+  // Importante: NÃO depender de scan_done aqui — quando o user clica "Re-escanear"
+  // após um scan já feito, o servidor responde {scanning:true, scan_done:true}
+  // (scan anterior estava done, novo começou). Se condicionasse a !scanDone, o
+  // botão ficaria preso em "Escaneando…" pra sempre.
   useEffect(() => {
-    if (!scanning || scanDone || offline) return;
+    if (!scanning || offline) return;
     let alive = true;
     const id = setInterval(async () => {
       if (!alive) return;
@@ -72,7 +76,7 @@ export default function LibraryContent() {
       }
     }, 2500);
     return () => { alive = false; clearInterval(id); };
-  }, [scanning, scanDone, offline]);
+  }, [scanning, offline]);
 
   // Se a página renderizou em estado offline (user abriu /library antes de
   // ligar o .exe), pinga /health a cada 4s e dispara load() automaticamente
