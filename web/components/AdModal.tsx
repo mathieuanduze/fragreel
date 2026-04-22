@@ -163,6 +163,34 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
 
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [pathCopied, setPathCopied] = useState(false);
+
+  // In local-render mode the .mp4 lands on the user's Desktop. Browsers
+  // can't open OS folders directly (file:// to a dir is blocked since 2019),
+  // so we surface the absolute path + a "copy" button. Falls back to the
+  // first .mov if Remotion didn't run (e.g. ffmpeg present but Remotion
+  // skipped — user still has gameplay clips on disk).
+  const localOutputPath =
+    localStatus?.output_mp4 ??
+    localStatus?.output_movs?.[0] ??
+    localStatus?.output_mov ??
+    null;
+  const localOutputDir = localOutputPath
+    ? localOutputPath.replace(/[\\/][^\\/]+$/, "")
+    : null;
+
+  const copyOutputPath = useCallback(async () => {
+    if (!localOutputDir) return;
+    try {
+      await navigator.clipboard.writeText(localOutputDir);
+      setPathCopied(true);
+      setTimeout(() => setPathCopied(false), 2000);
+    } catch {
+      // Clipboard API unavailable (insecure context, perms) — at least
+      // the path is visible in the chip so user can select-and-copy.
+      setPathCopied(false);
+    }
+  }, [localOutputDir]);
 
   const handleDownload = useCallback(async () => {
     if (!downloadUrl) return;
@@ -376,41 +404,103 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
 
             {/* Botão SEMPRE presente — não-clicável até estar pronto.
                 User pediu: "o botão de gerar fragreel tem que estar no ad o tempo
-                todo, mas não como clicável, ajude o usuário a entender o processo." */}
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button
-                onClick={canDownload && !downloading ? handleDownload : undefined}
-                disabled={!canDownload || downloading}
-                title={
-                  canDownload
-                    ? "Baixar agora"
-                    : !renderDone
-                      ? "Esperando o vídeo terminar de renderizar"
-                      : `Faltam ${totalAdRemaining}s de anúncio`
-                }
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  padding: "10px 26px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: canDownload ? "#FF6B35" : "rgba(255,107,53,0.25)",
-                  color: canDownload ? "white" : "rgba(255,255,255,0.5)",
-                  cursor: canDownload && !downloading ? "pointer" : "not-allowed",
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  transition: "background 0.3s",
-                }}
-              >
-                {downloading ? "Baixando…" : downloaded ? "⬇ Baixar de novo" : "⬇ Baixar FragReel"}
-              </button>
-              {downloaded && (
-                <button
-                  onClick={() => { setClosing(true); setTimeout(onClose, 300); }}
-                  className="btn-secondary"
-                  style={{ fontSize: 13, padding: "10px 18px" }}
-                >
-                  Fechar
-                </button>
+                todo, mas não como clicável, ajude o usuário a entender o processo."
+                Local-render flow: nada pra baixar (já tá no Desktop) → vira CTA
+                "Abrir pasta" + path copiável. */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {localRenderMode ? (
+                <>
+                  {localOutputPath && (
+                    <code
+                      title={localOutputPath}
+                      style={{
+                        fontSize: 11,
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        background: "rgba(255,255,255,0.06)",
+                        color: "rgba(255,255,255,0.65)",
+                        maxWidth: 320,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        userSelect: "all",
+                      }}
+                    >
+                      {localOutputPath}
+                    </code>
+                  )}
+                  <button
+                    onClick={canDownload && localOutputDir ? copyOutputPath : undefined}
+                    disabled={!canDownload || !localOutputDir}
+                    title={
+                      canDownload
+                        ? "Copiar caminho da pasta (o arquivo está no seu Desktop)"
+                        : !renderDone
+                          ? "Esperando o vídeo terminar de renderizar"
+                          : `Faltam ${totalAdRemaining}s de anúncio`
+                    }
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      padding: "10px 26px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: canDownload ? "#FF6B35" : "rgba(255,107,53,0.25)",
+                      color: canDownload ? "white" : "rgba(255,255,255,0.5)",
+                      cursor: canDownload && localOutputDir ? "pointer" : "not-allowed",
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      transition: "background 0.3s",
+                    }}
+                  >
+                    {pathCopied ? "✓ Caminho copiado" : "📂 Abrir pasta"}
+                  </button>
+                  {canDownload && (
+                    <button
+                      onClick={() => { setClosing(true); setTimeout(onClose, 300); }}
+                      className="btn-secondary"
+                      style={{ fontSize: 13, padding: "10px 18px" }}
+                    >
+                      Fechar
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={canDownload && !downloading ? handleDownload : undefined}
+                    disabled={!canDownload || downloading}
+                    title={
+                      canDownload
+                        ? "Baixar agora"
+                        : !renderDone
+                          ? "Esperando o vídeo terminar de renderizar"
+                          : `Faltam ${totalAdRemaining}s de anúncio`
+                    }
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      padding: "10px 26px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: canDownload ? "#FF6B35" : "rgba(255,107,53,0.25)",
+                      color: canDownload ? "white" : "rgba(255,255,255,0.5)",
+                      cursor: canDownload && !downloading ? "pointer" : "not-allowed",
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      transition: "background 0.3s",
+                    }}
+                  >
+                    {downloading ? "Baixando…" : downloaded ? "⬇ Baixar de novo" : "⬇ Baixar FragReel"}
+                  </button>
+                  {downloaded && (
+                    <button
+                      onClick={() => { setClosing(true); setTimeout(onClose, 300); }}
+                      className="btn-secondary"
+                      style={{ fontSize: 13, padding: "10px 18px" }}
+                    >
+                      Fechar
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

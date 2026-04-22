@@ -1,6 +1,7 @@
 import {
   AbsoluteFill,
   interpolate,
+  OffthreadVideo,
   spring,
   useCurrentFrame,
   useVideoConfig,
@@ -15,9 +16,13 @@ type Props = {
 };
 
 /**
- * HighlightScene — 4s por highlight
- * Placeholder de gameplay (já que não temos footage real ainda) + overlays cinematográficos.
- * Quando tivermos clip_url, substituiremos o placeholder por <OffthreadVideo>.
+ * HighlightScene — duração variável (clampada em REEL_BOUNDS / RECAP_BOUNDS).
+ *
+ * Camadas (de trás pra frente):
+ *   1. Gameplay backdrop — <OffthreadVideo> com .mov ProRes do hlae_runner.py,
+ *      OU gradient placeholder + crosshair fake (dev no Mac sem footage).
+ *   2. Scanlines, flash de impacto, gradient overlays (linguagem visual).
+ *   3. Rank badge, label, kill feed (HUD overlays).
  */
 export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   const frame = useCurrentFrame();
@@ -27,6 +32,19 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
 
   // Duração da cena em segundos — usado pra calcular timing das kills.
   const sceneDurationSec = durationInFrames / fps;
+
+  // Source preferido: gameplayVideoSrc (HLAE/ProRes do PC) > clip_url (legado
+  // do screen capture do Round 3) > null (cai no placeholder gradient).
+  const gameplaySrc = highlight.gameplayVideoSrc ?? highlight.clip_url ?? null;
+
+  // playbackRate: encaixa a duração real do highlight (highlight.end - .start
+  // em segundos do match) no tempo clampado da cena.
+  // - highlight 12s ace, cena clamp 7s → playbackRate 1.71 (fast cut)
+  // - highlight 4s, cena 4s → 1.0 (real-time)
+  // OffthreadVideo abstrai 300fps source → 60fps timeline; só importa segundos.
+  // TODO Round 5: trocar por curva (real-time → slow-mo no momento da kill).
+  const sourceDurSec = Math.max(0.1, highlight.end - highlight.start);
+  const gameplayRate = sourceDurSec / sceneDurationSec;
 
   // Flash branco no frame 0 (impacto)
   const flash = interpolate(frame, [0, 4, 8], [1, 0.3, 0], {
@@ -64,87 +82,112 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
 
   return (
     <AbsoluteFill style={{ opacity: fadeOut, background: theme.bg }}>
-      {/* Fundo "gameplay" — placeholder até termos clip_url */}
-      <AbsoluteFill
-        style={{
-          background: `
-            radial-gradient(circle at 30% 40%, ${moodDef.color}30 0%, transparent 50%),
-            radial-gradient(circle at 70% 60%, ${theme.orange}20 0%, transparent 50%),
-            linear-gradient(135deg, #0a0a15 0%, #1a1a2e 100%)
-          `,
-          transform: `scale(${zoom})`,
-        }}
-      >
-        {/* Scanlines */}
+      {/* Camada 1 — Gameplay backdrop.
+          Quando tem .mov do HLAE, OffthreadVideo (cobre frame inteiro,
+          object-fit cover pra horizontal/vertical não quebrarem). Sem footage,
+          gradient + crosshair fake — dev no Mac fica funcional. */}
+      {gameplaySrc ? (
+        <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
+          <OffthreadVideo
+            src={gameplaySrc}
+            playbackRate={gameplayRate}
+            muted
+            // Volume deixado 0 (muted) — música vem do <Audio> da Composition raiz.
+            // Se quisermos som de gunfire no futuro, mixar via segunda track.
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "center",
+            }}
+          />
+        </AbsoluteFill>
+      ) : (
         <AbsoluteFill
           style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg,rgba(255,255,255,0.02) 0px,rgba(255,255,255,0.02) 1px,transparent 1px,transparent 4px)",
-          }}
-        />
-        {/* CS2-like HUD cross no centro */}
-        <AbsoluteFill
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            background: `
+              radial-gradient(circle at 30% 40%, ${moodDef.color}30 0%, transparent 50%),
+              radial-gradient(circle at 70% 60%, ${theme.orange}20 0%, transparent 50%),
+              linear-gradient(135deg, #0a0a15 0%, #1a1a2e 100%)
+            `,
+            transform: `scale(${zoom})`,
           }}
         >
-          <div
+          {/* Crosshair fake (placeholder) — só aparece quando NÃO tem footage real.
+              CS2 já tem seu próprio crosshair, mostrar dois fica feio. */}
+          <AbsoluteFill
             style={{
-              width: 40,
-              height: 40,
-              position: "relative",
-              opacity: 0.35,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             <div
               style={{
-                position: "absolute",
-                left: "50%",
-                top: 0,
-                width: 2,
-                height: 14,
-                background: moodDef.color,
-                transform: "translateX(-50%)",
+                width: 40,
+                height: 40,
+                position: "relative",
+                opacity: 0.35,
               }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                bottom: 0,
-                width: 2,
-                height: 14,
-                background: moodDef.color,
-                transform: "translateX(-50%)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: 0,
-                width: 14,
-                height: 2,
-                background: moodDef.color,
-                transform: "translateY(-50%)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                right: 0,
-                width: 14,
-                height: 2,
-                background: moodDef.color,
-                transform: "translateY(-50%)",
-              }}
-            />
-          </div>
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: 0,
+                  width: 2,
+                  height: 14,
+                  background: moodDef.color,
+                  transform: "translateX(-50%)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  bottom: 0,
+                  width: 2,
+                  height: 14,
+                  background: moodDef.color,
+                  transform: "translateX(-50%)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: 0,
+                  width: 14,
+                  height: 2,
+                  background: moodDef.color,
+                  transform: "translateY(-50%)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  right: 0,
+                  width: 14,
+                  height: 2,
+                  background: moodDef.color,
+                  transform: "translateY(-50%)",
+                }}
+              />
+            </div>
+          </AbsoluteFill>
         </AbsoluteFill>
-      </AbsoluteFill>
+      )}
+
+      {/* Scanlines — sempre, dão consistência visual de fragmovie.
+          Sutis (rgba 0.02) pra não competir com o gameplay quando ele existe. */}
+      <AbsoluteFill
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(0deg,rgba(255,255,255,0.02) 0px,rgba(255,255,255,0.02) 1px,transparent 1px,transparent 4px)",
+          pointerEvents: "none",
+        }}
+      />
 
       {/* Flash de impacto */}
       <AbsoluteFill
