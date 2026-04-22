@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { getLocalJob, LocalJob } from "@/lib/local";
 
 const AD_DURATION = 30;
+// Mínimo de segundos de anúncio totais que o usuário precisa assistir antes
+// do botão "Editar vídeo" aparecer. Igual a 1 ad completo (30s) — mesmo que
+// a análise ainda esteja rolando, basta ter visto 30s acumulados.
+const MIN_AD_SECONDS = AD_DURATION;
 
 const ADS = [
   {
@@ -34,8 +38,11 @@ type Props = {
 export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) {
   const [adElapsed, setAdElapsed] = useState(0);
   const [adIndex, setAdIndex] = useState(0);
+  // Total cumulativo de segundos de ads vistos (sobrevive à rotação entre ads).
+  const [totalAdSeconds, setTotalAdSeconds] = useState(0);
   const [job, setJob] = useState<LocalJob | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   // Polling do status no client local
   useEffect(() => {
@@ -55,10 +62,12 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
 
   const analyzeDone = job?.event === "done";
   const analyzeFailed = job?.event === "failed";
-  const adDone = adElapsed >= AD_DURATION;
+  const adDone = totalAdSeconds >= MIN_AD_SECONDS;
   const canProceed = analyzeDone && adDone;
-  const adRemaining = Math.max(0, AD_DURATION - adElapsed);
+  const adRemainingThis = Math.max(0, AD_DURATION - adElapsed);
   const adProgress = Math.min(1, adElapsed / AD_DURATION);
+  // Progresso até desbloquear o botão (usa totalAdSeconds, não adElapsed)
+  const totalAdRemaining = Math.max(0, MIN_AD_SECONDS - totalAdSeconds);
   const adCount = adIndex + 1;
 
   // Ad timer (back-to-back se análise ainda rolando)
@@ -75,6 +84,12 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
         }
         return next;
       });
+      // Acumula tempo total assistido — só conta enquanto não bateu o mínimo,
+      // ou se análise ainda tá rolando (continua passando ads).
+      setTotalAdSeconds((t) => {
+        if (t >= MIN_AD_SECONDS && analyzeDone) return t;
+        return t + 1;
+      });
     }, 1000);
     return () => clearInterval(id);
   }, [analyzeDone]);
@@ -89,6 +104,12 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
     if (pollError) return `⚠ Cliente offline — abra o FragReel no PC`;
     return "Iniciando análise…";
   })();
+
+  // Tentou fechar — se já tem botão liberado, fecha direto. Senão, pede confirmação.
+  const handleCloseAttempt = () => {
+    if (canProceed || analyzeFailed) onClose();
+    else setConfirmClose(true);
+  };
 
   return (
     <div
@@ -106,12 +127,29 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
         @keyframes adSlide { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 680 }}>
+      <div style={{ width: "100%", maxWidth: 680, position: "relative" }}>
+        {/* Botão X — sempre disponível (sai do modal de análise = aborta) */}
+        <button
+          onClick={handleCloseAttempt}
+          aria-label="Fechar análise"
+          title={canProceed ? "Fechar" : "Cancelar análise"}
+          style={{
+            position: "absolute", top: -8, right: -8, zIndex: 2,
+            width: 32, height: 32, borderRadius: "50%",
+            background: "rgba(20,20,32,0.9)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            color: "rgba(255,255,255,0.7)",
+            fontSize: 16, fontWeight: 700,
+            cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >×</button>
+
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>
             PUBLICIDADE · Anúncio {adCount} · enquanto sua partida é analisada
           </div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.22)" }}>{adRemaining}s restantes</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.22)" }}>{adRemainingThis}s restantes</div>
         </div>
 
         <div
@@ -136,7 +174,7 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
 
           <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.55)", borderRadius: 6, padding: "4px 10px", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "monospace", display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff4444", display: "inline-block", animation: "pulse 1s infinite" }} />
-            0:{String(adRemaining).padStart(2, "0")}
+            0:{String(adRemainingThis).padStart(2, "0")}
           </div>
           <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.55)", borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em" }}>PATROCINADO</div>
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "rgba(255,255,255,0.08)" }}>
@@ -174,7 +212,7 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.22)" }}>
               FragReel é 100% gratuito · sustentado por anúncios
             </div>
@@ -186,11 +224,70 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
               <button onClick={onClose} className="btn-secondary" style={{ fontSize: 13, padding: "8px 20px" }}>Fechar</button>
             ) : (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
-                {analyzeDone && !adDone ? `Aguarde o fim do anúncio · ${adRemaining}s` : "O botão aparece quando terminar"}
+                {analyzeDone && !adDone
+                  ? `Aguarde ${totalAdRemaining}s pro botão liberar`
+                  : !analyzeDone && adDone
+                  ? "Análise rodando · botão libera assim que terminar"
+                  : `${totalAdRemaining}s de anúncio antes de liberar`}
               </div>
             )}
           </div>
         </div>
+
+        {/* Confirmação de cancelamento */}
+        {confirmClose && (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 10,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+            animation: "adFadeIn 0.15s ease",
+          }}
+          onClick={() => setConfirmClose(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: 380,
+                background: "#13131f",
+                border: "1px solid #2D2D44",
+                borderRadius: 14,
+                padding: 24,
+              }}
+            >
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
+                Cancelar análise?
+              </div>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 18 }}>
+                Sua demo já foi enviada e a IA está processando. Se você fechar agora,
+                <b> o vídeo não vai ser gerado</b> e você terá que assistir o anúncio de novo
+                pra recomeçar.
+              </p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setConfirmClose(false)}
+                  className="btn-secondary"
+                  style={{ fontSize: 13, padding: "8px 16px" }}
+                >
+                  Continuar assistindo
+                </button>
+                <button
+                  onClick={() => { setConfirmClose(false); onClose(); }}
+                  style={{
+                    fontSize: 13, padding: "8px 16px",
+                    background: "transparent",
+                    border: "1px solid rgba(255,80,80,0.45)",
+                    color: "#ff7066",
+                    borderRadius: 8, cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  Sim, cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

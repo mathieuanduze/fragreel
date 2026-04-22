@@ -6,11 +6,52 @@ import { MatchOut, Mood, generateVideo, getMatch, renderDownloadUrl } from "@/li
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
 
+// Cada formato tem um teto diferente de cenas porque:
+//   • reel (9:16, ~20s): timeline curta — 5 cenas é o sweet spot, mais começa a parecer rápido demais
+//   • card (estático): não usa cenas, é um layout de stats — força 0
+//   • recap (16:9, 2-3min): timeline longa, cabe mais narrativa — até 10
+// O custo de render também escala com cenas (cada cena = re-encode + transição), então
+// teto duro evita o usuário cobrar 5 minutos de render num reel de 20s.
+const SCENE_CAPS: Record<string, number> = {
+  reel: 5,
+  card: 0,
+  recap: 10,
+};
+
 const FORMATS = [
-  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "9:16 vertical · ~20s",       desc: "Intro com player/mapa, rank badges, kill feed animado por frag e stats no outro. Música sincronizada com os cortes.", dest: "TikTok · Reels · WhatsApp Status" },
-  { id: "card",  icon: "🖼️", label: "Story Card",       format: "9:16 imagem estática",       desc: "Card com nick, mapa, K/D, HS%, ADR, rating e top play. Perfeito para stories.",         dest: "Instagram Stories · WhatsApp" },
-  { id: "recap", icon: "📺", label: "Recap Completo",   format: "16:9 horizontal · em breve", desc: "Narrativa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",    dest: "YouTube · Discord · Twitter" },
+  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "9:16 vertical · ~20s",       desc: "Intro com player/mapa, rank badges, kill feed animado por frag e stats no outro. Música sincronizada com os cortes.", dest: "TikTok · Reels · WhatsApp Status", maxScenes: SCENE_CAPS.reel },
+  { id: "card",  icon: "🖼️", label: "Story Card",       format: "9:16 imagem estática",       desc: "Card com nick, mapa, K/D, HS%, ADR, rating e top play. Perfeito para stories.",         dest: "Instagram Stories · WhatsApp", maxScenes: SCENE_CAPS.card },
+  { id: "recap", icon: "📺", label: "Recap Completo",   format: "16:9 horizontal · em breve", desc: "Narrativa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",    dest: "YouTube · Discord · Twitter", maxScenes: SCENE_CAPS.recap },
 ];
+
+// Mapeamento de arma/tipo de kill pra ícone visual. A IA já manda `weapon` e
+// `headshot` por kill — a gente desambigua aqui pra UI ficar legível de relance.
+function killIcon(weapon: string, headshot: boolean): string {
+  const w = weapon.toLowerCase();
+  if (w.includes("knife") || w === "bayonet" || w.includes("karambit")) return "🔪";
+  if (w.includes("awp") || w.includes("scar20") || w.includes("g3sg1")) return "🎯";
+  if (w === "hegrenade" || w.includes("grenade") || w.includes("he_")) return "💣";
+  if (w.includes("inferno") || w.includes("molotov") || w.includes("incendiary")) return "🔥";
+  if (w.includes("taser") || w === "zeus") return "⚡";
+  if (w === "deagle" || w.includes("revolver")) return "🔫";
+  if (headshot) return "💥";
+  return "🔫";
+}
+
+// Cor do badge da kill — destaca knife/awp/HS sobre kills "normais"
+function killBadgeStyle(weapon: string, headshot: boolean): { bg: string; border: string; color: string } {
+  const w = weapon.toLowerCase();
+  if (w.includes("knife") || w === "bayonet" || w.includes("karambit")) {
+    return { bg: "rgba(255,107,53,0.14)", border: "rgba(255,107,53,0.45)", color: "#FF6B35" };
+  }
+  if (w.includes("awp")) {
+    return { bg: "rgba(167,139,250,0.14)", border: "rgba(167,139,250,0.45)", color: "#a78bfa" };
+  }
+  if (headshot) {
+    return { bg: "rgba(251,191,36,0.12)", border: "rgba(251,191,36,0.40)", color: "#fbbf24" };
+  }
+  return { bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" };
+}
 
 const MOODS: { id: Mood; icon: string; label: string; desc: string; color: string }[] = [
   { id: "acao",       icon: "⚡", label: "Ação",       desc: "128 BPM · heavy bass",    color: "#FF6B35" },
@@ -27,10 +68,11 @@ function fmt(sec: number) {
 
 export default function MatchClient({ match: initialMatch }: { match: MatchOut }) {
   const [match, setMatch] = useState(initialMatch);
-  const [selected, setSelected] = useState<Set<number>>(
-    new Set(initialMatch.highlights.slice(0, 3).map((h) => h.rank))
-  );
   const [format, setFormat] = useState("reel");
+  // Pré-seleção: respeita o cap do formato inicial (reel = 5)
+  const [selected, setSelected] = useState<Set<number>>(
+    new Set(initialMatch.highlights.slice(0, Math.min(SCENE_CAPS.reel, 3)).map((h) => h.rank))
+  );
   const [mood, setMood] = useState<Mood>("acao");
   const [generating, setGenerating] = useState(false);
   const [jobMsg, setJobMsg] = useState<string | null>(null);
@@ -67,13 +109,36 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     };
   }, [isQueued, match.id]);
 
+  // Cap dinâmico: muda quando user troca de formato. Pra card (cap=0) não usa cenas.
+  const maxScenes = SCENE_CAPS[format] ?? 5;
+
   function toggle(rank: number) {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(rank) ? next.delete(rank) : next.add(rank);
+      if (next.has(rank)) {
+        next.delete(rank);
+      } else {
+        // Bloqueia se já bateu o cap — usuário precisa desmarcar uma antes
+        if (maxScenes > 0 && next.size >= maxScenes) return prev;
+        next.add(rank);
+      }
       return next;
     });
   }
+
+  // Quando muda o formato, se a seleção atual ultrapassa o novo cap, trunca
+  // mantendo as primeiras (que estão ordenadas por rank — as melhores ficam).
+  useEffect(() => {
+    if (maxScenes === 0) {
+      // Card: ignora seleção, não usa cenas
+      return;
+    }
+    setSelected((prev) => {
+      if (prev.size <= maxScenes) return prev;
+      const sortedRanks = Array.from(prev).sort((a, b) => a - b).slice(0, maxScenes);
+      return new Set(sortedRanks);
+    });
+  }, [format, maxScenes]);
 
   async function handleStartGenerate() {
     if (selected.size === 0 || generating) return;
@@ -133,7 +198,15 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           </div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", textAlign: "right" }}>
             <div>{match.highlights.length} highlights detectados</div>
-            <div style={{ color: "#FF6B35", fontWeight: 600, marginTop: 2 }}>{selectedCount} selecionado{selectedCount !== 1 ? "s" : ""}</div>
+            {maxScenes > 0 ? (
+              <div style={{ color: "#FF6B35", fontWeight: 600, marginTop: 2 }}>
+                {selectedCount}/{maxScenes} cena{maxScenes !== 1 ? "s" : ""} selecionada{selectedCount !== 1 ? "s" : ""}
+              </div>
+            ) : (
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
+                Story Card é estático · não usa cenas
+              </div>
+            )}
           </div>
         </div>
 
@@ -209,12 +282,43 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                   </div>
 
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       {h.label}
-                      <span style={{ marginLeft: 10, fontSize: 11, fontWeight: 700, color: "#FF6B35", background: "#FF6B3515", padding: "2px 8px", borderRadius: 4 }}>{h.score} pts</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", background: "#FF6B3515", padding: "2px 8px", borderRadius: 4 }}>{h.score} pts</span>
+                      <span
+                        title="Total de kills nesse highlight"
+                        style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
+                      >
+                        💀 {h.kills.length}
+                      </span>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {h.kills.map((k, i) => <span key={i} className="badge" style={{ fontSize: 11 }}>{k.label}</span>)}
+                      {h.kills.map((k, i) => {
+                        const icon = killIcon(k.weapon, k.headshot);
+                        const s = killBadgeStyle(k.weapon, k.headshot);
+                        return (
+                          <span
+                            key={i}
+                            title={`${k.weapon}${k.headshot ? " · headshot" : ""} · vítima a ${k.hp} HP`}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "3px 8px",
+                              borderRadius: 5,
+                              background: s.bg,
+                              border: `1px solid ${s.border}`,
+                              color: s.color,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            <span style={{ fontSize: 12 }}>{icon}</span>
+                            {k.label}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -228,7 +332,16 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
               );
             })}
           </div>
-          {selectedCount === 0 && <div style={{ marginTop: 12, fontSize: 13, color: "rgba(255,107,53,0.7)", textAlign: "center" }}>Selecione pelo menos 1 highlight para continuar.</div>}
+          {maxScenes > 0 && selectedCount === 0 && (
+            <div style={{ marginTop: 12, fontSize: 13, color: "rgba(255,107,53,0.7)", textAlign: "center" }}>
+              Selecione pelo menos 1 highlight para continuar.
+            </div>
+          )}
+          {maxScenes > 0 && selectedCount >= maxScenes && (
+            <div style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.45)", textAlign: "center" }}>
+              Limite de {maxScenes} cenas para o formato {formatLabel} · desmarque uma para escolher outra
+            </div>
+          )}
         </div>
 
         {/* Ad — entre highlights e seletor de formato */}
@@ -239,7 +352,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         {/* Format selector */}
         <div style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Escolha o formato</h2>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>1 formato por geração. Quer outro formato? Assiste mais 1 anúncio.</p>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>1 formato por geração. Cada formato tem um teto de cenas. Quer outro formato? Assiste mais 2 anúncios.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
             {FORMATS.map((f) => {
               const active = format === f.id;
@@ -250,7 +363,24 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3, color: "#E8E8F0" }}>{f.label}</div>
                   <div style={{ fontSize: 12, color: "#FF6B35", fontWeight: 600, marginBottom: 8 }}>{f.format}</div>
                   <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 12 }}>{f.desc}</p>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", padding: "6px 10px", background: "#0D0D1A", borderRadius: 6 }}>{f.dest}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", padding: "6px 10px", background: "#0D0D1A", borderRadius: 6 }}>{f.dest}</div>
+                    <div
+                      title={f.maxScenes === 0 ? "Story Card é estático, não usa cenas" : `Até ${f.maxScenes} cenas — mais cenas = mais tempo de render`}
+                      style={{
+                        fontSize: 11, fontWeight: 600,
+                        color: f.maxScenes === 0 ? "rgba(255,255,255,0.4)" : "rgba(255,107,53,0.85)",
+                        padding: "4px 10px",
+                        background: f.maxScenes === 0 ? "rgba(255,255,255,0.04)" : "rgba(255,107,53,0.08)",
+                        border: `1px solid ${f.maxScenes === 0 ? "rgba(255,255,255,0.08)" : "rgba(255,107,53,0.25)"}`,
+                        borderRadius: 6,
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        alignSelf: "flex-start",
+                      }}
+                    >
+                      {f.maxScenes === 0 ? "📌 Sem cenas (estático)" : `🎞 Até ${f.maxScenes} cenas`}
+                    </div>
+                  </div>
                 </button>
               );
             })}
@@ -305,17 +435,39 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Pronto para gerar?</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
-              {selectedCount > 0 ? (
-                <><b style={{ color: "rgba(255,255,255,0.7)" }}>{selectedCount} highlight{selectedCount !== 1 ? "s" : ""}</b> · formato <b style={{ color: "rgba(255,255,255,0.7)" }}>{formatLabel}</b> · <b style={{ color: "rgba(255,255,255,0.7)" }}>1 anúncio de ~30s</b>. <span style={{ color: "rgba(255,255,255,0.3)" }}>Sem assinatura.</span></>
+              {maxScenes === 0 ? (
+                <><b style={{ color: "rgba(255,255,255,0.7)" }}>Story Card</b> usa só estatísticas da partida · <b style={{ color: "rgba(255,255,255,0.7)" }}>2 anúncios de 30s</b>. <span style={{ color: "rgba(255,255,255,0.3)" }}>Sem assinatura.</span></>
+              ) : selectedCount > 0 ? (
+                <><b style={{ color: "rgba(255,255,255,0.7)" }}>{selectedCount} cena{selectedCount !== 1 ? "s" : ""}</b> · formato <b style={{ color: "rgba(255,255,255,0.7)" }}>{formatLabel}</b> · <b style={{ color: "rgba(255,255,255,0.7)" }}>2 anúncios de 30s</b> durante o render. <span style={{ color: "rgba(255,255,255,0.3)" }}>Sem assinatura.</span></>
               ) : (
                 <span style={{ color: "rgba(255,107,53,0.7)" }}>Selecione pelo menos 1 highlight acima.</span>
               )}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-            <button className="btn-ghost" style={{ fontSize: 13 }} onClick={() => { setSelected(new Set(match.highlights.slice(0,3).map(h=>h.rank))); setJobMsg(null); }}>Resetar seleção</button>
-            <button className="btn-primary" style={{ fontSize: 14, padding: "10px 24px", opacity: selectedCount === 0 || generating ? 0.4 : 1, cursor: selectedCount === 0 || generating ? "not-allowed" : "pointer" }} disabled={selectedCount === 0 || generating} onClick={handleStartGenerate}>
-              {generating ? "⏳ Gerando..." : "▶ Assistir anúncio e gerar"}
+            {maxScenes > 0 && (
+              <button
+                className="btn-ghost"
+                style={{ fontSize: 13 }}
+                onClick={() => {
+                  setSelected(new Set(match.highlights.slice(0, Math.min(maxScenes, 3)).map((h) => h.rank)));
+                  setJobMsg(null);
+                }}
+              >
+                Resetar seleção
+              </button>
+            )}
+            <button
+              className="btn-primary"
+              style={{
+                fontSize: 14, padding: "10px 24px",
+                opacity: (maxScenes > 0 && selectedCount === 0) || generating ? 0.4 : 1,
+                cursor: (maxScenes > 0 && selectedCount === 0) || generating ? "not-allowed" : "pointer",
+              }}
+              disabled={(maxScenes > 0 && selectedCount === 0) || generating}
+              onClick={handleStartGenerate}
+            >
+              {generating ? "⏳ Gerando..." : "▶ Assistir anúncios e gerar"}
             </button>
           </div>
         </div>

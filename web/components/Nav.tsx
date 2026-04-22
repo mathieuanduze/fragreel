@@ -9,13 +9,29 @@ import ClientStatusChip from "./ClientStatusChip";
 export default function Nav() {
   const path      = usePathname();
   const router    = useRouter();
-  const isLoggedIn = path === "/dashboard" || path === "/library" || path.startsWith("/match");
 
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setUser(getUser());
-  }, []);
+    setHydrated(true);
+
+    // Re-checa sessão ao focar a aba (pego a expiração do JWT sem precisar
+    // navegar). Antes a Nav tratava "logado" só pelo path da rota — então
+    // ao voltar pra "/" o user via "Entrar / Começar agora" mesmo com o
+    // token válido no localStorage, dando a impressão de logout fantasma.
+    const onFocus = () => setUser(getUser());
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onFocus);
+    };
+  }, [path]);
+
+  // Sessão real (token válido no localStorage), independente da rota.
+  const isLoggedIn = hydrated && user !== null;
 
   const displayName = user?.name ?? "Player";
   const initials    = displayName.slice(0, 2).toUpperCase();

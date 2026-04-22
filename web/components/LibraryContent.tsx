@@ -19,6 +19,46 @@ function fmtDate(epoch: number): string {
   });
 }
 
+function fmtRelative(epoch: number): string {
+  const diffMs = Date.now() - epoch * 1000;
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return "agora";
+  if (mins < 60) return `há ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `há ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `há ${days}d`;
+  if (days < 30) return `há ${Math.floor(days / 7)}sem`;
+  return fmtDate(epoch);
+}
+
+// "de_dust2" -> "Dust 2", "de_mirage" -> "Mirage"
+function prettyMap(raw: string): string {
+  const cleaned = raw.replace(/^de_/, "");
+  const special: Record<string, string> = {
+    dust2: "Dust 2",
+    cs_office: "Office",
+  };
+  if (special[cleaned]) return special[cleaned];
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+// Heurística pra inferir tipo da partida pelo total de rounds.
+// Premier/Competitive MR12: até 24 rounds (13-x). Wingman MR8: até 16. Outros: casual/DM.
+function matchType(scoreCt: number, scoreT: number): { label: string; color: string } {
+  const total = scoreCt + scoreT;
+  if (total === 0) return { label: "Em análise", color: "rgba(255,255,255,0.4)" };
+  if (Math.max(scoreCt, scoreT) >= 13) return { label: "Premier / Competitivo", color: "#FF6B35" };
+  if (total >= 13 && total <= 16) return { label: "Wingman", color: "#a78bfa" };
+  if (total < 8) return { label: "Demo curta", color: "rgba(255,255,255,0.5)" };
+  return { label: "Casual / Outro", color: "rgba(255,255,255,0.5)" };
+}
+
+function fmtKD(k: number, d: number): string {
+  if (d === 0) return k > 0 ? `${k.toFixed(1)}` : "—";
+  return (k / d).toFixed(2);
+}
+
 export default function LibraryContent() {
   const router = useRouter();
   const [demos, setDemos] = useState<LocalDemo[] | null>(null);
@@ -192,31 +232,172 @@ export default function LibraryContent() {
         )
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
-        {(demos || []).map((d) => (
-          <div key={d.sha1} style={{
-            padding: "18px 20px",
-            background: "#13131f",
-            border: "1px solid #2D2D44",
-            borderRadius: 12,
-            display: "flex", flexDirection: "column", gap: 14,
-          }}>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                <div style={{ fontWeight: 700, fontSize: 16, color: "#E8E8F0" }}>{d.map_name}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{fmtDate(d.mtime)}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
+        {(demos || []).map((d) => {
+          const type = matchType(d.score_ct, d.score_t);
+          const totalRounds = d.score_ct + d.score_t;
+          const kd = fmtKD(d.player_kills, d.player_deaths);
+          const mapPretty = prettyMap(d.map_name);
+          // Tentativa de usar imagem do mapa; fallback pra gradiente se não existir.
+          const mapImg = `/maps/${d.map_name}.png`;
+
+          return (
+            <div key={d.sha1} style={{
+              background: "#13131f",
+              border: "1px solid #2D2D44",
+              borderRadius: 12,
+              display: "flex", flexDirection: "column",
+              overflow: "hidden",
+              transition: "border-color 0.15s, transform 0.15s",
+            }}>
+              {/* Header com thumb do mapa */}
+              <div style={{
+                position: "relative",
+                height: 96,
+                background: `linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%)`,
+                overflow: "hidden",
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={mapImg}
+                  alt={mapPretty}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%", height: "100%",
+                    objectFit: "cover",
+                    opacity: 0.4,
+                  }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: "linear-gradient(180deg, rgba(19,19,31,0.2) 0%, rgba(19,19,31,0.95) 100%)",
+                }} />
+                <div style={{
+                  position: "absolute", top: 10, left: 12, right: 12,
+                  display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+                }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: type.color,
+                    padding: "3px 8px",
+                    background: "rgba(0,0,0,0.55)",
+                    border: `1px solid ${type.color}33`,
+                    borderRadius: 5,
+                  }}>{type.label}</span>
+                  <span
+                    title={new Date(d.mtime * 1000).toLocaleString("pt-BR")}
+                    style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}
+                  >
+                    {fmtRelative(d.mtime)}
+                  </span>
+                </div>
+                <div style={{
+                  position: "absolute", bottom: 10, left: 14,
+                  fontWeight: 800, fontSize: 20, color: "#E8E8F0",
+                  letterSpacing: "-0.02em",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                }}>{mapPretty}</div>
               </div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", display: "flex", gap: 14 }}>
-                <span>{d.player_kills}K / {d.player_deaths}D</span>
-                {(d.score_ct + d.score_t) > 0 && <span>{d.score_ct}–{d.score_t}</span>}
-                <span>{d.size_mb} MB</span>
+
+              {/* Stats grid */}
+              <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 10,
+                }}>
+                  {/* Placar */}
+                  <div
+                    title="Placar final do seu time (CT–TR)"
+                    style={{
+                      padding: "8px 10px",
+                      background: "#0d0d1a",
+                      border: "1px solid #2D2D44",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 2 }}>
+                      Placar
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: totalRounds > 0 ? "#E8E8F0" : "rgba(255,255,255,0.3)" }}>
+                      {totalRounds > 0 ? `${d.score_ct}–${d.score_t}` : "—"}
+                    </div>
+                  </div>
+
+                  {/* K/D kills/mortes */}
+                  <div
+                    title={`${d.player_kills} kills em ${d.player_deaths} mortes`}
+                    style={{
+                      padding: "8px 10px",
+                      background: "#0d0d1a",
+                      border: "1px solid #2D2D44",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 2 }}>
+                      K / D
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#E8E8F0" }}>
+                      {d.player_kills}<span style={{ color: "rgba(255,255,255,0.3)" }}> / </span>{d.player_deaths}
+                    </div>
+                  </div>
+
+                  {/* Ratio */}
+                  <div
+                    title="Proporção kills por morte — acima de 1.0 = positivo"
+                    style={{
+                      padding: "8px 10px",
+                      background: "#0d0d1a",
+                      border: "1px solid #2D2D44",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 2 }}>
+                      Ratio
+                    </div>
+                    <div style={{
+                      fontSize: 15, fontWeight: 700,
+                      color: d.player_kills > d.player_deaths ? "#5be38f" : d.player_kills < d.player_deaths ? "#ff7066" : "#E8E8F0",
+                    }}>
+                      {kd}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Metadados do arquivo */}
+                <div style={{
+                  display: "flex", justifyContent: "space-between",
+                  fontSize: 11, color: "rgba(255,255,255,0.35)",
+                  paddingTop: 2,
+                }}>
+                  <span title="Tamanho do arquivo .dem">
+                    📦 {d.size_mb} MB
+                  </span>
+                  <span title={`Rounds jogados nessa partida: ${totalRounds}`}>
+                    {totalRounds} rounds
+                  </span>
+                  <span title="Identificador local da demo (SHA1 do arquivo)">
+                    #{d.sha1.slice(0, 6)}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => onPick(d)}
+                  className="btn-primary"
+                  style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
+                >
+                  🎬 Gerar FragReel
+                </button>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.4 }}>
+                  A IA vai detectar ACEs, clutches e multi-kills · ~30s
+                </div>
               </div>
             </div>
-            <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 13, padding: "9px 18px" }}>
-              🎬 Gerar FragReel
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {activeAnalyze && (
