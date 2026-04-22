@@ -90,8 +90,29 @@ export default function LibraryContent() {
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
           {demos?.length ?? 0} partidas detectadas no seu PC
         </div>
-        <button onClick={() => load(true)} className="btn-secondary" style={{ fontSize: 12, padding: "6px 14px" }}>
-          ↻ Re-escanear
+        <button
+          onClick={() => load(true)}
+          disabled={loading}
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            padding: "9px 18px",
+            borderRadius: 8,
+            background: "rgba(255,107,53,0.12)",
+            color: "#FF6B35",
+            border: "1px solid rgba(255,107,53,0.45)",
+            cursor: loading ? "wait" : "pointer",
+            opacity: loading ? 0.6 : 1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            transition: "background 0.15s, border-color 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,107,53,0.20)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,107,53,0.12)"; }}
+        >
+          <span style={{ fontSize: 14 }}>↻</span>
+          {loading ? "Escaneando..." : "Re-escanear demos"}
         </button>
       </div>
 
@@ -135,7 +156,7 @@ export default function LibraryContent() {
           onClose={() => setActiveAnalyze(null)}
           onReady={(matchId) => {
             setActiveAnalyze(null);
-            router.push(`/match/${matchId}/edit`);
+            router.push(`/match/${matchId}`);
           }}
         />
       )}
