@@ -18,6 +18,10 @@ export interface LocalDemo {
   player_kills: number;
   player_deaths: number;
   size_mb: number;
+  /** Quando preenchido, demo já foi enviada e tem FragReel pronto em /match/{id}. */
+  match_id?: string | null;
+  /** Epoch (s) do upload bem-sucedido. */
+  processed_at?: number | null;
 }
 
 export interface LocalDemosResponse {
@@ -70,6 +74,21 @@ export async function pingLocalClient(timeoutMs = 1500): Promise<boolean> {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+/** Retorna a versão reportada pelo client local — ou null se offline / sem suporte. */
+export async function getLocalClientVersion(timeoutMs = 1500): Promise<string | null> {
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    const res = await fetch(`${LOCAL_BASE}/version`, { signal: ctl.signal, cache: "no-store" });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null) as { version?: string } | null;
+    return data?.version ?? null;
+  } catch {
+    return null;
   }
 }
 

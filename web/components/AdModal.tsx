@@ -76,20 +76,22 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
     return () => clearInterval(id);
   }, [matchId, format]);
 
-  // renderDone = servidor disse "done" OU se ele nunca respondeu, usa timer local
-  // como fallback. PLUS: se passou 1.5x o tempo estimado, libera mesmo assim
-  // (evita ficar travado se a API de status tá quebrada mas o arquivo tá pronto).
-  const grace = renderDuration * 1.5;
-  const renderDone = serverStatus
-    ? serverStatus.status === "done"
-    : renderElapsed >= renderDuration;
-  const renderForcedReady = renderElapsed >= grace; // libera UI mesmo sem confirmação do server
+  // renderDone EXIGE confirmação do servidor (status === "done"). Sem isso a barra
+  // não chega em 100% nem o botão libera — issue do user: "barra chegou em 100%
+  // sem o vídeo estar pronto".
+  const renderDone = serverStatus?.status === "done";
+  // Tempo estimado já passou? Mostra mensagem honesta "estamos finalizando".
+  const renderOvertime = renderElapsed >= renderDuration;
   const adDone        = totalAdSeconds >= MIN_AD_SECONDS;
-  const canDownload   = (renderDone || renderForcedReady) && adDone;
+  const canDownload   = renderDone && adDone;
   const adRemainingThis = Math.max(0, AD_DURATION - adElapsed);
   const totalAdRemaining = Math.max(0, MIN_AD_SECONDS - totalAdSeconds);
   const adProgress    = Math.min(1, adElapsed / AD_DURATION);
-  const renderProgress = Math.min(1, renderElapsed / renderDuration);
+  // Barra visual: enquanto não tem confirmação do server, fica capada em 95%.
+  // Quando server confirma done → snap pra 100%.
+  const visualRenderPct = renderDone
+    ? 1
+    : Math.min(0.95, renderElapsed / renderDuration);
   const renderRemaining = Math.max(0, renderDuration - renderElapsed);
   const adCount       = adIndex + 1;
   const adsWatched    = Math.floor(totalAdSeconds / AD_DURATION);
@@ -130,26 +132,66 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
     return () => clearInterval(id);
   }, [renderDone]);
 
-  const handleDownload = useCallback(() => {
-    if (downloadUrl) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownload = useCallback(async () => {
+    if (!downloadUrl) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      // Fetch primeiro pra validar — evita o caso "abriu nova página com
+      // {"detail":"render ainda não disponível"}" que tirou o user do app.
+      const res = await fetch(downloadUrl, { cache: "no-store" });
+      if (!res.ok) {
+        // 404/425/etc — renderização ainda não pronta no servidor.
+        let detail = `${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = body.detail;
+        } catch {
+          /* não-JSON */
+        }
+        throw new Error(detail);
+      }
+      const ctype = res.headers.get("content-type") || "";
+      // Resposta não é vídeo? (HTML/JSON) → trata como erro.
+      if (ctype.includes("application/json") || ctype.includes("text/html")) {
+        const txt = await res.text();
+        throw new Error(`resposta inesperada do servidor: ${txt.slice(0, 80)}`);
+      }
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      // Nome do arquivo: tenta extrair do Content-Disposition; fallback genérico.
+      const cd = res.headers.get("content-disposition") || "";
+      const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+      const fname = m ? decodeURIComponent(m[1]) : `fragreel-${matchId ?? "video"}.mp4`;
       const a = document.createElement("a");
-      a.href = downloadUrl;
-      a.download = "";
+      a.href = objUrl;
+      a.download = fname;
       a.rel = "noopener";
       document.body.appendChild(a);
       a.click();
       a.remove();
+      // Libera o blob depois de 60s (tempo + que suficiente pro browser pegar).
+      setTimeout(() => URL.revokeObjectURL(objUrl), 60_000);
       setDownloaded(true);
+    } catch (e) {
+      setDownloadError((e as Error).message || "falha ao baixar");
+    } finally {
+      setDownloading(false);
     }
-  }, [downloadUrl]);
+  }, [downloadUrl, matchId]);
 
   const handleCloseAttempt = () => {
-    // Se já baixou ou se o vídeo tá pronto, fecha direto.
-    if (canDownload || downloaded) {
+    // Já baixou → fecha direto.
+    if (downloaded) {
       setClosing(true);
       setTimeout(onClose, 300);
       return;
     }
+    // Render rolando OU ads não-completos → confirma. User pediu feedback de
+    // "vai perder o progresso" tanto no ad quanto durante a renderização.
     setConfirmClose(true);
   };
 
@@ -266,21 +308,22 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.7)" }}>
                 {renderDone ? `✓ ${formatLabel} pronto!`
-                  : renderForcedReady ? `⚙️ ${formatLabel} — pode estar pronto, tente baixar`
-                  : `⚙️ Renderizando ${formatLabel}...`}
+                  : renderOvertime ? `⚙️ ${formatLabel} — finalizando no servidor…`
+                  : `⚙️ Renderizando ${formatLabel}…`}
               </div>
               <div style={{ fontSize: 12, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
-                {renderDone ? "100%"
-                  : renderElapsed >= renderDuration
-                  ? `~${fmtTime(renderElapsed)} decorridos`
-                  : `${Math.round(renderProgress * 100)}% · ${fmtTime(renderRemaining)} restantes`}
+                {renderDone
+                  ? "100%"
+                  : renderOvertime
+                    ? `~${fmtTime(renderElapsed)} decorridos`
+                    : `${Math.round(visualRenderPct * 100)}% · ${fmtTime(renderRemaining)} restantes`}
               </div>
             </div>
             <div style={{ height: 6, background: "rgba(255,255,255,0.07)", borderRadius: 999, overflow: "hidden" }}>
               <div
                 style={{
                   height: "100%",
-                  width: `${Math.min(1, renderProgress) * 100}%`,
+                  width: `${visualRenderPct * 100}%`,
                   background: renderDone
                     ? "linear-gradient(90deg, #4CAF82, #2ecc71)"
                     : "linear-gradient(90deg, #FF6B35, #ff9966)",
@@ -302,35 +345,71 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
               FragReel é 100% gratuito · sustentado por anúncios
             </div>
 
-            {canDownload ? (
-              <div style={{ display: "flex", gap: 8 }}>
+            {/* Botão SEMPRE presente — não-clicável até estar pronto.
+                User pediu: "o botão de gerar fragreel tem que estar no ad o tempo
+                todo, mas não como clicável, ajude o usuário a entender o processo." */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={canDownload && !downloading ? handleDownload : undefined}
+                disabled={!canDownload || downloading}
+                title={
+                  canDownload
+                    ? "Baixar agora"
+                    : !renderDone
+                      ? "Esperando o vídeo terminar de renderizar"
+                      : `Faltam ${totalAdRemaining}s de anúncio`
+                }
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "10px 26px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: canDownload ? "#FF6B35" : "rgba(255,107,53,0.25)",
+                  color: canDownload ? "white" : "rgba(255,255,255,0.5)",
+                  cursor: canDownload && !downloading ? "pointer" : "not-allowed",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  transition: "background 0.3s",
+                }}
+              >
+                {downloading ? "Baixando…" : downloaded ? "⬇ Baixar de novo" : "⬇ Baixar FragReel"}
+              </button>
+              {downloaded && (
                 <button
-                  onClick={handleDownload}
-                  className="btn-primary"
-                  style={{ fontSize: 14, padding: "10px 26px", animation: "adSlide 0.3s ease" }}
+                  onClick={() => { setClosing(true); setTimeout(onClose, 300); }}
+                  className="btn-secondary"
+                  style={{ fontSize: 13, padding: "10px 18px" }}
                 >
-                  {downloaded ? "⬇ Baixar de novo" : "⬇ Baixar Frag Reel"}
+                  Fechar
                 </button>
-                {downloaded && (
-                  <button
-                    onClick={() => { setClosing(true); setTimeout(onClose, 300); }}
-                    className="btn-secondary"
-                    style={{ fontSize: 13, padding: "10px 18px" }}
-                  >
-                    Fechar
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
-                {renderDone && !adDone
-                  ? `Vídeo pronto · ${totalAdRemaining}s de anúncio antes de liberar`
-                  : !renderDone && adDone
-                  ? "Anúncios OK · esperando renderização terminar"
-                  : "O botão aparece quando os 2 estiverem prontos"}
-              </div>
-            )}
+              )}
+            </div>
           </div>
+
+          {/* Estado abaixo do botão */}
+          {!canDownload && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.4)", fontStyle: "italic", textAlign: "right" }}>
+              {renderDone && !adDone
+                ? `Vídeo pronto · ${totalAdRemaining}s de anúncio antes de liberar`
+                : !renderDone && adDone
+                  ? "Anúncios OK · esperando renderização terminar"
+                  : renderOvertime
+                    ? "Renderização demorando mais que o esperado — só libera quando o servidor confirmar"
+                    : "O botão libera quando o vídeo e os anúncios terminarem"}
+            </div>
+          )}
+          {downloadError && (
+            <div style={{
+              marginTop: 10, padding: "10px 12px",
+              fontSize: 12, color: "#ffb088",
+              background: "rgba(255,150,80,0.08)",
+              border: "1px solid rgba(255,150,80,0.3)",
+              borderRadius: 8,
+            }}>
+              <b>Não rolou baixar agora:</b> {downloadError}. O vídeo pode ainda estar
+              finalizando — aguarde alguns segundos e clique de novo.
+            </div>
+          )}
         </div>
 
         {/* Confirmação de cancelamento */}
@@ -355,12 +434,19 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
               }}
             >
               <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
-                Cancelar geração do vídeo?
+                {renderDone ? "Fechar antes de baixar?" : "Cancelar geração do vídeo?"}
               </div>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 18 }}>
-                Se você fechar agora, <b>o vídeo não vai ser baixado</b>. A renderização
-                continua no servidor e você pode tentar de novo depois — mas vai
-                precisar assistir os anúncios novamente.
+                {renderDone ? (
+                  <>O vídeo já está pronto — se fechar agora, <b>não baixa</b>.
+                  Pra liberar o download de novo, você vai precisar assistir
+                  os anúncios outra vez.</>
+                ) : (
+                  <>Se fechar agora, <b>todo o progresso é perdido</b>: o
+                  contador de anúncios zera e você precisa começar do início.
+                  A renderização continua no servidor — mas pra baixar, vai
+                  ter que reabrir o fluxo e assistir os anúncios de novo.</>
+                )}
               </p>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
                 <button
@@ -368,7 +454,7 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
                   className="btn-secondary"
                   style={{ fontSize: 13, padding: "8px 16px" }}
                 >
-                  Continuar assistindo
+                  {renderDone ? "Voltar e baixar" : "Continuar assistindo"}
                 </button>
                 <button
                   onClick={() => { setConfirmClose(false); setClosing(true); setTimeout(onClose, 300); }}
@@ -381,7 +467,7 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
                     fontWeight: 600,
                   }}
                 >
-                  Sim, cancelar
+                  Sim, perder progresso
                 </button>
               </div>
             </div>

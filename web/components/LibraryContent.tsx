@@ -135,6 +135,21 @@ export default function LibraryContent() {
   }, [offline, load]);
 
   const onPick = async (demo: LocalDemo) => {
+    // Demo já processada → vai direto pro match (sem refazer análise/upload).
+    if (demo.match_id) {
+      router.push(`/match/${demo.match_id}`);
+      return;
+    }
+    try {
+      await triggerLocalUpload(demo.sha1);
+      setActiveAnalyze({ sha: demo.sha1, mapName: demo.map_name });
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  // Re-gerar (forçar nova análise mesmo já processada).
+  const onRegenerate = async (demo: LocalDemo) => {
     try {
       await triggerLocalUpload(demo.sha1);
       setActiveAnalyze({ sha: demo.sha1, mapName: demo.map_name });
@@ -168,10 +183,36 @@ export default function LibraryContent() {
     return <div style={{ padding: 40, color: "rgba(255,255,255,0.55)" }}>Conectando ao client…</div>;
   }
 
+  // Se o erro de scan é "client não rodando" (string vinda do backend ou edge case),
+  // tratamos como offline pra mostrar o CTA de download em vez de mensagem de erro crua.
+  if (error && /client.*n[aã]o.*rodando|ECONNREFUSED|offline/i.test(error)) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", border: "1px solid #2D2D44", borderRadius: 12, background: "#13131f" }}>
+        <div style={{ fontSize: 38, marginBottom: 12 }}>🖥️</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>FragReel client parou de responder</div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", maxWidth: 460, margin: "0 auto 20px" }}>
+          O scan tentou rodar mas o client não respondeu. Reabra o FragReel.exe — se não tiver instalado, baixe abaixo.
+        </div>
+        <a href="/download" className="btn-primary" style={{ fontSize: 14, padding: "10px 22px", textDecoration: "none" }}>
+          ⬇ Baixar / Reinstalar client
+        </a>
+        <div style={{ marginTop: 16 }}>
+          <button onClick={() => load(false)} className="btn-secondary" style={{ fontSize: 13, padding: "8px 18px" }}>
+            Tentar de novo
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (error && !demos?.length) {
     return (
       <div style={{ padding: 24, color: "#ff8866", border: "1px solid rgba(255,80,80,0.4)", borderRadius: 12 }}>
-        Erro no scan: {error}
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Erro no scan</div>
+        <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 12 }}>{error}</div>
+        <a href="/download" className="btn-primary" style={{ fontSize: 13, padding: "8px 16px", textDecoration: "none" }}>
+          ⬇ Reinstalar client
+        </a>
       </div>
     );
   }
@@ -241,10 +282,11 @@ export default function LibraryContent() {
           // Tentativa de usar imagem do mapa; fallback pra gradiente se não existir.
           const mapImg = `/maps/${d.map_name}.png`;
 
+          const isProcessed = !!d.match_id;
           return (
             <div key={d.sha1} style={{
               background: "#13131f",
-              border: "1px solid #2D2D44",
+              border: isProcessed ? "1px solid rgba(91,227,143,0.45)" : "1px solid #2D2D44",
               borderRadius: 12,
               display: "flex", flexDirection: "column",
               overflow: "hidden",
@@ -287,12 +329,25 @@ export default function LibraryContent() {
                     border: `1px solid ${type.color}33`,
                     borderRadius: 5,
                   }}>{type.label}</span>
-                  <span
-                    title={new Date(d.mtime * 1000).toLocaleString("pt-BR")}
-                    style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}
-                  >
-                    {fmtRelative(d.mtime)}
-                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    {isProcessed && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "#5be38f",
+                        padding: "3px 8px",
+                        background: "rgba(91,227,143,0.10)",
+                        border: "1px solid rgba(91,227,143,0.35)",
+                        borderRadius: 5,
+                      }}>✓ FragReel pronto</span>
+                    )}
+                    <span
+                      title={new Date(d.mtime * 1000).toLocaleString("pt-BR")}
+                      style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}
+                    >
+                      {fmtRelative(d.mtime)}
+                    </span>
+                  </div>
                 </div>
                 <div style={{
                   position: "absolute", bottom: 10, left: 14,
@@ -384,16 +439,41 @@ export default function LibraryContent() {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => onPick(d)}
-                  className="btn-primary"
-                  style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
-                >
-                  🎬 Gerar FragReel
-                </button>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.4 }}>
-                  A IA vai detectar ACEs, clutches e multi-kills · ~30s
-                </div>
+                {isProcessed ? (
+                  <>
+                    <button
+                      onClick={() => onPick(d)}
+                      className="btn-primary"
+                      style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
+                    >
+                      ▶ Ver FragReel
+                    </button>
+                    <button
+                      onClick={() => onRegenerate(d)}
+                      style={{
+                        fontSize: 12, padding: "8px 14px", marginTop: 0,
+                        background: "transparent", color: "rgba(255,255,255,0.65)",
+                        border: "1px solid #2D2D44", borderRadius: 8,
+                        cursor: "pointer", fontWeight: 600,
+                      }}
+                    >
+                      🔁 Gerar outro formato
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => onPick(d)}
+                      className="btn-primary"
+                      style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
+                    >
+                      🎬 Gerar FragReel
+                    </button>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.4 }}>
+                      A IA vai detectar ACEs, clutches e multi-kills · ~30s
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           );

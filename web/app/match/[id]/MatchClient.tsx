@@ -387,11 +387,16 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           </div>
         </div>
 
-        {/* Mood selector — só faz sentido pro reel (tem música) */}
-        {format === "reel" && (
+        {/* Mood selector — formatos que carregam música (reel + recap).
+             Card é só estatística, sem trilha. */}
+        {(format === "reel" || format === "recap") && (
           <div style={{ marginBottom: 32 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Escolha a trilha</h2>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>A música sincroniza com os cortes do vídeo. Todas royalty-free.</p>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>
+              {format === "recap"
+                ? "A trilha rola por baixo da narração e se adapta ao ritmo dos rounds."
+                : "A música sincroniza com os cortes do vídeo. Todas royalty-free."}
+            </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
               {MOODS.map((m) => {
                 const active = mood === m.id;

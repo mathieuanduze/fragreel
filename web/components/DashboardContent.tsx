@@ -5,7 +5,7 @@ import MatchList from "@/components/MatchList";
 import AdSlot from "@/components/AdSlot";
 import Link from "next/link";
 import { CLIENT_VERSION } from "@/lib/version";
-import { pingLocalClient } from "@/lib/local";
+import { pingLocalClient, getLocalClientVersion } from "@/lib/local";
 import { getMatches, type MatchSummary } from "@/lib/api";
 
 type ClientStatus = "checking" | "online" | "offline";
@@ -13,15 +13,24 @@ type ClientStatus = "checking" | "online" | "offline";
 export default function DashboardContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [clientStatus, setClientStatus] = useState<ClientStatus>("checking");
+  const [installedVersion, setInstalledVersion] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchSummary[] | null>(null);
   const [matchesLoading, setMatchesLoading] = useState(true);
 
-  // Ping ao client local — define se mostra hero de download ou estado "tudo certo"
+  // Ping ao client local — define se mostra hero de download ou estado "tudo certo".
+  // Quando online, lê /version pra detectar update disponível.
   useEffect(() => {
     let alive = true;
     const tick = async () => {
       const ok = await pingLocalClient();
-      if (alive) setClientStatus(ok ? "online" : "offline");
+      if (!alive) return;
+      setClientStatus(ok ? "online" : "offline");
+      if (ok) {
+        const v = await getLocalClientVersion();
+        if (alive) setInstalledVersion(v);
+      } else {
+        setInstalledVersion(null);
+      }
     };
     tick();
     const id = setInterval(tick, 6000);
@@ -54,9 +63,52 @@ export default function DashboardContent() {
   const hasMatches = (matches?.length ?? 0) > 0;
   const showOnboarding = clientStatus === "offline" && !hasMatches;
   const showQuietHeader = clientStatus === "online" || hasMatches;
+  const updateAvailable =
+    clientStatus === "online" &&
+    installedVersion !== null &&
+    installedVersion !== CLIENT_VERSION;
 
   return (
     <>
+      {/* ── Banner de update — visível MESMO quando o client está conectado */}
+      {updateAvailable && (
+        <div style={{
+          padding: "14px 18px",
+          marginBottom: 16,
+          background: "linear-gradient(90deg, rgba(255,107,53,0.14), rgba(167,139,250,0.10))",
+          border: "1px solid rgba(255,107,53,0.45)",
+          borderRadius: 12,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 12, flexWrap: "wrap",
+          fontSize: 13,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🔔</span>
+            <div>
+              <div style={{ fontWeight: 700, color: "#FF6B35", marginBottom: 2 }}>
+                Nova versão disponível: {CLIENT_VERSION}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                Você está rodando {installedVersion}. Baixa a versão nova pra pegar
+                as últimas correções.
+              </div>
+            </div>
+          </div>
+          <a
+            href="/download"
+            download="FragReel.exe"
+            style={{
+              fontSize: 13, fontWeight: 700,
+              background: "#FF6B35", color: "white",
+              padding: "9px 18px", borderRadius: 8,
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}
+          >
+            ⬇ Atualizar agora
+          </a>
+        </div>
+      )}
+
       {/* ── Onboarding hero — só aparece se client offline E sem matches */}
       {showOnboarding && (
         <div style={{
@@ -151,7 +203,7 @@ export default function DashboardContent() {
                   : "Client desconectado · abra o FragReel.exe no PC pra ler novas demos"}
             </span>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <Link
               href="/library"
               style={{
@@ -164,7 +216,25 @@ export default function DashboardContent() {
             >
               📂 Minhas Demos
             </Link>
-            {clientStatus === "offline" && (
+            {/* CTA de download SEMPRE presente — não-clicável quando o client
+                está rodando (mostra a versão instalada). User pediu: "deixe o
+                CTA pra baixar o fragreel sempre presente, mas não clicável,
+                como está aguardando processamento." */}
+            {clientStatus === "online" ? (
+              <span
+                title="Client rodando — não precisa baixar de novo"
+                style={{
+                  fontSize: 12, fontWeight: 600,
+                  color: "rgba(255,255,255,0.4)", padding: "6px 14px",
+                  border: "1px dashed #2D2D44",
+                  borderRadius: 7,
+                  cursor: "default",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                }}
+              >
+                ⬇ {installedVersion ?? CLIENT_VERSION} <span style={{ color: "#5be38f" }}>● rodando</span>
+              </span>
+            ) : (
               <a
                 href="/download"
                 download="FragReel.exe"
