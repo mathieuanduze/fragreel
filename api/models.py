@@ -100,3 +100,32 @@ class GenerateResponse(BaseModel):
     message: str
     render_url: Optional[str] = None  # URL para baixar quando render terminar
     status_url: Optional[str] = None  # URL para polling de status
+
+
+# ─── /render-plan ─────────────────────────────────────────────────────────────
+# Endpoint de "preview" — recebe a mesma seleção do /generate mas, em vez de
+# disparar render, devolve breakdown de duração (intro + cada highlight + outro).
+# Uso: web mostra "Seu vídeo terá ~32s · 5 cenas" antes do user assistir o ad.
+
+class HighlightPlan(BaseModel):
+    rank: int
+    label: str
+    duration_sec: float  # já clampada pelo bound do formato
+
+
+class RenderPlanRequest(BaseModel):
+    format: VideoFormat
+    highlight_ranks: list[int]
+    orientation: Orientation = Orientation.vertical
+
+
+class RenderPlan(BaseModel):
+    format: VideoFormat
+    orientation: Orientation
+    intro_sec: float
+    timeline_sec: float = 0.0  # só recap usa timeline
+    outro_sec: float
+    highlights: list[HighlightPlan]
+    total_sec: float
+    width: int
+    height: int

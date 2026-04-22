@@ -155,6 +155,45 @@ export async function uploadDemo(
   });
 }
 
+export interface HighlightPlan {
+  rank: number;
+  label: string;
+  duration_sec: number;
+}
+
+export interface RenderPlan {
+  format: string;
+  orientation: Orientation;
+  intro_sec: number;
+  timeline_sec: number;
+  outro_sec: number;
+  highlights: HighlightPlan[];
+  total_sec: number;
+  width: number;
+  height: number;
+}
+
+// Preview de duração antes do user assistir o ad.
+// Espelha exatamente o cálculo do editor — se divergir, o user é surpreendido.
+export async function getRenderPlan(
+  matchId: string,
+  format: string,
+  highlightRanks: number[],
+  orientation: Orientation = "vertical"
+): Promise<RenderPlan> {
+  const res = await fetch(`${BASE}/matches/${matchId}/render-plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader() },
+    body: JSON.stringify({
+      format,
+      highlight_ranks: highlightRanks,
+      orientation,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to fetch render plan");
+  return res.json();
+}
+
 export async function generateVideo(
   matchId: string,
   format: string,

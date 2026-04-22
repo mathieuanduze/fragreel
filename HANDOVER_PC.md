@@ -186,7 +186,8 @@ Frame rate na captura:
   - `acao.mp3` (Action Sport Rock Trailer)
   - `heroico.mp3` (Epic Heroic Orchestral Trailer Cinematic)
   - `chill.mp3` (Lofi Study)
-- `theme.ts`: `MUSIC_ENABLED = true` · `DIMENSIONS`/`getDimensions()` · helpers `s2f`, `clampHighlightSec`, `killTimeInSceneSec`, bounds por formato
+- `theme.ts`: `MUSIC_ENABLED = true` · `DIMENSIONS`/`getDimensions()` · helpers `s2f`, `clampHighlightSec`, `killTimeInSceneSec`, bounds por formato · `SPRING` tokens canônicos (punch/pop/glide)
+- **Novo `components/LowerThird.tsx`** — banner broadcast (esquerda ou centro) com title + subtitle + barra de acento mood color. Pronto pra usar em qualquer cena (Outro, scenes especiais, defuse moments). Adapta vertical/horizontal automaticamente.
 - `remotion.config.ts`: codec H.264 50 Mbps bitrate-fixed (ver 4.1)
 
 ### 5.4 API (`fragreel/api`)
@@ -196,7 +197,10 @@ Frame rate na captura:
   - `_run_render` migrou pra `Popen` + streaming de stdout
   - `_parse_progress` extrai progresso real via regex (`Rendered X/Y`, `Stitched X/Y`, `XX.X%`)
   - `job.progress` cresce de 0→0.95 durante render · vira 1.0 só quando subprocess sai com 0
-- `routes/matches.py`: `generate_video` injeta `orientation` nas props enviadas pro Remotion. Card sempre vertical.
+- `routes/matches.py`:
+  - `generate_video` injeta `orientation` nas props enviadas pro Remotion. Card sempre vertical.
+  - **Novo:** `POST /matches/{id}/render-plan` retorna preview de duração antes do render. Mesma seleção do `/generate` mas só calcula. Útil pra UI mostrar "vídeo terá X s · Y cenas" antes do user assistir o ad.
+  - Constants espelham editor (`_REEL_INTRO_SEC=2.0`, `_RECAP_BOUNDS=(4,10)`, etc) — TODO: extrair pra `editor_constants.py` quando crescer.
 - `models.py`:
   - `HighlightOut.start/end: float` (segundos)
   - `KillOut.time: Optional[float]` — opcional. Quando o parser CS2 não fornece, o editor estima distribuindo as kills uniformemente entre `start` e `end`. **TODO parser:** preencher `time` real via tick do demo.

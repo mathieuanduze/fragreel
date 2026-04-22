@@ -100,6 +100,20 @@ export function clampHighlightSec(
   return Math.max(bounds.min, Math.min(bounds.max, rawSec));
 }
 
+// Easing canônico — perfis reutilizáveis pra spring().
+// Em vez de espalhar { damping: 14, mass: 0.6 } pelo código (cada cena com
+// seu próprio "feel"), centralizamos 3 perfis que cobrem 95% dos casos.
+// Vem do guia de best practices: punch (impacto), pop (entrada padrão),
+// glide (transição suave longa).
+export const SPRING = {
+  // Entrada agressiva — rank badges, flash, trigger de impacto
+  punch: { damping: 10, mass: 0.5, stiffness: 180 },
+  // Entrada padrão — labels, kills, tudo que precisa "aparecer"
+  pop: { damping: 14, mass: 0.6, stiffness: 130 },
+  // Transição suave longa — fade entre cenas, drift, parallax
+  glide: { damping: 22, mass: 1.2, stiffness: 90 },
+} as const;
+
 // Tempo da i-ésima kill DENTRO da cena de highlight (0..sceneDurationSec).
 // Se o parser nos deu kill.time absoluto, reaproveitamos relativo ao start.
 // Caso contrário, distribuímos uniformemente entre 0.5s e (sceneDuration - 0.5s).

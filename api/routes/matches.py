@@ -6,9 +6,33 @@ from __future__ import annotations
 
 import uuid
 from fastapi import APIRouter, HTTPException, Request
-from models import MatchOut, MatchSummary, GenerateRequest, GenerateResponse, JobStatus
+from models import (
+    MatchOut, MatchSummary, GenerateRequest, GenerateResponse, JobStatus,
+    RenderPlanRequest, RenderPlan, HighlightPlan, VideoFormat, Orientation,
+)
 
 router = APIRouter(prefix="/matches", tags=["matches"])
+
+# Sincronizado com editor/src/theme.ts e editor/src/compositions/{reel,recap}.
+# Source of truth ainda é o TS — Python espelha. Quando trocar lá, trocar aqui.
+_REEL_INTRO_SEC = 2.0
+_REEL_OUTRO_SEC = 2.5
+_REEL_BOUNDS = (3.0, 7.0)
+_RECAP_INTRO_SEC = 4.0
+_RECAP_TIMELINE_SEC = 12.0
+_RECAP_OUTRO_SEC = 3.0
+_RECAP_BOUNDS = (4.0, 10.0)
+_DIMS = {
+    "vertical": (1080, 1920),
+    "horizontal": (1920, 1080),
+}
+
+
+def _clamp_sec(raw: float, bounds: tuple[float, float]) -> float:
+    lo, hi = bounds
+    if raw <= 0 or raw != raw:  # raw != raw → NaN
+        return lo
+    return max(lo, min(hi, raw))
 
 
 def _get_store():
@@ -56,6 +80,82 @@ def get_match(match_id: str, request: Request):
                 raise HTTPException(status_code=403, detail="Not your match")
             return _to_match_out(doc)
     raise HTTPException(status_code=404, detail="Match not found")
+
+
+@router.post("/{match_id}/render-plan", response_model=RenderPlan)
+def render_plan(match_id: str, body: RenderPlanRequest, request: Request) -> RenderPlan:
+    """Preview de duração antes do user assistir o ad e disparar o render real.
+    Espelha exatamente o cálculo do editor (calcReelDurationFromHighlights /
+    calcRecapDurationFromHighlights) — se divergir, o user vê surpresa."""
+    if not body.highlight_ranks:
+        raise HTTPException(status_code=422, detail="Select at least one highlight")
+
+    st = _get_store()
+    if not st:
+        raise HTTPException(status_code=503, detail="Storage indisponível")
+    doc = st.load_match(match_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    match_out = _to_match_out(doc)
+    selected = sorted(
+        [h for h in match_out.highlights if h.rank in body.highlight_ranks],
+        key=lambda h: h.rank,
+    )
+    if not selected:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Nenhum highlight com rank em {body.highlight_ranks}",
+        )
+
+    fmt = body.format
+    is_recap = fmt == VideoFormat.recap
+    is_card = fmt == VideoFormat.card
+    bounds = _RECAP_BOUNDS if is_recap else _REEL_BOUNDS
+
+    # Card é um still, não tem timeline de cenas — devolvemos plan especial.
+    if is_card:
+        # Card sempre vertical (mesma regra do generate).
+        w, h = _DIMS["vertical"]
+        return RenderPlan(
+            format=fmt,
+            orientation=Orientation.vertical,
+            intro_sec=0.0,
+            timeline_sec=0.0,
+            outro_sec=0.0,
+            highlights=[],
+            total_sec=0.0,  # PNG estático
+            width=w,
+            height=h,
+        )
+
+    plan_highlights = [
+        HighlightPlan(
+            rank=h.rank,
+            label=h.label,
+            duration_sec=_clamp_sec(h.end - h.start, bounds),
+        )
+        for h in selected
+    ]
+
+    intro = _RECAP_INTRO_SEC if is_recap else _REEL_INTRO_SEC
+    outro = _RECAP_OUTRO_SEC if is_recap else _REEL_OUTRO_SEC
+    timeline = _RECAP_TIMELINE_SEC if is_recap else 0.0
+    total = intro + timeline + sum(p.duration_sec for p in plan_highlights) + outro
+
+    w, h = _DIMS[body.orientation.value]
+
+    return RenderPlan(
+        format=fmt,
+        orientation=body.orientation,
+        intro_sec=intro,
+        timeline_sec=timeline,
+        outro_sec=outro,
+        highlights=plan_highlights,
+        total_sec=round(total, 2),
+        width=w,
+        height=h,
+    )
 
 
 @router.post("/{match_id}/generate", response_model=GenerateResponse)
