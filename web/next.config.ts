@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      {
+        source: "/download",
+        destination:
+          "https://github.com/mathieuanduze/fragreel-client/releases/latest/download/FragReel.exe",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

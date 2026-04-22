@@ -60,7 +60,7 @@ export default function LibraryContent() {
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", maxWidth: 460, margin: "0 auto 20px" }}>
           Pra ver suas partidas, instale e abra o FragReel no seu PC. Ele lê suas demos do CS2 localmente — nada é enviado sem sua confirmação.
         </div>
-        <a href="https://github.com/mathieuanduze/fragreel-client/releases/latest" className="btn-primary" style={{ fontSize: 14, padding: "10px 22px", textDecoration: "none" }}>
+        <a href="/download" className="btn-primary" style={{ fontSize: 14, padding: "10px 22px", textDecoration: "none" }}>
           ⬇ Baixar client
         </a>
         <div style={{ marginTop: 16 }}>

@@ -53,7 +53,7 @@ export default function DashboardContent() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
           <a
-            href="https://github.com/mathieuanduze/fragreel-client/releases/latest/download/FragReel.exe"
+            href="/download"
             download="FragReel.exe"
             style={{
               display: "inline-flex",
