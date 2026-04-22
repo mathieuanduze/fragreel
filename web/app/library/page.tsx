@@ -1,5 +1,6 @@
 import Nav from "@/components/Nav";
 import LibraryContent from "@/components/LibraryContent";
+import AdSlot from "@/components/AdSlot";
 
 export const metadata = { title: "Minhas Demos · FragReel" };
 
@@ -17,7 +18,18 @@ export default function Library() {
             Selecione uma partida para gerar um FragReel. A demo é enviada do seu PC pra análise — você assiste um anúncio enquanto a IA detecta os melhores momentos.
           </p>
         </div>
+
+        {/* Ad — leaderboard topo */}
+        <div style={{ marginBottom: 28 }}>
+          <AdSlot id="library-leaderboard" size="leaderboard" label="HyperX · Headsets oficiais CS2" />
+        </div>
+
         <LibraryContent />
+
+        {/* Ad — native rodapé */}
+        <div style={{ marginTop: 32 }}>
+          <AdSlot id="library-native" size="native" label="Patrocinado · Logitech G Pro X Superlight" />
+        </div>
       </div>
     </div>
   );

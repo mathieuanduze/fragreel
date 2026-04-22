@@ -53,9 +53,8 @@ export default function DashboardContent() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
           <a
-            href="https://github.com/mathieuanduze/fragreel-client/releases/latest"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="https://github.com/mathieuanduze/fragreel-client/releases/latest/download/FragReel.exe"
+            download="FragReel.exe"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -74,7 +73,7 @@ export default function DashboardContent() {
             ⬇ Baixar client
           </a>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "right" }}>
-            Windows 10/11 · ~25 MB
+            Windows 10/11 · ~18 MB
           </span>
         </div>
       </div>

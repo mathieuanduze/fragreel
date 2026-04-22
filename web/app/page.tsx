@@ -72,7 +72,7 @@ export default function Home() {
           </div>
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <a href="https://github.com/mathieuanduze/fragreel-client/releases/latest" target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px", textDecoration: "none" }}>
+            <a href="https://github.com/mathieuanduze/fragreel-client/releases/latest/download/FragReel.exe" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px", textDecoration: "none" }}>
               ⬇ Baixar client · Windows
             </a>
             <Link href="/login" className="btn-ghost" style={{ fontSize: 16 }}>
@@ -81,7 +81,7 @@ export default function Home() {
           </div>
 
           <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            Windows 10/11 · ~25 MB · Login com Steam · Sem assinatura
+            Windows 10/11 · ~18 MB · Login com Steam · Sem assinatura
           </p>
         </div>
       </section>
@@ -206,9 +206,9 @@ export default function Home() {
         <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 32, fontSize: 15 }}>
           Baixe o client. Jogue uma partida. Compartilhe seus melhores momentos.
         </p>
-        <Link href="/login" className="btn-primary" style={{ fontSize: 16, padding: "14px 36px" }}>
+        <a href="https://github.com/mathieuanduze/fragreel-client/releases/latest/download/FragReel.exe" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 36px", textDecoration: "none" }}>
           ⬇ Baixar client · Grátis
-        </Link>
+        </a>
         <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
           Windows 10/11 · Requer Counter-Strike 2 instalado · Login com Steam obrigatório
         </p>
