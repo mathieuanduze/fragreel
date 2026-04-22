@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { pingLocalClient } from "@/lib/local";
+import { CLIENT_VERSION } from "@/lib/version";
 
 type Status = "checking" | "online" | "offline";
 
@@ -103,7 +104,7 @@ export default function ClientStatusChip() {
       }}
     >
       <span style={{ fontSize: 13, lineHeight: 1 }}>⬇</span>
-      Baixar client
+      Baixar client · {CLIENT_VERSION}
     </a>
   );
 }

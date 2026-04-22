@@ -1,5 +1,6 @@
 import Nav from "@/components/Nav";
 import Link from "next/link";
+import { CLIENT_VERSION } from "@/lib/version";
 
 const MAPS = [
   { id: "de_dust2",    name: "Dust2" },
@@ -73,7 +74,7 @@ export default function Home() {
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <a href="/download" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px", textDecoration: "none" }}>
-              ⬇ Baixar client · Windows
+              ⬇ Baixar client · Windows · {CLIENT_VERSION}
             </a>
             <Link href="/login" className="btn-ghost" style={{ fontSize: 16 }}>
               Entrar com Steam →
@@ -81,7 +82,7 @@ export default function Home() {
           </div>
 
           <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            Windows 10/11 · ~18 MB · Login com Steam · Sem assinatura
+            Windows 10/11 · ~33 MB · Login com Steam · Sem assinatura · Última versão {CLIENT_VERSION}
           </p>
         </div>
       </section>
@@ -207,10 +208,10 @@ export default function Home() {
           Baixe o client. Jogue uma partida. Compartilhe seus melhores momentos.
         </p>
         <a href="/download" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 36px", textDecoration: "none" }}>
-          ⬇ Baixar client · Grátis
+          ⬇ Baixar client · Grátis · {CLIENT_VERSION}
         </a>
         <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-          Windows 10/11 · Requer Counter-Strike 2 instalado · Login com Steam obrigatório
+          Windows 10/11 · Requer Counter-Strike 2 instalado · Login com Steam obrigatório · Última versão {CLIENT_VERSION}
         </p>
       </section>
 

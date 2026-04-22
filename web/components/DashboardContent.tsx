@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import MatchList from "@/components/MatchList";
 import AdSlot from "@/components/AdSlot";
 import Link from "next/link";
+import { CLIENT_VERSION } from "@/lib/version";
 
 export default function DashboardContent() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -70,10 +71,10 @@ export default function DashboardContent() {
               letterSpacing: "-0.01em",
             }}
           >
-            ⬇ Baixar client
+            ⬇ Baixar client · {CLIENT_VERSION}
           </a>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "right" }}>
-            Windows 10/11 · ~18 MB
+            Windows 10/11 · ~33 MB · Última versão {CLIENT_VERSION}
           </span>
         </div>
       </div>
