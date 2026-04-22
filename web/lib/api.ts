@@ -57,6 +57,10 @@ export interface MatchSummary {
 
 export type Mood = "eletronica" | "acao" | "heroico" | "chill";
 
+// vertical = TikTok / Reels / Shorts (1080x1920)
+// horizontal = YouTube / Twitch (1920x1080)
+export type Orientation = "vertical" | "horizontal";
+
 export interface GenerateResponse {
   job_id: string;
   status: string;
@@ -156,7 +160,8 @@ export async function generateVideo(
   format: string,
   highlightRanks: number[],
   mood: Mood = "acao",
-  playerName?: string
+  playerName?: string,
+  orientation: Orientation = "vertical"
 ): Promise<GenerateResponse> {
   const res = await fetch(`${BASE}/matches/${matchId}/generate`, {
     method: "POST",
@@ -166,6 +171,7 @@ export async function generateVideo(
       highlight_ranks: highlightRanks,
       mood,
       player_name: playerName,
+      orientation,
     }),
   });
   if (!res.ok) throw new Error("Failed to generate video");

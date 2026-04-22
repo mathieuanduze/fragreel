@@ -1,13 +1,21 @@
 // Espelho do MatchOut / HighlightOut do api/models.py
 // Se mudar lá, atualizar aqui.
+import type { Orientation } from "./theme";
 
 export type Mood = "eletronica" | "acao" | "heroico" | "chill";
+
+// Re-exporta pra quem importa só de types.
+export type { Orientation };
 
 export type Kill = {
   label: string;
   weapon: string;
   headshot: boolean;
   hp: number;
+  // Tempo da kill em segundos relativo ao início do MATCH (mesma base de highlight.start/end).
+  // Opcional: quando o parser não fornece, o editor estima distribuindo
+  // uniformemente as N kills entre highlight.start e highlight.end.
+  time?: number;
 };
 
 export type Highlight = {
@@ -45,6 +53,9 @@ export type ReelProps = {
   selectedRanks: number[]; // quais highlights entram no vídeo
   mood: Mood;
   playerName: string;
+  // Orientação do vídeo de saída. Default vertical (formato story/reel).
+  // horizontal usa 16:9 (1920x1080) — ideal pra YouTube/Twitch.
+  orientation?: Orientation;
 };
 
 export type CardProps = {

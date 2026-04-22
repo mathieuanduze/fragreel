@@ -4,9 +4,8 @@ import {
   spring,
   useCurrentFrame,
   useVideoConfig,
-  Sequence,
 } from "remotion";
-import { theme, MOODS } from "../../../theme";
+import { theme, MOODS, killTimeInSceneSec, s2f } from "../../../theme";
 import { Highlight } from "../../../types";
 
 type Props = {
@@ -22,8 +21,12 @@ type Props = {
  */
 export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
+  const { fps, durationInFrames, width, height } = useVideoConfig();
   const moodDef = MOODS[mood];
+  const isHorizontal = width > height;
+
+  // Duração da cena em segundos — usado pra calcular timing das kills.
+  const sceneDurationSec = durationInFrames / fps;
 
   // Flash branco no frame 0 (impacto)
   const flash = interpolate(frame, [0, 4, 8], [1, 0.3, 0], {
@@ -43,9 +46,6 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
     fps,
     config: { damping: 14, mass: 0.8 },
   });
-
-  // Kills aparecem em cascata (kill feed)
-  const killFeedStart = 15;
 
   // Fade out últimos 6 frames
   const fadeOut = interpolate(
@@ -163,12 +163,12 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         }}
       />
 
-      {/* Rank badge — top left */}
+      {/* Rank badge — top left (mesmo lugar nos dois formatos) */}
       <div
         style={{
           position: "absolute",
-          top: 80,
-          left: 50,
+          top: isHorizontal ? 40 : 80,
+          left: isHorizontal ? 40 : 50,
           transform: `scale(${rankSpring})`,
           opacity: rankSpring,
           display: "flex",
@@ -178,8 +178,8 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
       >
         <div
           style={{
-            width: 84,
-            height: 84,
+            width: isHorizontal ? 72 : 84,
+            height: isHorizontal ? 72 : 84,
             borderRadius: 18,
             background: highlight.rank === 1 ? moodDef.color : "#16213E",
             border:
@@ -190,7 +190,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
             alignItems: "center",
             justifyContent: "center",
             fontWeight: 900,
-            fontSize: 42,
+            fontSize: isHorizontal ? 36 : 42,
             color: highlight.rank === 1 ? "white" : moodDef.color,
             fontFamily: theme.fontDisplay,
             boxShadow:
@@ -203,7 +203,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         </div>
         <div
           style={{
-            fontSize: 26,
+            fontSize: isHorizontal ? 22 : 26,
             fontWeight: 700,
             color: theme.textMuted,
             letterSpacing: "0.15em",
@@ -214,16 +214,16 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         </div>
       </div>
 
-      {/* Label — bottom center */}
+      {/* Label — bottom (proporcional pra ficar bem em vertical e horizontal) */}
       <div
         style={{
           position: "absolute",
-          bottom: 240,
-          left: 50,
-          right: 50,
+          bottom: isHorizontal ? 80 : 240,
+          left: isHorizontal ? 40 : 50,
+          right: isHorizontal ? width * 0.4 : 50,
           transform: `translateY(${(1 - labelSpring) * 30}px)`,
           opacity: labelSpring,
-          fontSize: 58,
+          fontSize: isHorizontal ? 48 : 58,
           fontWeight: 900,
           color: theme.text,
           letterSpacing: "-0.02em",
@@ -246,47 +246,80 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         </div>
       </div>
 
-      {/* Kill feed — bottom, cascata */}
+      {/*
+        Kill feed — TOP-RIGHT, convenção CS2 (HUD vanilla). Cada kill aparece
+        no momento real (kill.time relativo a highlight.start) ou estimativa
+        uniforme se o parser ainda não fornece time. Mantém últimas 5 kills
+        visíveis (FIFO) — em ace de 5+ kills, a primeira sai quando a sexta entra.
+      */}
       <div
         style={{
           position: "absolute",
-          bottom: 80,
-          left: 50,
-          right: 50,
+          top: isHorizontal ? 32 : 60,
+          right: isHorizontal ? 32 : 40,
           display: "flex",
           flexDirection: "column",
-          gap: 8,
+          gap: 6,
+          alignItems: "flex-end",
+          maxWidth: isHorizontal ? 520 : 620,
         }}
       >
         {highlight.kills.map((k, i) => {
-          const killFrame = killFeedStart + i * 6;
-          const killProgress = spring({
+          const killTimeSec = killTimeInSceneSec(
+            k,
+            i,
+            highlight.kills.length,
+            highlight.start,
+            sceneDurationSec
+          );
+          const killFrame = s2f(killTimeSec);
+
+          // Janela de visibilidade: aparece no killFrame, fica por ~3.5s,
+          // depois fade out. Cobre o caso de cena longa (10s recap) sem
+          // poluir tela com 5 cards congelados.
+          const showWindow = s2f(3.5);
+          const fadeWindow = s2f(0.4);
+
+          const enterProgress = spring({
             frame: frame - killFrame,
             fps,
             config: { damping: 14, mass: 0.5 },
           });
+          const exitFade = interpolate(
+            frame,
+            [
+              killFrame + showWindow,
+              killFrame + showWindow + fadeWindow,
+            ],
+            [1, 0],
+            { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+          );
+          const opacity = enterProgress * exitFade;
+
+          // Pula render quando totalmente invisível — economiza pintura.
+          if (opacity <= 0.001) return null;
+
           return (
             <div
               key={i}
               style={{
-                transform: `translateX(${(1 - killProgress) * -60}px)`,
-                opacity: killProgress,
+                transform: `translateX(${(1 - enterProgress) * 60}px)`,
+                opacity,
                 display: "flex",
                 alignItems: "center",
-                gap: 12,
-                padding: "10px 18px",
-                background: "rgba(0,0,0,0.65)",
+                gap: 10,
+                padding: "8px 14px",
+                background: "rgba(0,0,0,0.72)",
                 backdropFilter: "blur(8px)",
-                border: `1px solid ${moodDef.color}30`,
-                borderRadius: 8,
-                fontSize: 22,
+                border: `1px solid ${moodDef.color}40`,
+                borderRadius: 6,
+                fontSize: isHorizontal ? 20 : 22,
                 fontWeight: 700,
                 color: theme.text,
                 fontFamily: theme.fontDisplay,
-                alignSelf: "flex-start",
               }}
             >
-              <span style={{ color: theme.textDim, fontSize: 18 }}>
+              <span style={{ color: theme.textDim, fontSize: isHorizontal ? 16 : 18 }}>
                 {k.weapon.toUpperCase()}
               </span>
               <span style={{ color: moodDef.color }}>▸</span>
@@ -295,11 +328,11 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
                 <span
                   style={{
                     marginLeft: 4,
-                    padding: "2px 8px",
+                    padding: "2px 7px",
                     borderRadius: 4,
                     background: moodDef.color,
                     color: "white",
-                    fontSize: 16,
+                    fontSize: isHorizontal ? 14 : 16,
                     fontWeight: 800,
                     letterSpacing: "0.05em",
                   }}

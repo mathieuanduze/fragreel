@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { MatchOut, Mood, generateVideo, getMatch, renderDownloadUrl } from "@/lib/api";
+import { MatchOut, Mood, Orientation, generateVideo, getMatch, renderDownloadUrl } from "@/lib/api";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
 
@@ -19,9 +19,9 @@ const SCENE_CAPS: Record<string, number> = {
 };
 
 const FORMATS = [
-  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "9:16 vertical · ~20s",       desc: "Intro com player/mapa, rank badges, kill feed animado por frag e stats no outro. Música sincronizada com os cortes.", dest: "TikTok · Reels · WhatsApp Status", maxScenes: SCENE_CAPS.reel },
+  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "vídeo curto · ~20s",          desc: "Intro com player/mapa, rank badges, kill feed animado por frag e stats no outro. Música sincronizada com os cortes.", dest: "Vertical → TikTok / Reels · Horizontal → YouTube Shorts", maxScenes: SCENE_CAPS.reel },
   { id: "card",  icon: "🖼️", label: "Story Card",       format: "9:16 imagem estática",       desc: "Card com nick, mapa, K/D, HS%, ADR, rating e top play. Perfeito para stories.",         dest: "Instagram Stories · WhatsApp", maxScenes: SCENE_CAPS.card },
-  { id: "recap", icon: "📺", label: "Recap Completo",   format: "16:9 horizontal · em breve", desc: "Narrativa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",    dest: "YouTube · Discord · Twitter", maxScenes: SCENE_CAPS.recap },
+  { id: "recap", icon: "📺", label: "Recap Completo",   format: "vídeo longo · ~50-90s",       desc: "Narrativa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",    dest: "Vertical → Reels longos · Horizontal → YouTube / Twitch", maxScenes: SCENE_CAPS.recap },
 ];
 
 // Mapeamento de arma/tipo de kill pra ícone visual. A IA já manda `weapon` e
@@ -74,6 +74,9 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     new Set(initialMatch.highlights.slice(0, Math.min(SCENE_CAPS.reel, 3)).map((h) => h.rank))
   );
   const [mood, setMood] = useState<Mood>("acao");
+  // vertical = TikTok/Reels (default); horizontal = YouTube/Twitch.
+  // Card é sempre vertical (formato semântico do produto), backend força.
+  const [orientation, setOrientation] = useState<Orientation>("vertical");
   const [generating, setGenerating] = useState(false);
   const [jobMsg, setJobMsg] = useState<string | null>(null);
   const [showAd, setShowAd] = useState(false);
@@ -146,7 +149,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     setJobMsg(null);
     setDownloadUrl(null);
     try {
-      const res = await generateVideo(match.id, format, Array.from(selected), mood);
+      const res = await generateVideo(match.id, format, Array.from(selected), mood, undefined, orientation);
       setRenderDuration(res.estimated_seconds ?? 90);
       setJobMsg(res.message);
       setDownloadUrl(renderDownloadUrl(match.id, format));
@@ -421,6 +424,49 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                     <div style={{ fontSize: 22, marginBottom: 6 }}>{m.icon}</div>
                     <div style={{ fontWeight: 700, fontSize: 14, color: active ? m.color : "#E8E8F0", marginBottom: 2 }}>{m.label}</div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>{m.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Orientation selector — só faz sentido pra formatos de vídeo.
+             Card sempre é 9:16 vertical (story de Instagram). */}
+        {(format === "reel" || format === "recap") && (
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Onde você vai postar?</h2>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>
+              Define o formato do vídeo final. Vertical é o padrão de mobile (TikTok/Reels), horizontal é o padrão YouTube/Twitch.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+              {([
+                { id: "vertical" as const, icon: "📱", label: "Vertical · 9:16", desc: "TikTok · Reels · Shorts · WhatsApp", dim: "1080×1920" },
+                { id: "horizontal" as const, icon: "🖥", label: "Horizontal · 16:9", desc: "YouTube · Twitch · Discord", dim: "1920×1080" },
+              ]).map((o) => {
+                const active = orientation === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    onClick={() => setOrientation(o.id)}
+                    style={{
+                      padding: "14px 16px",
+                      borderRadius: 10,
+                      border: active ? "2px solid #FF6B35" : "1px solid #2D2D44",
+                      background: active ? "rgba(255,107,53,0.06)" : "#16213E",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      position: "relative",
+                      transition: "border-color 0.15s, background 0.15s",
+                    }}
+                  >
+                    {active && (
+                      <div style={{ position: "absolute", top: 10, right: 10, width: 16, height: 16, borderRadius: "50%", background: "#FF6B35", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "white" }}>✓</div>
+                    )}
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{o.icon}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: active ? "#FF6B35" : "#E8E8F0", marginBottom: 2 }}>{o.label}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{o.desc}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", marginTop: 4 }}>{o.dim}</div>
                   </button>
                 );
               })}

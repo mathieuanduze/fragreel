@@ -179,12 +179,14 @@ Frame rate na captura:
 - **`Recap` composition implementada** — retrospectivo da partida (intro 4s + timeline 12s + N highlights + outro 3s)
 - **Duração variável por highlight** — `h.end - h.start` clampado em `[3, 7]s` no Reel e `[4, 10]s` no Recap (não é mais 4s fixo)
 - **Score interno removido do vídeo** — `highlight.score` é ferramenta interna de ranking, não aparece mais no MP4 final
+- **Kill feed top-right + timing-aware** — convenção CS2 vanilla. Cada kill aparece no tempo real (`kill.time` relativo a `highlight.start`); fallback uniforme se parser ainda não envia `time`. Card fica visível por 3.5s + fade out de 0.4s.
+- **Toggle vertical/horizontal** — `ReelProps.orientation: "vertical" | "horizontal"`. `calculateMetadata` em `Root.tsx` resolve dimensões em runtime (1080×1920 vs 1920×1080). Card é sempre vertical (semântico).
 - **4 trilhas Pixabay CC0** bundled em `editor/public/music/`:
   - `eletronica.mp3` (Cyberpunk synthwave)
   - `acao.mp3` (Action Sport Rock Trailer)
   - `heroico.mp3` (Epic Heroic Orchestral Trailer Cinematic)
   - `chill.mp3` (Lofi Study)
-- `theme.ts`: `MUSIC_ENABLED = true` · helpers `s2f`, `clampHighlightSec`, bounds por formato
+- `theme.ts`: `MUSIC_ENABLED = true` · `DIMENSIONS`/`getDimensions()` · helpers `s2f`, `clampHighlightSec`, `killTimeInSceneSec`, bounds por formato
 - `remotion.config.ts`: codec H.264 50 Mbps bitrate-fixed (ver 4.1)
 
 ### 5.4 API (`fragreel/api`)
@@ -194,7 +196,16 @@ Frame rate na captura:
   - `_run_render` migrou pra `Popen` + streaming de stdout
   - `_parse_progress` extrai progresso real via regex (`Rendered X/Y`, `Stitched X/Y`, `XX.X%`)
   - `job.progress` cresce de 0→0.95 durante render · vira 1.0 só quando subprocess sai com 0
-- `models.py`: `HighlightOut.start/end: float` (segundos)
+- `routes/matches.py`: `generate_video` injeta `orientation` nas props enviadas pro Remotion. Card sempre vertical.
+- `models.py`:
+  - `HighlightOut.start/end: float` (segundos)
+  - `KillOut.time: Optional[float]` — opcional. Quando o parser CS2 não fornece, o editor estima distribuindo as kills uniformemente entre `start` e `end`. **TODO parser:** preencher `time` real via tick do demo.
+  - `Orientation` enum + `GenerateRequest.orientation: Orientation = vertical`
+
+### 5.5 Web (`fragreel/web`) — adicional Round 4b
+
+- `lib/api.ts`: tipo `Orientation` + parâmetro opcional `orientation` em `generateVideo()`
+- `app/match/[id]/MatchClient.tsx`: novo seletor de orientação ("Onde você vai postar?") aparece pra `reel`/`recap` antes do CTA. Default vertical.
 
 ## 6. Onde estamos no plano — Round 4
 
@@ -203,8 +214,8 @@ O trabalho está dividido em 4 sub-rounds:
 | Round | Escopo | Onde | Status |
 |---|---|---|---|
 | **4a** | Trilhas + Recap + progresso real + codec canônico | Mac | ✅ concluído |
-| **4b** | Endpoint `/render-plan` + UI components canônicos + spike Python↔Node | Mac | 🟡 em andamento |
-| **4c** | HLAE integration + bundle `.exe` de 350MB com Node+Remotion+HLAE | **PC** | ⏳ pendente |
+| **4b** | Kill feed timing/posição + orientation toggle + Defuse Bar/Lower Thirds + endpoint `/render-plan` + spike Python↔Node | Mac | 🟡 em andamento (kill feed + orientation ✅, resto pendente) |
+| **4c** | HLAE integration + bundle `.exe` de 350MB com Node+Remotion+HLAE | **PC (amanhã)** | ⏳ pendente |
 | **4d** | Polish + entregar v0.2.0 ponta-a-ponta | Mac+PC | ⏳ pendente |
 
 ## 7. Tarefas concretas pra executar no PC (Round 4c)

@@ -21,6 +21,10 @@ class KillOut(BaseModel):
     weapon: str
     headshot: bool
     hp: int
+    # Tempo da kill em segundos (mesma base de HighlightOut.start/end).
+    # Quando o parser CS2 não fornece, o editor estima distribuindo
+    # uniformemente as kills entre highlight.start e highlight.end.
+    time: Optional[float] = None
 
 
 class HighlightOut(BaseModel):
@@ -72,11 +76,21 @@ class Mood(str, Enum):
     chill = "chill"
 
 
+class Orientation(str, Enum):
+    # vertical = 1080x1920 (TikTok / Reels / Shorts)
+    # horizontal = 1920x1080 (YouTube / Twitch)
+    vertical = "vertical"
+    horizontal = "horizontal"
+
+
 class GenerateRequest(BaseModel):
     format: VideoFormat
     highlight_ranks: list[int]
     mood: Mood = Mood.acao
     player_name: Optional[str] = None
+    # Default vertical mantém compatibilidade com clientes antigos que não
+    # mandam o campo. Card sempre força vertical (formato semântico).
+    orientation: Orientation = Orientation.vertical
 
 
 class GenerateResponse(BaseModel):

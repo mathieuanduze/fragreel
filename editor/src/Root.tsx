@@ -1,35 +1,34 @@
 import { Composition } from "remotion";
 import {
   HighlightsReel,
-  calcReelDuration,
   calcReelDurationFromHighlights,
 } from "./compositions/reel/HighlightsReel";
 import {
   Recap,
-  calcRecapDuration,
   calcRecapDurationFromHighlights,
 } from "./compositions/recap/Recap";
 import { StoryCard } from "./compositions/card/StoryCard";
 import { MOCK_REEL_PROPS, MOCK_CARD_PROPS } from "./mock";
-import { FPS } from "./theme";
+import { FPS, getDimensions } from "./theme";
 import { ReelProps } from "./types";
-
-// 9:16 vertical — 1080x1920 é o padrão do TikTok/Reels/Shorts
-const WIDTH_9_16 = 1080;
-const HEIGHT_9_16 = 1920;
 
 // Helper: dado um ReelProps, devolve só os highlights selecionados.
 // Usado pra computar duração real (cada highlight respeita h.end - h.start).
 const selectedHighlights = (props: ReelProps) =>
   props.match.highlights.filter((h) => props.selectedRanks.includes(h.rank));
 
+// Dimensões iniciais (defaultProps = vertical, mas calculateMetadata troca
+// em runtime conforme props.orientation).
+const DEFAULT_DIMS = getDimensions("vertical");
+
 export const Root: React.FC = () => {
   return (
     <>
       {/*
         HighlightsReel — Top N highlights, duração = soma das durações reais
-        (h.end - h.start clampado em [3, 7]s) + intro + outro. Em produção,
-        --props traz o match real do parser; defaultProps é só pro Studio.
+        (h.end - h.start clampado em [3, 7]s) + intro + outro.
+        Suporta orientação vertical (1080x1920, default) ou horizontal
+        (1920x1080) via props.orientation — resolvido em calculateMetadata.
       */}
       <Composition
         id="HighlightsReel"
@@ -39,13 +38,18 @@ export const Root: React.FC = () => {
           selectedHighlights(MOCK_REEL_PROPS)
         )}
         fps={FPS}
-        width={WIDTH_9_16}
-        height={HEIGHT_9_16}
-        calculateMetadata={({ props }) => ({
-          durationInFrames: calcReelDurationFromHighlights(
-            selectedHighlights(props)
-          ),
-        })}
+        width={DEFAULT_DIMS.width}
+        height={DEFAULT_DIMS.height}
+        calculateMetadata={({ props }) => {
+          const dims = getDimensions(props.orientation ?? "vertical");
+          return {
+            durationInFrames: calcReelDurationFromHighlights(
+              selectedHighlights(props)
+            ),
+            width: dims.width,
+            height: dims.height,
+          };
+        }}
       />
 
       {/*
@@ -60,17 +64,23 @@ export const Root: React.FC = () => {
           selectedHighlights(MOCK_REEL_PROPS)
         )}
         fps={FPS}
-        width={WIDTH_9_16}
-        height={HEIGHT_9_16}
-        calculateMetadata={({ props }) => ({
-          durationInFrames: calcRecapDurationFromHighlights(
-            selectedHighlights(props)
-          ),
-        })}
+        width={DEFAULT_DIMS.width}
+        height={DEFAULT_DIMS.height}
+        calculateMetadata={({ props }) => {
+          const dims = getDimensions(props.orientation ?? "vertical");
+          return {
+            durationInFrames: calcRecapDurationFromHighlights(
+              selectedHighlights(props)
+            ),
+            width: dims.width,
+            height: dims.height,
+          };
+        }}
       />
 
       {/*
-        StoryCard — 1 frame exportado como PNG. 60 frames pra preview de pulse.
+        StoryCard — 1 frame exportado como PNG. Sempre 9:16 (story de Instagram).
+        Não respeita orientation — formato é semântico do produto.
       */}
       <Composition
         id="StoryCard"
@@ -78,8 +88,8 @@ export const Root: React.FC = () => {
         defaultProps={MOCK_CARD_PROPS}
         durationInFrames={60}
         fps={FPS}
-        width={WIDTH_9_16}
-        height={HEIGHT_9_16}
+        width={DEFAULT_DIMS.width}
+        height={DEFAULT_DIMS.height}
       />
     </>
   );

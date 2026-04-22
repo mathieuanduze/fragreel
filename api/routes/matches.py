@@ -76,12 +76,19 @@ def generate_video(match_id: str, body: GenerateRequest, request: Request):
     # Player name: usa o fornecido, ou cai para steamid curto, ou "player"
     player_name = body.player_name or (doc.get("steamid") or "")[-6:] or "player"
 
+    # Card é estático e sempre vertical (formato semântico do produto);
+    # reel/recap respeitam a escolha do user.
+    orientation = (
+        "vertical" if body.format.value == "card" else body.orientation.value
+    )
+
     # Monta as props exatamente como o ReelProps/CardProps do editor/src/types.ts
     props = {
         "match": match_out.model_dump(),
         "selectedRanks": body.highlight_ranks,
         "mood": body.mood.value,
         "playerName": player_name,
+        "orientation": orientation,
     }
 
     # Dispara render em background
