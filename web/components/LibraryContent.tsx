@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   getLocalDemos,
+  pingLocalClient,
   triggerLocalUpload,
   LocalClientOffline,
   LocalDemo,
@@ -42,6 +43,22 @@ export default function LibraryContent() {
   }, []);
 
   useEffect(() => { load(false); }, [load]);
+
+  // Se a página renderizou em estado offline (user abriu /library antes de
+  // ligar o .exe), pinga /health a cada 4s e dispara load() automaticamente
+  // assim que o client aparecer — sem precisar clicar em "Recarregar".
+  useEffect(() => {
+    if (!offline) return;
+    let alive = true;
+    const id = setInterval(async () => {
+      const ok = await pingLocalClient();
+      if (alive && ok) {
+        clearInterval(id);
+        load(false);
+      }
+    }, 4000);
+    return () => { alive = false; clearInterval(id); };
+  }, [offline, load]);
 
   const onPick = async (demo: LocalDemo) => {
     try {
