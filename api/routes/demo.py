@@ -28,7 +28,8 @@ DEMO_DIR.mkdir(parents=True, exist_ok=True)
 MAX_DEMO_BYTES = 500 * 1024 * 1024  # 500 MB guard
 
 
-@router.post("/upload")
+@router.post("/analyze")
+@router.post("/upload")  # legacy alias — do modelo auto-fila anterior
 async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
     """
     Receive a CS2 .dem file, parse it, and return highlight summary.
