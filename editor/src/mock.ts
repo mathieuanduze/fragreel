@@ -33,6 +33,13 @@ export const MOCK_MATCH: Match = {
         { label: "HS · Default", weapon: "ak47", headshot: true, hp: 92, time: 14 * 115 + 7.8 },
       ],
       clip_url: null,
+      // Mock: vídeo Pexels público pra dev no Mac sem precisar do .mov real
+      // do HLAE. Só o highlight #1 tem — assim valido OffthreadVideo aqui e
+      // fallback gradient nos #2 e #3 no mesmo render.
+      // Quando o pipeline real rodar no PC, hlae_runner.py preenche este
+      // campo com path local file:// pro ProRes 4444.
+      gameplayVideoSrc:
+        "https://videos.pexels.com/video-files/1409899/1409899-hd_1920_1080_25fps.mp4",
     },
     {
       rank: 2,

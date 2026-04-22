@@ -26,7 +26,15 @@ export type Highlight = {
   start: number;
   end: number;
   kills: Kill[];
+  // clip_url — legado, usado quando o pipeline de screen capture (Round 3)
+  // estava produzindo MP4 público por highlight. Mantido por compat.
   clip_url?: string | null;
+  // gameplayVideoSrc — novo, vem do hlae_runner.py no PC do user.
+  // Path local (file://) ou URL — Remotion <OffthreadVideo> resolve os dois.
+  // Cada highlight recebe seu próprio .mov ProRes 4444 1920×1080 @ 300fps,
+  // começando no frame 0 do highlight (sem offset).
+  // Quando definido, sobrepõe placeholder e clip_url.
+  gameplayVideoSrc?: string | null;
 };
 
 export type MatchStats = {

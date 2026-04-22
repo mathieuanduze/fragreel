@@ -146,7 +146,12 @@ export interface LocalRenderSession {
   progress: number; // 0..1
   frames_captured: number;
   frames_expected: number;
-  output_mov: string | null;
+  // Per-segment ProRes outputs (one .mov per highlight). Round 4d shape;
+  // earlier clients (<= v0.1.10) emit `output_mov: string | null` instead.
+  segments_total?: number;
+  segments_done?: number;
+  output_movs?: string[];
+  output_mov?: string | null; // legacy fallback (single .mov pre-multitake)
   output_mp4: string | null;
   error: string | null;
   started_at: number | null;
