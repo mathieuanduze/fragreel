@@ -218,9 +218,9 @@ O trabalho está dividido em 4 sub-rounds:
 | Round | Escopo | Onde | Status |
 |---|---|---|---|
 | **4a** | Trilhas + Recap + progresso real + codec canônico | Mac | ✅ concluído |
-| **4b** | Kill feed timing/posição + orientation toggle + Defuse Bar/Lower Thirds + endpoint `/render-plan` + spike Python↔Node | Mac | 🟡 em andamento (kill feed + orientation ✅, resto pendente) |
-| **4c** | HLAE integration + bundle `.exe` de 350MB com Node+Remotion+HLAE | **PC (amanhã)** | ⏳ pendente |
-| **4d** | Polish + entregar v0.2.0 ponta-a-ponta | Mac+PC | ⏳ pendente |
+| **4b** | Kill feed timing/posição + orientation toggle + endpoint `/render-plan` + spike Python↔Node. Defuse Bar movido pro Round 5; Lower Thirds componente pronto (não usado em cena ainda) | Mac | ✅ concluído |
+| **4c** | HLAE spike + capture_script.py (mirv_cmd) + hlae_runner.py MVP. Auto-launch CS2 + bundle .exe → deferido 4d | **PC** | 🟡 7.2-7.5 MVP pronto · 7.6/7.7 pendentes |
+| **4d** | Auto-launch CS2, Remotion integration, bundle PyInstaller 350MB, polish, v0.2.0 ponta-a-ponta | Mac+PC | ⏳ pendente |
 
 ## 7. Tarefas concretas pra executar no PC (Round 4c)
 
@@ -247,49 +247,214 @@ npx remotion browser ensure   # pré-baixa Chromium headless
 - Extrair em `C:\FragReel\client\vendor\hlae\`
 - Validar: `C:\FragReel\client\vendor\hlae\HLAE.exe` existe
 
-### 7.3 Primeiro spike: rodar HLAE manualmente contra uma demo
+### 7.3 Primeiro spike: rodar HLAE manualmente contra uma demo ✅ validado 2026-04-22
 
 Antes de automatizar, validar que HLAE+CS2 funciona no teu PC:
 
 1. Abrir HLAE.exe
-2. "Launch Custom Loader" → selecionar CS2.exe
-3. No console do CS2: `exec afx/updateworkaround`
-4. Abrir demo: `playdemo <caminho-da-.dem>`
-5. `demo_gototick 1610` (vai pro tick do primeiro highlight do mock)
-6. Capturar via `startmovie fragreel/frame png` por 12s
-7. Parar: `endmovie`
-8. Verificar se gerou PNGs em `<CS2>/fragreel/frame_0000.png...`
+2. Launcher → **Counter-Strike 2** (não "Launch any program") → aponta pro `cs2.exe`, argumentos `-insecure -novid +playdemo replays/<basename>`, checkbox "Custom Loader / AfxHookSource" marcado → Run
+3. Console do CS2 (`~`). **Nota:** em CS2 moderno o `exec afx/updateworkaround` falha silenciosamente — o cfg não vem mais no HLAE. Ignorar; só reativar se z-buffer vier com flicker (caso AMD).
+4. Confere que o hook está injetado: `mirv_streams` (sem args) deve imprimir subcomandos `add / edit / remove / print / record / settings`. Se der "Unknown command", o hook não injetou e CS2 foi aberto fora do Custom Loader.
+5. Com demo tocando: `demo_pause` → `demo_gototick <N>`
+6. Captura canônica (substitui `startmovie`, que é vestígio de CS:GO e **não gera arquivos** em CS2):
+   ```
+   mirv_streams add normal default
+   mirv_streams record name fragreel
+   host_framerate 300
+   host_timescale 0
+   mirv_streams record start
+   demo_resume
+   ```
+7. Após alguns segundos: `mirv_streams record end`
+8. Output: `<CS2>/game/bin/win64/fragreel/take0000/default/NNNNN.tga` + `audio.wav`. Formato default é **TGA** 1920×1080 RGB24 (~6.2 MB/frame), não PNG.
 
-### 7.4 Automatizar via .vdm script
+**Resultado do spike (PC-Windows, 2026-04-22):** 1000 frames TGA, 3.33s @ 300fps, sem flicker z-buffer (AMD workaround não necessário neste PC). HLAE v2.189.9 em `C:\FragReel\client\vendor\hlae\`.
 
-Criar `scripts/vdm_generator.py` no client que recebe:
+### 7.4 Automatizar via script .cfg com `mirv_cmd`
+
+**⚠️ Descoberta 2026-04-22:** `.vdm` adjacente **NÃO é auto-carregado** em CS2. A convenção foi abandonada na migração Source 1 → Source 2. Em seu lugar, HLAE expõe `mirv_cmd` como scheduler tick-based canônico:
+
+```
+mirv_cmd addAtTick <iTick> <command-parts…>   # agenda 1 comando
+mirv_cmd clear | print | load <xml> | save <xml>
+```
+
+Cada `addAtTick` agenda **exatamente um** comando (sem `;` multiplexado). Pra vários comandos no mesmo tick, emite várias linhas.
+
+Criar `scripts/capture_script.py` (substitui o `vdm_generator.py` descartado):
 
 ```python
-generate_vdm(demo_path, start_tick, end_tick, output_dir) -> Path
+generate_capture_cfg(output_path, segments, *,
+                     user_account_id=None, user_steamid64=None,
+                     record_name="fragreel", stream_name="default",
+                     host_framerate=300, killfeed_lifetime_sec=90,
+                     extra_start_commands=(), extra_end_commands=()) -> Path
 ```
 
-E escreve um `.vdm` com:
+- `segments`: lista de `(start_tick, end_tick)` — suporta N highlights num único .cfg
+- `user_steamid64`: SteamID64 do user (de `steam_detect.find_active_steamid()`); convertido internamente pra Account ID (SteamID3 = SteamID64 - 76561197960265728). Plugado em `mirv_deathmsg localPlayer <xuid>` pra pinar killfeed do user.
+
+Estrutura do `.cfg` gerado (exemplo: 1 segmento 10000..10900, user XUID 311341615):
 
 ```
-"demoactions"
-{
-  "1"  { "name" "start_capture" "factory" "PlayCommands" 
-         "starttick" "<start>" "commands" "startmovie fragreel/frame png;host_framerate 300" }
-  "2"  { "name" "stop_capture" "factory" "PlayCommands"
-         "starttick" "<end>" "commands" "endmovie" }
-}
+mirv_cmd clear
+
+// segment 0: ticks 10000 .. 10900
+mirv_cmd addAtTick 10000 mirv_streams add normal default
+mirv_cmd addAtTick 10000 mirv_streams record name fragreel
+mirv_cmd addAtTick 10000 mirv_deathmsg lifetime 90
+mirv_cmd addAtTick 10000 mirv_deathmsg localPlayer 311341615
+mirv_cmd addAtTick 10000 host_framerate 300
+mirv_cmd addAtTick 10000 host_timescale 0
+mirv_cmd addAtTick 10000 mirv_streams record start
+mirv_cmd addAtTick 10900 mirv_streams record end
+mirv_cmd addAtTick 10900 host_framerate 0
+mirv_cmd addAtTick 10900 host_timescale 1
 ```
 
-### 7.5 Integração Python↔Node↔HLAE
+**Placement:** `<CS2>/game/csgo/cfg/fragreel/capture.cfg`. Uso: `exec fragreel/capture` no console do CS2 **após** `playdemo` e **antes** do tick de start.
 
-Criar `client/hlae_runner.py` que:
+**Validação 7.3+7.4:** spike manual direto no console funcionou (1000 frames TGA). VDM adjacente NÃO disparou. `mirv_cmd` validado via docs HLAE + parcialmente via spike. `.cfg` gerado aguarda teste end-to-end in-game.
 
-1. Recebe render plan do servidor (`POST /matches/{id}/render-plan`)
-2. Lança CS2 via HLAE Custom Loader (subprocess, headless)
-3. Passa `.vdm` como playdemo arg
-4. Monitora pasta de output do CS2 pra saber quando capture termina
-5. Chama `npx remotion render HighlightsReel --props '<plan>'` com `gameplayPngDir` no props
-6. Retorna path do MP4 final
+### 7.5 Integração Python↔HLAE↔Remotion
+
+`client/hlae_runner.py` orquestra o lado PC:
+
+```
+render_plan (JSON do servidor /matches/{id}/render-plan)
+   ↓
+[stage_capture_cfg]   chama generate_capture_cfg → escreve
+                      <CS2>/game/csgo/cfg/fragreel/capture.cfg
+   ↓
+[launch_cs2]          MVP: LaunchStrategy.MANUAL (imprime instruções)
+                      TODO 4d: LaunchStrategy.HLAE_CLI ou INJECTOR
+   ↓
+[wait_for_capture]    polling em <CS2>/game/bin/win64/<record>/takeNNNN
+                      detecta novo take + estabilidade de frame count
+   ↓
+[convert_tga_to_prores]  ffmpeg TGA seq + audio.wav → ProRes 4444 .mov
+                         (pix_fmt yuva444p10le, compat Chromium/Remotion)
+   ↓
+CaptureResult           passa pra Remotion render (stage 5, chain externa)
+```
+
+**API (dataclasses):**
+
+```python
+RenderPlan(demo_path, segments: tuple[(start_tick, end_tick), ...],
+           user_steamid64, record_name="fragreel", stream_name="default")
+HlaeRunnerConfig(cs2_install, hlae_dir, ffmpeg_exe=None)
+CaptureResult(take_dir, stream_dir, frame_count, audio_path)
+LaunchStrategy.MANUAL | HLAE_CLI | INJECTOR
+```
+
+CLI: `python hlae_runner.py --plan plan.json --stage {cfg|launch|wait|convert|all}`.
+
+**Estado atual (PC spike 2026-04-22):**
+
+- ✅ `stage_capture_cfg` validado (gera .cfg idempotente, killfeed pinado, pre_seek automático antes do primeiro highlight pra não esperar 2min de playback)
+- ✅ `launch_cs2(INJECT)` — **injetor Python nativo via ctypes** (`client/cs2_launcher.py`). CreateProcess CS2 suspended + SetDllDirectoryW + LoadLibraryW(`AfxHookSource.dll`) + ResumeThread. Mesmo padrão que `injector.exe` do HLAE, mas sem GUI. Zero dependência externa (só stdlib). Args passados: `-insecure -novid +playdemo replays/X +exec fragreel/capture` → fluxo fully-auto.
+- ✅ `launch_cs2(MANUAL)` fallback preservado (imprime instruções pra user clicar no HLAE.exe)
+- ✅ `wait_for_capture` testado via simulação (take dir + frame stability)
+- ✅ `convert_tga_to_prores` implementado; aguarda teste com TGAs reais
+- ⏳ Integração Remotion (`npx remotion render` consumindo `.mov`) — próximo step depois que o fluxo end-to-end for confirmado
+
+**Comando one-shot (dev, via CLI):**
+
+```powershell
+cd C:\FragReel\client
+python hlae_runner.py --plan scripts\sample_plan.json --stage all --timeout 120 --output-mov C:\temp\test.mov
+```
+
+Faz tudo: escreve cfg → spawna CS2 injetado → CS2 abre sozinho → demo carrega → auto-seek pra ~100 ticks antes do highlight → captura dispara → end_tick auto-finaliza → ffmpeg TGA→ProRes → CS2 fechado → path do .mov impresso. **Zero clique do usuário dentro do CS2.**
+
+### 7.5.1 Fluxo production: um clique no site (arquitetura)
+
+> Modelo de negócio exige que o user fique na página assistindo ads enquanto a mágica acontece. CLI é só pra dev.
+
+Componentes novos no client (2026-04-22):
+
+- **`client/render_coordinator.py`** — máquina de estados: `idle → staging → launching → capturing → converting → rendering → done`. Uma render por vez (paralelo quebra compartilhamento do `fragreel/take0000/`). Callback de progresso incrementa `frames_captured / frames_expected` — estimativa é `Σ(end-start) × 300/64` frames.
+- **`client/cs2_launcher.py`** ganha:
+  - `kill_running_cs2()` via `taskkill /F /IM cs2.exe` — CS2 aberto do user é terminado antes do render (colisão com `fragreel/take*`). Future: detectar se já é nosso hook + attach em vez de killar.
+  - Janela **minimizada** (`SW_SHOWMINNOACTIVE` no STARTUPINFO + `ShowWindow(SW_MINIMIZE)` após window aparecer via `EnumWindows`). `-windowed -w 1280 -h 720` evita fullscreen (que rouba foco).
+  - `minimize_process_windows(pid)` roda em thread daemon depois do resume.
+- **`client/local_api.py`** ganha endpoints:
+  - `POST /render` — body `{demo_path, segments:[{start_tick,end_tick}...], user_steamid64?}`. Retorna 202 + `RenderSession`.
+  - `GET /render/status` — poll target do `AdModal` no web. Retorna state + progress 0..1 + paths de output quando ready.
+  - `POST /render/cancel` — mata CS2 + estado vira `cancelled`.
+  - `_build_render_coordinator()` auto-detecta CS2 (via `steam_detect._cs2_roots()`), HLAE (em `vendor/hlae`), `output_dir = ~/Desktop/FragReel`, `editor_dir = ../main/editor`. Se algo faltar, endpoints retornam 503 e web degrada graciosamente.
+
+**Fluxo web:**
+
+```
+fragreel.vercel.app/match/{id}
+  ↓ usuário clica "Renderizar"
+  ↓ AdModal inicia ad #2
+POST http://127.0.0.1:5775/render  {demo_path, segments}
+  ← 202 Accepted {render_id, state:staging, progress:0.03}
+  ↓
+loop 2s: GET /render/status
+  ← {state:capturing, progress:0.42, frames_captured:590, ...}
+  ← {state:converting, progress:0.82, output_mov:"...Desktop\FragReel\xyz.mov"}
+  ← {state:done, progress:1.0, output_mp4:"...Desktop\FragReel\xyz.mp4"}
+  ↓ ad termina, CTA "✓ Salvo em Desktop\FragReel\"
+```
+
+CS2 roda minimizado na bandeja do Windows; user pode navegar, alt-tab, minimizar o próprio navegador. Não precisa clicar em nada dentro de CS2 nem do HLAE. Mouse/teclado totalmente livres pro ad.
+
+### 7.5.2 Testes passantes
+
+- `capture_script.py`: 13 testes (validação, cfg content, pre_seek)
+- `hlae_runner.py`: 6 testes (RenderPlan, stage_capture_cfg, take detection, wait_for_capture via simulação, MANUAL launch, INJECT path resolution)
+- `render_coordinator.py` / `local_api.py`: import + coord build + Flask routes OK
+- Capture pipeline validado end-to-end 2 vezes em demo real (1405 frames auto, 1395 frames auto)
+- ffmpeg 8.1 essentials (gyan.dev) instalado em `vendor/hlae/ffmpeg/bin/ffmpeg.exe` (96MB) — `resolved_ffmpeg()` retorna o path
+
+### 7.5.3 Etiqueta com CS2 aberto
+
+Decisão 2026-04-22: **não matamos** o CS2 do user por padrão. Fluxo:
+
+- `kill_existing=False` agora é default em `launch_cs2_injected()`
+- `RenderCoordinator.start()` levanta `CS2BusyError` se `find_running_cs2_pids()` retorna algo
+- `POST /render` → **409 Conflict** `{error:"cs2_running", cs2_pids:[…], detail:"Close CS2 before rendering, or POST again with {force:true}"}`
+- `GET /render/preflight` → web chama **antes** de abrir o AdModal (antes do ad começar), evitando gastar a dose de ad pra nada. Retorna `{ready:false, reason:"cs2_running"}` se ocupado.
+- User quer forçar? POST body `{force:true}` chama `kill_running_cs2()` antes de lançar.
+
+### 7.5.4 Web totalmente wired (one-click real)
+
+- `web/lib/local.ts` — helpers: `renderPreflight()`, `startLocalRender(plan)`, `getLocalRenderStatus()`, `cancelLocalRender()`. Tipos: `LocalRenderState`, `LocalRenderSession`, `LocalRenderPlan`, `RenderPreflight`.
+- `web/app/match/[id]/MatchClient.tsx` — `handleStartGenerate` tenta local primeiro: `pingLocalClient()` → `getLocalDemos()` pra achar `demo_path` do match → `renderPreflight()`. Se pronto, converte `highlight.start/end` (segundos) em ticks (`× 64`) e chama `startLocalRender()`. Se CS2 rodando, abre modal "Feche o CS2". Se cliente offline, fallback pra server.
+- `web/components/AdModal.tsx` — nova prop `localRenderMode`. Quando true, polling bate `/render/status` local (a cada 2s) em vez de `/renders/{id}/{format}/status` no servidor. Progresso vem de `session.progress` (frames capturados / estimado). Cancel chama `cancelLocalRender()` ao fechar modal.
+
+### 7.5.5 Breakthroughs do headless (diário de caça ao bug)
+
+- **Minimizar quebra captura.** Source 2 skippa `Present()` em `IsIconic(hwnd)` → mirv_streams grava 0 frames. Fix: mover janela pra (-32000,-32000) via `SetWindowPos`. Windows considera "visible", Present dispara, TGAs caem normalmente.
+- **CS2 aparece em primeiro plano na boot.** Resolvido com poll 100ms (em vez de 2s de settle): move offscreen na primeira janela vista + continua watching 4s pra pegar splash→main swap.
+- **User acidentalmente pausa/acelera demo.** Resolvido com (a) `EnableWindow(FALSE)` — input bouncia, teclado não chega; (b) `WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE` — janela fora do Alt+Tab.
+- **Desktop fica enorme quando CS2 é killado.** CS2 salva fullscreen no config; ao ser TerminateProcess, não restaura display mode. Fix: `mirv_cmd addAtTick <end+10> quit` (shutdown gracioso) + `-windowed -w <native> -h <native>` (sem mode change) + `terminate_cs2()` vira safety net com 8s grace.
+- **`AfxHookSource.dll` root é 32-bit (CS:GO legacy).** Pra CS2 é `x64/AfxHookSource2.dll` (4.3MB, Source 2). Deps 64-bit todas em `x64/`.
+- **ffmpeg não vem no HLAE.** Pasta `ffmpeg/` vem vazia (só readme). Baixamos `gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip` 8.1, 96MB, instalamos em `vendor/hlae/ffmpeg/bin/`. `resolved_ffmpeg()` busca em `<hlae>/ffmpeg/bin/ffmpeg.exe`.
+- **Disk usage.** 1920×1080 TGA = ~6.2MB/frame. 5s captura ≈ 1400 frames ≈ 8 GB. `convert_tga_to_prores(cleanup_tgas=True)` apaga o take dir após ProRes sair — MVP leve no disco.
+
+### 7.5.6 Validado end-to-end (2026-04-22)
+
+Run completo, CS2 **invisível do começo ao fim**, user **não consegue interagir**:
+
+```
+INFO cfg written
+INFO CS2 launch resolution: 1920x1080 (desktop 1920x1080)
+INFO injected AfxHookSource2.dll → hModule=0xbbd80000
+INFO CS2 running, pid=3960
+INFO hid 1 CS2 window(s) offscreen (total 1)
+INFO captured frames: 66 … 1374
+INFO capture done: take=take0000 frames=1374 audio=…audio.wav
+INFO ffmpeg TGA→ProRes: …
+INFO cleaned up 7.9 GB of source TGAs at take0000
+INFO ProRes written: C:\temp\test.mov  (3.4 GB, 1920x1080, 300fps, ProRes 4444)
+```
+
+Graceful quit: CS2 saiu sozinho via `mirv_cmd addAtTick 10310 quit` — zero force-terminating.
 
 ### 7.6 Bundle no PyInstaller (`.exe`)
 

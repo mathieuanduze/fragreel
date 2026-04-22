@@ -3,8 +3,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { MatchOut, Mood, Orientation, generateVideo, getMatch, renderDownloadUrl } from "@/lib/api";
+import {
+  cancelLocalRender,
+  getLocalDemos,
+  pingLocalClient,
+  renderPreflight,
+  startLocalRender,
+  type LocalRenderSession,
+} from "@/lib/local";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
+
+const CS2_TICKRATE = 64;
 
 // Cada formato tem um teto diferente de cenas porque:
 //   • reel (9:16, ~20s): timeline curta — 5 cenas é o sweet spot, mais começa a parecer rápido demais
@@ -83,6 +93,8 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [renderDuration, setRenderDuration] = useState(90);
   const [elapsed, setElapsed] = useState(0);
+  const [localRender, setLocalRender] = useState(false);
+  const [cs2BusyPrompt, setCs2BusyPrompt] = useState<{ open: boolean; pids?: number[] }>({ open: false });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isQueued = match.highlights.length === 0;
@@ -148,7 +160,57 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     setGenerating(true);
     setJobMsg(null);
     setDownloadUrl(null);
+    setLocalRender(false);
+
+    // Try local render first — it's what keeps the user on the site
+    // watching ads while CS2 runs hidden on their PC. Falls back to the
+    // server path if the desktop client isn't running.
     try {
+      const clientOnline = await pingLocalClient();
+      if (clientOnline) {
+        // Find the demo file on the user's PC by matching match_id.
+        // The local scanner already indexed it when the user opened the
+        // dashboard; we just look it up instead of asking the user to
+        // re-select anything.
+        const demos = await getLocalDemos();
+        const localDemo = demos.matches.find((d) => d.match_id === match.id);
+        if (localDemo) {
+          const pre = await renderPreflight();
+          if (!pre.ready) {
+            if (pre.reason === "cs2_running") {
+              setCs2BusyPrompt({ open: true, pids: pre.cs2_pids });
+              return;
+            }
+            // Silently fall through to server for other reasons
+          } else {
+            const selectedHighlights = match.highlights.filter((h) => selected.has(h.rank));
+            const segments = selectedHighlights.map((h) => ({
+              start_tick: Math.max(0, Math.floor(h.start * CS2_TICKRATE)),
+              end_tick: Math.max(1, Math.floor(h.end * CS2_TICKRATE)),
+            }));
+            try {
+              await startLocalRender({ demo_path: localDemo.demo_path, segments });
+              setLocalRender(true);
+              setRenderDuration(
+                Math.max(30, Math.ceil(segments.reduce((s, x) => s + (x.end_tick - x.start_tick), 0) / CS2_TICKRATE * 4)),
+              );
+              setJobMsg("Renderizando no seu PC com gameplay real (HLAE).");
+              setShowAd(true);
+              return;
+            } catch (e) {
+              const err = e as Error & { code?: string };
+              if (err.code === "cs2_running") {
+                setCs2BusyPrompt({ open: true });
+                return;
+              }
+              // Fall through to server on unexpected local errors
+              console.warn("local render failed, falling back to server:", err);
+            }
+          }
+        }
+      }
+
+      // Server fallback (existing path)
       const res = await generateVideo(match.id, format, Array.from(selected), mood, undefined, orientation);
       setRenderDuration(res.estimated_seconds ?? 90);
       setJobMsg(res.message);
@@ -173,8 +235,54 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           downloadUrl={downloadUrl}
           matchId={match.id}
           format={format}
-          onClose={() => setShowAd(false)}
+          localRenderMode={localRender}
+          onClose={() => {
+            if (localRender) cancelLocalRender().catch(() => {});
+            setShowAd(false);
+          }}
         />
+      )}
+
+      {cs2BusyPrompt.open && (
+        <div
+          onClick={() => setCs2BusyPrompt({ open: false })}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 440,
+              background: "#13131f",
+              border: "1px solid #2D2D44",
+              borderRadius: 14,
+              padding: 28,
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 12 }}>🎮</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
+              Feche o Counter-Strike 2 primeiro
+            </div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 20 }}>
+              O FragReel precisa abrir o CS2 invisível no seu PC pra gerar o vídeo.
+              Se você tem uma partida rolando, a gente não vai interromper — feche
+              o CS2 quando puder e clique em <b>Renderizar</b> de novo.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setCs2BusyPrompt({ open: false })}
+                className="btn-primary"
+                style={{ fontSize: 13, padding: "9px 18px" }}
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "96px 24px 60px" }}>
 

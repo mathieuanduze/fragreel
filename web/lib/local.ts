@@ -108,3 +108,107 @@ export async function getLocalJob(sha: string): Promise<LocalJob | null> {
     return null;
   }
 }
+
+// ── Render (HLAE capture pipeline on the user's PC) ───────────────────────
+
+export interface RenderSegment {
+  start_tick: number;
+  end_tick: number;
+}
+
+export interface LocalRenderPlan {
+  demo_path: string;
+  segments: RenderSegment[];
+  user_steamid64?: string;
+  record_name?: string;
+  stream_name?: string;
+  /** Force-terminate a running CS2 instance. Default false (we refuse). */
+  force?: boolean;
+  /** Optional client-side id the web can use to correlate sessions. */
+  render_id?: string;
+}
+
+export type LocalRenderState =
+  | "idle"
+  | "staging"
+  | "launching"
+  | "capturing"
+  | "converting"
+  | "rendering"
+  | "done"
+  | "error"
+  | "cancelled";
+
+export interface LocalRenderSession {
+  render_id: string;
+  state: LocalRenderState;
+  stage: string;
+  progress: number; // 0..1
+  frames_captured: number;
+  frames_expected: number;
+  output_mov: string | null;
+  output_mp4: string | null;
+  error: string | null;
+  started_at: number | null;
+  finished_at: number | null;
+}
+
+export interface RenderPreflight {
+  ready: boolean;
+  reason?: "cs2_running" | "render_in_progress" | "render_not_configured";
+  cs2_pids?: number[];
+  render_id?: string;
+}
+
+/** Cheap "can I render right now?" check. Call BEFORE opening the ad modal
+ *  so we don't waste the user's ad-watch if CS2 is live or a render is
+ *  already running. Returns `{ready:true}` when the pipeline is free. */
+export async function renderPreflight(): Promise<RenderPreflight> {
+  try {
+    return await fetchLocal<RenderPreflight>(`/render/preflight`);
+  } catch (e) {
+    if (e instanceof LocalClientOffline) throw e;
+    return { ready: false, reason: "render_not_configured" };
+  }
+}
+
+/** Kick off the capture pipeline on the user's PC. Returns the initial
+ *  session; the web should then poll `getLocalRenderStatus()` to show
+ *  progress while the user watches ads. */
+export async function startLocalRender(plan: LocalRenderPlan): Promise<LocalRenderSession> {
+  const res = await fetch(`${LOCAL_BASE}/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(plan),
+  }).catch(() => {
+    throw new LocalClientOffline();
+  });
+  if (res.status === 409) {
+    // CS2 busy — surface a typed error so the UI can show "close CS2" UX.
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.detail || "CS2 running") as Error & {
+      code: string;
+      cs2_pids?: number[];
+    };
+    err.code = body.error || "cs2_running";
+    err.cs2_pids = body.cs2_pids;
+    throw err;
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`local_api ${res.status}: ${text || res.statusText}`);
+  }
+  return res.json();
+}
+
+/** Poll target. Returns `state: "idle"` if no render has ever run. */
+export async function getLocalRenderStatus(): Promise<LocalRenderSession | { state: "idle" }> {
+  return fetchLocal<LocalRenderSession | { state: "idle" }>(`/render/status`);
+}
+
+/** Abort the current render and kill CS2. Called from the X button on AdModal. */
+export async function cancelLocalRender(): Promise<LocalRenderSession | { state: "idle" }> {
+  return fetchLocal<LocalRenderSession | { state: "idle" }>(`/render/cancel`, {
+    method: "POST",
+  });
+}

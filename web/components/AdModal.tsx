@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getRenderStatus, RenderStatus } from "@/lib/api";
+import { getLocalRenderStatus, type LocalRenderSession } from "@/lib/local";
 
 const AD_DURATION = 30;
 // Render é mais pesado que análise — exige 2 ads completos (60s cumulativos)
@@ -44,6 +45,11 @@ type AdModalProps = {
   downloadUrl?: string | null;
   matchId?: string;
   format?: string;
+  /** True when the render runs on the user's PC via local_api.
+   *  In that mode we poll /render/status on 127.0.0.1 and the output
+   *  lands on the Desktop — no "download" button, just an "open folder"
+   *  CTA once state=done. */
+  localRenderMode?: boolean;
 };
 
 function fmtTime(sec: number) {
@@ -51,7 +57,7 @@ function fmtTime(sec: number) {
   return `${sec}s`;
 }
 
-export default function AdModal({ onClose, formatLabel, renderDuration, downloadUrl, matchId, format }: AdModalProps) {
+export default function AdModal({ onClose, formatLabel, renderDuration, downloadUrl, matchId, format, localRenderMode }: AdModalProps) {
   const [adElapsed, setAdElapsed]       = useState(0);
   const [adIndex, setAdIndex]           = useState(0);
   const [totalAdSeconds, setTotalAdSeconds] = useState(0);
@@ -60,9 +66,29 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   const [confirmClose, setConfirmClose] = useState(false);
   const [downloaded, setDownloaded]     = useState(false);
   const [serverStatus, setServerStatus] = useState<RenderStatus | null>(null);
+  const [localStatus, setLocalStatus]   = useState<LocalRenderSession | null>(null);
 
-  // Poll real render status a cada 3s
+  // Poll render status every 2s. When running locally (on the user's PC)
+  // we poll 127.0.0.1:5775/render/status — the real rendering is happening
+  // right there, CS2 hidden offscreen, frames accumulating. Otherwise we
+  // fall back to the server path.
   useEffect(() => {
+    if (localRenderMode) {
+      const id = setInterval(async () => {
+        try {
+          const s = await getLocalRenderStatus();
+          if ("render_id" in s) {
+            setLocalStatus(s);
+            if (s.state === "done" || s.state === "error" || s.state === "cancelled") {
+              clearInterval(id);
+            }
+          }
+        } catch {
+          // client may have briefly hiccupped; keep trying
+        }
+      }, 2000);
+      return () => clearInterval(id);
+    }
     if (!matchId || !format) return;
     const id = setInterval(async () => {
       try {
@@ -74,12 +100,12 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
       }
     }, 3000);
     return () => clearInterval(id);
-  }, [matchId, format]);
+  }, [localRenderMode, matchId, format]);
 
-  // renderDone EXIGE confirmação do servidor (status === "done"). Sem isso a barra
-  // não chega em 100% nem o botão libera — issue do user: "barra chegou em 100%
-  // sem o vídeo estar pronto".
-  const renderDone = serverStatus?.status === "done";
+  // renderDone EXIGE confirmação. Local: state==='done'. Server: status==='done'.
+  const renderDone = localRenderMode
+    ? localStatus?.state === "done"
+    : serverStatus?.status === "done";
   // Tempo estimado já passou? Mostra mensagem honesta "estamos finalizando".
   const renderOvertime = renderElapsed >= renderDuration;
   const adDone        = totalAdSeconds >= MIN_AD_SECONDS;
@@ -87,11 +113,14 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   const adRemainingThis = Math.max(0, AD_DURATION - adElapsed);
   const totalAdRemaining = Math.max(0, MIN_AD_SECONDS - totalAdSeconds);
   const adProgress    = Math.min(1, adElapsed / AD_DURATION);
-  // Barra visual: enquanto não tem confirmação do server, fica capada em 95%.
-  // Quando server confirma done → snap pra 100%.
+  // Barra visual: local usa progresso real (frames capturados), server usa
+  // estimativa de tempo. Ambos: quando NÃO está done, cap em 95% pra evitar
+  // "100% mas vídeo não pronto".
   const visualRenderPct = renderDone
     ? 1
-    : Math.min(0.95, renderElapsed / renderDuration);
+    : localRenderMode && localStatus
+      ? Math.min(0.95, Math.max(0.02, localStatus.progress))
+      : Math.min(0.95, renderElapsed / renderDuration);
   const renderRemaining = Math.max(0, renderDuration - renderElapsed);
   const adCount       = adIndex + 1;
   const adsWatched    = Math.floor(totalAdSeconds / AD_DURATION);
