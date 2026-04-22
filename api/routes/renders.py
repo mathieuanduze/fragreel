@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import subprocess
 import threading
 import time
@@ -54,9 +55,42 @@ def _format_config(fmt: str) -> tuple[str, str, str]:
     if fmt == "card":
         return "StoryCard", "still", "png"
     if fmt == "recap":
-        # Fase 2 — por ora cai em reel mesmo
-        return "HighlightsReel", "render", "mp4"
+        return "Recap", "render", "mp4"
     raise ValueError(f"unknown format: {fmt}")
+
+
+# ─── Parser de progresso do stdout do Remotion ────────────────────────────────
+# Remotion (com --log=info, default) imprime linhas no formato:
+#   Bundled ...
+#   Rendered 24/495
+#   Rendered 48/495
+# Capturamos o último (current/total) que aparecer.
+_PROGRESS_RX = re.compile(r"(\d+)\s*/\s*(\d+)")
+# Algumas versões do Remotion mostram o progress como porcentagem dentro
+# de uma "barra ASCII" no formato "▒▒▒▒▒▒░░░░ 60%".
+_PERCENT_RX = re.compile(r"(\d+(?:\.\d+)?)\s*%")
+
+
+def _parse_progress(line: str) -> Optional[float]:
+    """Extrai progresso 0.0–0.95 de uma linha de stdout do Remotion.
+    Capamos em 0.95 — só viramos 1.0 quando o subprocess sai com 0."""
+    # Pula linhas vazias / cabeçalho
+    if not line:
+        return None
+    m = _PROGRESS_RX.search(line)
+    if m:
+        cur = int(m.group(1))
+        total = int(m.group(2))
+        if total > 0:
+            return min(0.95, cur / total)
+    m = _PERCENT_RX.search(line)
+    if m:
+        try:
+            pct = float(m.group(1)) / 100.0
+            return min(0.95, pct)
+        except ValueError:
+            return None
+    return None
 
 
 def _output_path(match_id: str, fmt: str) -> Path:
@@ -66,8 +100,14 @@ def _output_path(match_id: str, fmt: str) -> Path:
     return out_dir / f"{fmt}.{ext}"
 
 
+RENDER_TIMEOUT_SEC = 600  # 10min hard cap
+
+
 def _run_render(job_id: str, props: dict[str, Any]) -> None:
-    """Executa o render do Remotion — chamado em thread de background."""
+    """Executa o render do Remotion via Popen, streamando stdout pra
+    extrair progresso real (current/total frames). Job.progress vai de
+    0 → 0.95 enquanto roda; vira 1.0 só quando o subprocess sai com 0.
+    """
     job = _jobs[job_id]
     comp_id, subcmd, ext = _format_config(job.format)
     out_path = _output_path(job.match_id, job.format)
@@ -75,7 +115,9 @@ def _run_render(job_id: str, props: dict[str, Any]) -> None:
     cmd: list[str] = [
         "npx", "remotion", subcmd, comp_id, str(out_path),
         "--props", json.dumps(props),
-        "--log=error",
+        # --log=info é o default; deixa explícito porque precisamos das
+        # linhas de progresso que --log=error suprime.
+        "--log=info",
     ]
     if subcmd == "still":
         cmd.extend(["--frame", "30"])
@@ -84,19 +126,49 @@ def _run_render(job_id: str, props: dict[str, Any]) -> None:
     with _jobs_lock:
         job.status = "rendering"
 
+    proc: Optional[subprocess.Popen] = None
+    deadline = time.time() + RENDER_TIMEOUT_SEC
+    last_lines: list[str] = []  # buffer dos últimos N pra reportar erro
+
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
             cwd=EDITOR_DIR,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # mistura stderr no stdout pra simplificar
             text=True,
-            timeout=600,  # 10min max
+            bufsize=1,  # line-buffered
         )
-        if result.returncode != 0:
-            log.error("[render %s] failed: %s", job_id, result.stderr[-500:])
+
+        assert proc.stdout is not None
+        for raw_line in proc.stdout:
+            if time.time() > deadline:
+                proc.kill()
+                raise subprocess.TimeoutExpired(cmd, RENDER_TIMEOUT_SEC)
+
+            line = raw_line.rstrip()
+            if not line:
+                continue
+
+            # mantém buffer pequeno pra debug
+            last_lines.append(line)
+            if len(last_lines) > 40:
+                last_lines.pop(0)
+
+            pct = _parse_progress(line)
+            if pct is not None:
+                with _jobs_lock:
+                    # nunca regride
+                    if pct > job.progress:
+                        job.progress = pct
+
+        return_code = proc.wait()
+        if return_code != 0:
+            tail = "\n".join(last_lines[-15:])
+            log.error("[render %s] failed (code=%s): %s", job_id, return_code, tail)
             with _jobs_lock:
                 job.status = "error"
-                job.error = result.stderr[-500:] or "subprocess falhou"
+                job.error = tail or f"subprocess falhou (code={return_code})"
                 job.finished_at = time.time()
             return
 
@@ -106,14 +178,19 @@ def _run_render(job_id: str, props: dict[str, Any]) -> None:
             job.progress = 1.0
             job.path = str(out_path)
             job.finished_at = time.time()
+
     except subprocess.TimeoutExpired:
-        log.error("[render %s] timeout após 10min", job_id)
+        log.error("[render %s] timeout após %ss", job_id, RENDER_TIMEOUT_SEC)
+        if proc and proc.poll() is None:
+            proc.kill()
         with _jobs_lock:
             job.status = "error"
-            job.error = "timeout após 10min"
+            job.error = f"timeout após {RENDER_TIMEOUT_SEC}s"
             job.finished_at = time.time()
     except Exception as e:
         log.exception("[render %s] exception", job_id)
+        if proc and proc.poll() is None:
+            proc.kill()
         with _jobs_lock:
             job.status = "error"
             job.error = str(e)

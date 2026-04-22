@@ -66,10 +66,24 @@ export const MOODS: Record<string, MoodDef> = {
 // Frames por segundo do projeto — 30fps para render rápido no Railway
 export const FPS = 30;
 
-// Tracks MP3 presentes em public/music/? Trocar para true depois de adicionar
-// os arquivos (ver public/music/README.md). Default false para o Studio abrir
-// sem crash quando o repo ainda não tem os MP3s.
-export const MUSIC_ENABLED = false;
+// Tracks MP3 presentes em public/music/? Ativado em 2026-04-22 quando as 4
+// trilhas Pixabay CC0 foram adicionadas (eletronica/acao/heroico/chill.mp3).
+// Ver Obsidian nota 09 pro guia de moods.
+export const MUSIC_ENABLED = true;
 
 // Helper: segundos → frames
 export const s2f = (sec: number) => Math.round(sec * FPS);
+
+// Duração de highlight em segundos, derivada de highlight.end - highlight.start.
+// Aplicamos um clamp pra não ter cena de 1s (vira flash imperceptível) nem
+// de 30s (cansa o viewer no formato vertical). Bounds diferentes por formato.
+export const REEL_HIGHLIGHT_BOUNDS = { min: 3, max: 7 } as const;
+export const RECAP_HIGHLIGHT_BOUNDS = { min: 4, max: 10 } as const;
+
+export function clampHighlightSec(
+  rawSec: number,
+  bounds: { min: number; max: number }
+): number {
+  if (!isFinite(rawSec) || rawSec <= 0) return bounds.min;
+  return Math.max(bounds.min, Math.min(bounds.max, rawSec));
+}

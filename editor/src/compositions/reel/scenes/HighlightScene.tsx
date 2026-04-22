@@ -47,15 +47,6 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   // Kills aparecem em cascata (kill feed)
   const killFeedStart = 15;
 
-  // Score pts aparece no fim
-  const scoreStart = durationInFrames - 30;
-  const scoreProgress = interpolate(
-    frame,
-    [scoreStart, scoreStart + 15],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
   // Fade out últimos 6 frames
   const fadeOut = interpolate(
     frame,
@@ -321,27 +312,8 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         })}
       </div>
 
-      {/* Score pts — top right */}
-      <div
-        style={{
-          position: "absolute",
-          top: 80,
-          right: 50,
-          opacity: scoreProgress,
-          transform: `scale(${0.6 + scoreProgress * 0.4})`,
-          padding: "14px 22px",
-          background: `${moodDef.color}15`,
-          border: `2px solid ${moodDef.color}`,
-          borderRadius: 12,
-          fontSize: 36,
-          fontWeight: 900,
-          color: moodDef.color,
-          fontFamily: theme.fontDisplay,
-          letterSpacing: "0.04em",
-        }}
-      >
-        {Math.round(highlight.score)} PTS
-      </div>
+      {/* Score interno (highlight.score) é ferramenta interna do FragReel
+          pra rankear quais kills viram highlight — NÃO aparece no vídeo. */}
     </AbsoluteFill>
   );
 };

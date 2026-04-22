@@ -37,3 +37,7 @@ demos/
 # Editor
 .vscode/
 .idea/
+
+# Referências locais (notas, guias, etc)
+Edição_FragReel_Best_Practices.txt
+*.local.md

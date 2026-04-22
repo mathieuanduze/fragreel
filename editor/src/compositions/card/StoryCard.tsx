@@ -193,8 +193,7 @@ export const StoryCard: React.FC<CardProps> = ({
                 fontWeight: 600,
               }}
             >
-              Round {topPlay.round_num} · {topPlay.kills.length} kills ·{" "}
-              {Math.round(topPlay.score)} pts
+              Round {topPlay.round_num} · {topPlay.kills.length} kills
             </div>
           </div>
         )}
