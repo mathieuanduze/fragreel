@@ -22,6 +22,8 @@ function fmtDate(epoch: number): string {
 export default function LibraryContent() {
   const router = useRouter();
   const [demos, setDemos] = useState<LocalDemo[] | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanDone, setScanDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,9 @@ export default function LibraryContent() {
     try {
       const r = await getLocalDemos(refresh);
       setDemos(r.matches);
+      setScanning(r.scanning);
+      setScanDone(r.scan_done);
+      if (r.error) setError(r.error);
     } catch (e) {
       if (e instanceof LocalClientOffline) setOffline(true);
       else setError((e as Error).message);
@@ -43,6 +48,31 @@ export default function LibraryContent() {
   }, []);
 
   useEffect(() => { load(false); }, [load]);
+
+  // Enquanto o scan tá rolando no client, o /demos já retorna imediatamente
+  // com {scanning: true, scan_done: false}. Polling leve a cada 2.5s atualiza
+  // a UI quando o bg-thread terminar — sem disparar novo scan (refresh=false).
+  useEffect(() => {
+    if (!scanning || scanDone || offline) return;
+    let alive = true;
+    const id = setInterval(async () => {
+      if (!alive) return;
+      try {
+        const r = await getLocalDemos(false);
+        if (!alive) return;
+        setDemos(r.matches);
+        setScanning(r.scanning);
+        setScanDone(r.scan_done);
+        if (r.error) setError(r.error);
+      } catch (e) {
+        if (e instanceof LocalClientOffline) {
+          setOffline(true);
+          setScanning(false);
+        }
+      }
+    }, 2500);
+    return () => { alive = false; clearInterval(id); };
+  }, [scanning, scanDone, offline]);
 
   // Se a página renderizou em estado offline (user abriu /library antes de
   // ligar o .exe), pinga /health a cada 4s e dispara load() automaticamente
@@ -89,27 +119,32 @@ export default function LibraryContent() {
     );
   }
 
+  // Antes do primeiro snapshot — só uma mensagem neutra.
   if (loading && !demos) {
-    return <div style={{ padding: 40, color: "rgba(255,255,255,0.55)" }}>Escaneando suas demos…</div>;
+    return <div style={{ padding: 40, color: "rgba(255,255,255,0.55)" }}>Conectando ao client…</div>;
   }
 
-  if (error) {
+  if (error && !demos?.length) {
     return (
       <div style={{ padding: 24, color: "#ff8866", border: "1px solid rgba(255,80,80,0.4)", borderRadius: 12 }}>
-        Erro: {error}
+        Erro no scan: {error}
       </div>
     );
   }
+
+  const busy = loading || scanning;
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-          {demos?.length ?? 0} partidas detectadas no seu PC
+          {scanning && !scanDone
+            ? "Escaneando suas demos no PC… (pode levar alguns minutos na 1ª vez)"
+            : `${demos?.length ?? 0} partidas detectadas no seu PC`}
         </div>
         <button
           onClick={() => load(true)}
-          disabled={loading}
+          disabled={busy}
           style={{
             fontSize: 13,
             fontWeight: 600,
@@ -118,8 +153,8 @@ export default function LibraryContent() {
             background: "rgba(255,107,53,0.12)",
             color: "#FF6B35",
             border: "1px solid rgba(255,107,53,0.45)",
-            cursor: loading ? "wait" : "pointer",
-            opacity: loading ? 0.6 : 1,
+            cursor: busy ? "wait" : "pointer",
+            opacity: busy ? 0.6 : 1,
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
@@ -129,14 +164,28 @@ export default function LibraryContent() {
           onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,107,53,0.12)"; }}
         >
           <span style={{ fontSize: 14 }}>↻</span>
-          {loading ? "Escaneando..." : "Re-escanear demos"}
+          {busy ? "Escaneando..." : "Re-escanear demos"}
         </button>
       </div>
 
-      {(!demos || demos.length === 0) && (
-        <div style={{ padding: 28, textAlign: "center", color: "rgba(255,255,255,0.5)", border: "1px dashed #2D2D44", borderRadius: 12 }}>
-          Nenhuma demo encontrada. Jogue uma partida competitiva ou baixe uma demo do HLTV pra começar.
+      {error && demos && demos.length > 0 && (
+        <div style={{ padding: 12, marginBottom: 12, fontSize: 13, color: "#ffb088", border: "1px solid rgba(255,150,80,0.35)", borderRadius: 8, background: "rgba(255,150,80,0.06)" }}>
+          Aviso do client: {error}
         </div>
+      )}
+
+      {/* Sem demos + scan terminado = realmente vazio. Sem demos + scan rolando = placeholder de progresso. */}
+      {(!demos || demos.length === 0) && (
+        scanDone ? (
+          <div style={{ padding: 28, textAlign: "center", color: "rgba(255,255,255,0.5)", border: "1px dashed #2D2D44", borderRadius: 12 }}>
+            Nenhuma demo encontrada. Jogue uma partida competitiva ou baixe uma demo do HLTV pra começar.
+          </div>
+        ) : (
+          <div style={{ padding: 28, textAlign: "center", color: "rgba(255,255,255,0.5)", border: "1px dashed #2D2D44", borderRadius: 12 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
+            Lendo .dem do CS2… isso roda só localmente, nada é enviado.
+          </div>
+        )
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>

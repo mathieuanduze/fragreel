@@ -23,6 +23,8 @@ export interface LocalDemo {
 export interface LocalDemosResponse {
   matches: LocalDemo[];
   scanning: boolean;
+  scan_done: boolean;
+  error: string | null;
 }
 
 export interface LocalJob {
