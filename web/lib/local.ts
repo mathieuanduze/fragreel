@@ -51,15 +51,20 @@ export class LocalClientOffline extends Error {
   }
 }
 
-// Chrome 120+ enforces Private Network Access (PNA): HTTPS pages can't hit
-// HTTP 127.0.0.1 without this opt-in. Without it, every fetch here silently
-// fails ("blocked by PNA") and the UI thinks the client is offline.
-// The flag isn't in lib.dom.d.ts yet — cast through a typed extension.
-type PrivateFetchInit = RequestInit & { targetAddressSpace?: "private" | "local" | "public" };
-const PNA_INIT: PrivateFetchInit = { targetAddressSpace: "private" };
-
+// Chrome 120+ enforces Private Network Access (PNA): HTTPS pages need
+// opt-in to hit HTTP 127.0.0.1. Negotiation happens server-side — the
+// client_api emits `Access-Control-Allow-Private-Network: true` from
+// v0.2.13's WSGI middleware. Chrome 147 probing showed that adding
+// `targetAddressSpace: "private"` to the fetch options causes a
+// "TypeError: Failed to fetch" even though the server advertises the
+// capability correctly. Path of least resistance: trust the server-side
+// header alone, leave the fetch init unchanged.
+//
+// If a future Chrome enforces the client-side opt-in too, we add
+// `targetAddressSpace` back here in ONE place without touching the call
+// sites. Keeping this wrapper is forward-compatibility insurance.
 function privateFetch(input: string, init?: RequestInit): Promise<Response> {
-  return fetch(input, { ...PNA_INIT, ...init } as RequestInit);
+  return fetch(input, init);
 }
 
 async function fetchLocal<T>(path: string, init?: RequestInit): Promise<T> {
