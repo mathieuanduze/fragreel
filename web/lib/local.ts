@@ -120,6 +120,11 @@ export interface LocalRenderPlan {
   demo_path: string;
   segments: RenderSegment[];
   user_steamid64?: string;
+  /** Display name in CS2 scoreboard. Required for `spec_player "<name>"` —
+   *  CS2 (Source 2) has no `spec_player_by_accountid`, so without this the
+   *  capture script falls back to free-cam and the camera stays static at
+   *  the spawn point. v0.2.6+ wires this through end-to-end. */
+  user_player_name?: string;
   record_name?: string;
   stream_name?: string;
   /** Force-terminate a running CS2 instance. Default false (we refuse). */
@@ -247,4 +252,25 @@ export async function cancelLocalRender(): Promise<LocalRenderSession | { state:
   return fetchLocal<LocalRenderSession | { state: "idle" }>(`/render/cancel`, {
     method: "POST",
   });
+}
+
+export interface OpenOutputResult {
+  opened: boolean;
+  /** What we asked the OS to open. Surfaced in the UI as a fallback chip
+   *  the user can copy if the open failed. */
+  path: string | null;
+  /** "file" = opened the rendered video itself (preferred).
+   *  "folder" = opened the parent folder (fallback when no file is ready).
+   *  null when nothing was opened. */
+  kind: "file" | "folder" | null;
+  reason?: string;
+}
+
+/** Ask the local client to open the rendered output in the default OS app
+ *  (Windows: os.startfile). Falls back to opening the parent folder if no
+ *  file is available. Older clients (<= v0.2.8) don't expose this endpoint;
+ *  the caller should catch the resulting 404 and degrade to the path-copy
+ *  chip instead. */
+export async function openLocalRenderOutput(): Promise<OpenOutputResult> {
+  return fetchLocal<OpenOutputResult>(`/render/open`, { method: "POST" });
 }

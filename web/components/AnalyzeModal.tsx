@@ -212,26 +212,56 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
             </div>
           </div>
 
+          {/* Botão SEMPRE renderizado (mesmo padrão do AdModal). Fica
+              disabled e degraded enquanto análise/ads não terminam — o
+              user pediu pra ver o CTA o tempo todo pra entender que ele
+              vai virar clicável. */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.22)" }}>
               FragReel é 100% gratuito · sustentado por anúncios
             </div>
-            {canProceed ? (
-              <button onClick={() => onReady(job!.match_id!)} className="btn-primary" style={{ fontSize: 14, padding: "10px 26px", animation: "adSlide 0.3s ease" }}>
-                ✏️ Editar vídeo
-              </button>
-            ) : analyzeFailed ? (
+            {analyzeFailed ? (
               <button onClick={onClose} className="btn-secondary" style={{ fontSize: 13, padding: "8px 20px" }}>Fechar</button>
             ) : (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
-                {analyzeDone && !adDone
-                  ? `Aguarde ${totalAdRemaining}s pro botão liberar`
-                  : !analyzeDone && adDone
-                  ? "Análise rodando · botão libera assim que terminar"
-                  : `${totalAdRemaining}s de anúncio antes de liberar`}
-              </div>
+              <button
+                onClick={canProceed ? () => onReady(job!.match_id!) : undefined}
+                disabled={!canProceed}
+                title={
+                  canProceed
+                    ? "Abrir o editor pra montar seu FragReel"
+                    : analyzeDone && !adDone
+                      ? `Faltam ${totalAdRemaining}s de anúncio`
+                      : !analyzeDone
+                        ? "Análise da demo ainda rolando"
+                        : "Aguarde…"
+                }
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "10px 26px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: canProceed ? "#FF6B35" : "rgba(255,107,53,0.25)",
+                  color: canProceed ? "white" : "rgba(255,255,255,0.5)",
+                  cursor: canProceed ? "pointer" : "not-allowed",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  transition: "background 0.3s",
+                }}
+              >
+                ✏️ Editar vídeo
+              </button>
             )}
           </div>
+          {/* Linha de status abaixo do CTA (só quando ainda não liberou). */}
+          {!canProceed && !analyzeFailed && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.4)", fontStyle: "italic", textAlign: "right" }}>
+              {analyzeDone && !adDone
+                ? `Análise pronta · ${totalAdRemaining}s de anúncio antes de liberar`
+                : !analyzeDone && adDone
+                  ? "Anúncios OK · esperando análise terminar"
+                  : `Botão libera quando análise + ${totalAdRemaining}s de anúncio terminarem`}
+            </div>
+          )}
         </div>
 
         {/* Confirmação de cancelamento */}

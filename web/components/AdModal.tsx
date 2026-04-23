@@ -2,7 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getRenderStatus, RenderStatus } from "@/lib/api";
-import { getLocalRenderStatus, type LocalRenderSession } from "@/lib/local";
+import {
+  getLocalRenderStatus,
+  openLocalRenderOutput,
+  type LocalRenderSession,
+} from "@/lib/local";
 
 const AD_DURATION = 30;
 // Render é mais pesado que análise — exige 2 ads completos (60s cumulativos)
@@ -67,6 +71,13 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   const [downloaded, setDownloaded]     = useState(false);
   const [serverStatus, setServerStatus] = useState<RenderStatus | null>(null);
   const [localStatus, setLocalStatus]   = useState<LocalRenderSession | null>(null);
+  // Mock da barra de edição: Remotion ainda não está plugado no client
+  // (editor_dir não resolve dentro do .exe — bug separado), então a 2ª
+  // barra é puramente visual hoje. Quando Remotion entrar de verdade,
+  // troca esse contador por sinal real do backend (segments_done/total
+  // pra ffmpeg + um hook do remotion render). Duração escolhida a olho —
+  // captura típica de ~5 highlights leva ~30s pra ffmpeg passar pra MP4.
+  const [mockEditElapsed, setMockEditElapsed] = useState(0);
 
   // Poll render status every 2s. When running locally (on the user's PC)
   // we poll 127.0.0.1:5775/render/status — the real rendering is happening
@@ -113,14 +124,41 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   const adRemainingThis = Math.max(0, AD_DURATION - adElapsed);
   const totalAdRemaining = Math.max(0, MIN_AD_SECONDS - totalAdSeconds);
   const adProgress    = Math.min(1, adElapsed / AD_DURATION);
-  // Barra visual: local usa progresso real (frames capturados), server usa
-  // estimativa de tempo. Ambos: quando NÃO está done, cap em 95% pra evitar
-  // "100% mas vídeo não pronto".
-  const visualRenderPct = renderDone
-    ? 1
-    : localRenderMode && localStatus
-      ? Math.min(0.95, Math.max(0.02, localStatus.progress))
-      : Math.min(0.95, renderElapsed / renderDuration);
+  // ── Pipeline em 2 etapas (modo local) ────────────────────────────────────
+  // O backend reporta `state` ∈ {staging, launching, capturing, converting,
+  // rendering, done}. A captura HLAE (TGAs) já dá um `progress` real em
+  // frames; depois disso vem ffmpeg→ProRes (converting) e Remotion→MP4
+  // (rendering). O user pediu duas barras consecutivas pra entender que
+  // ainda tem etapa pós-captura.
+  const localState = localStatus?.state;
+  const isCapturePhase =
+    localState === "staging" || localState === "launching" || localState === "capturing";
+  const isEditPhase =
+    localState === "converting" || localState === "rendering";
+  // Etapa 1 — Captura (HLAE): completa quando saiu da fase de captura.
+  // Durante a captura usa o `progress` reportado (= frames_captured/expected),
+  // capado em 0.99 pra não mostrar "100%" enquanto state ainda é "capturing".
+  const capturePct = !localRenderMode
+    ? renderDone ? 1 : Math.min(0.95, renderElapsed / renderDuration)
+    : !localStatus
+      ? 0
+      : isCapturePhase
+        ? Math.min(0.99, Math.max(0.02, localStatus.progress))
+        : 1; // converting/rendering/done → captura terminou
+  // Etapa 2 — Edição (mock por enquanto, ver MOCK_EDIT_DURATION abaixo).
+  // Quando Remotion estiver plugado, esse cálculo vira:
+  //   converting → segments_done/total (ffmpeg ProRes)
+  //   rendering  → hook do remotion render (--out-frame stdout)
+  //   done       → 1
+  const MOCK_EDIT_DURATION = 30;
+  const editPct = !localRenderMode
+    ? renderDone ? 1 : 0
+    : !localStatus || isCapturePhase
+      ? 0
+      : renderDone
+        ? 1
+        : Math.min(0.95, mockEditElapsed / MOCK_EDIT_DURATION);
+  // Modo server: só uma barra faz sentido (não tem split de stages).
   const renderRemaining = Math.max(0, renderDuration - renderElapsed);
   const adCount       = adIndex + 1;
   const adsWatched    = Math.floor(totalAdSeconds / AD_DURATION);
@@ -161,6 +199,20 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
     return () => clearInterval(id);
   }, [renderDone]);
 
+  // Mock timer da barra 2 (edição). Só roda em modo local e enquanto a
+  // captura não terminou a barra fica parada em 0. Quando entra na fase
+  // de edição (converting/rendering), começa a contar; trava se o render
+  // virou done. É puramente visual — placeholder até Remotion ser plugado.
+  useEffect(() => {
+    if (!localRenderMode) return;
+    if (isCapturePhase || !localStatus) return;
+    if (renderDone) return;
+    const id = setInterval(() => {
+      setMockEditElapsed((e) => e + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [localRenderMode, isCapturePhase, localStatus, renderDone]);
+
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [pathCopied, setPathCopied] = useState(false);
@@ -191,6 +243,37 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
       setPathCopied(false);
     }
   }, [localOutputDir]);
+
+  // "Abrir FragReel" — usa o novo endpoint /render/open (v0.2.9+) pra abrir
+  // o vídeo no app default do Windows (Reprodutor de Mídia, etc). Browser
+  // não consegue invocar `os.startfile` direto — tem que ir pelo client.
+  // Se o endpoint não existir (cliente velho), a gente cai pro path-copy
+  // e avisa o user no chip.
+  const [openError, setOpenError] = useState<string | null>(null);
+  const [opening, setOpening]     = useState(false);
+  const handleOpenOutput = useCallback(async () => {
+    if (!localOutputPath) return;
+    setOpening(true);
+    setOpenError(null);
+    try {
+      const r = await openLocalRenderOutput();
+      if (!r.opened) {
+        // Backend respondeu mas não conseguiu abrir — cai pro copy.
+        setOpenError(r.reason || "não abriu — copie o caminho abaixo");
+        copyOutputPath();
+      }
+    } catch (e) {
+      // Endpoint 404 (client antigo) ou erro de rede — degrada pro copy.
+      setOpenError(
+        (e as Error).message?.includes("404")
+          ? "atualize o FragReel client pra abrir direto · copiei o caminho"
+          : (e as Error).message,
+      );
+      copyOutputPath();
+    } finally {
+      setOpening(false);
+    }
+  }, [localOutputPath, copyOutputPath]);
 
   const handleDownload = useCallback(async () => {
     if (!downloadUrl) return;
@@ -360,35 +443,101 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
             transition: "border-color 0.4s",
           }}
         >
-          {/* Render progress */}
+          {/* Render progress — duas barras consecutivas em modo local
+              (captura HLAE → edição ffmpeg/Remotion). Modo server colapsa
+              em uma só (não tem split de stages). */}
           <div style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.7)" }}>
-                {renderDone ? `✓ ${formatLabel} pronto!`
-                  : renderOvertime ? `⚙️ ${formatLabel} — finalizando no servidor…`
-                  : `⚙️ Renderizando ${formatLabel}…`}
+            {localRenderMode ? (
+              <>
+                {/* Etapa 1 — Captura in-game */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: capturePct >= 1 ? "#4CAF82" : "rgba(255,255,255,0.7)" }}>
+                      {capturePct >= 1 ? "✓ Captura concluída" : "🎮 Capturando gameplay (CS2 + HLAE)…"}
+                    </div>
+                    <div style={{ fontSize: 12, color: capturePct >= 1 ? "#4CAF82" : "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
+                      {Math.round(capturePct * 100)}%
+                    </div>
+                  </div>
+                  <div style={{ height: 6, background: "rgba(255,255,255,0.07)", borderRadius: 999, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${capturePct * 100}%`,
+                        background: capturePct >= 1
+                          ? "linear-gradient(90deg, #4CAF82, #2ecc71)"
+                          : "linear-gradient(90deg, #FF6B35, #ff9966)",
+                        borderRadius: 999,
+                        transition: "width 1s linear, background 0.4s",
+                      }}
+                    />
+                  </div>
+                </div>
+                {/* Etapa 2 — Edição/composição (placeholder visual; Remotion
+                    ainda não está plugado no client — bug tracker: editor_dir
+                    não resolve dentro do .exe PyInstaller). */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: 600,
+                      color: renderDone ? "#4CAF82"
+                        : isEditPhase ? "rgba(255,255,255,0.7)"
+                        : "rgba(255,255,255,0.35)",
+                    }}>
+                      {renderDone ? `✓ ${formatLabel} pronto!`
+                        : isEditPhase ? `✏️ Editando ${formatLabel}…`
+                        : "Edição — aguardando captura"}
+                    </div>
+                    <div style={{ fontSize: 12, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
+                      {Math.round(editPct * 100)}%
+                    </div>
+                  </div>
+                  <div style={{ height: 6, background: "rgba(255,255,255,0.07)", borderRadius: 999, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${editPct * 100}%`,
+                        background: renderDone
+                          ? "linear-gradient(90deg, #4CAF82, #2ecc71)"
+                          : "linear-gradient(90deg, #a78bfa, #c4b5fd)",
+                        borderRadius: 999,
+                        transition: "width 1s linear, background 0.4s",
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.7)" }}>
+                    {renderDone ? `✓ ${formatLabel} pronto!`
+                      : renderOvertime ? `⚙️ ${formatLabel} — finalizando no servidor…`
+                      : `⚙️ Renderizando ${formatLabel}…`}
+                  </div>
+                  <div style={{ fontSize: 12, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
+                    {renderDone
+                      ? "100%"
+                      : renderOvertime
+                        ? `~${fmtTime(renderElapsed)} decorridos`
+                        : `${Math.round(capturePct * 100)}% · ${fmtTime(renderRemaining)} restantes`}
+                  </div>
+                </div>
+                <div style={{ height: 6, background: "rgba(255,255,255,0.07)", borderRadius: 999, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${capturePct * 100}%`,
+                      background: renderDone
+                        ? "linear-gradient(90deg, #4CAF82, #2ecc71)"
+                        : "linear-gradient(90deg, #FF6B35, #ff9966)",
+                      borderRadius: 999,
+                      transition: "width 1s linear, background 0.4s",
+                    }}
+                  />
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
-                {renderDone
-                  ? "100%"
-                  : renderOvertime
-                    ? `~${fmtTime(renderElapsed)} decorridos`
-                    : `${Math.round(visualRenderPct * 100)}% · ${fmtTime(renderRemaining)} restantes`}
-              </div>
-            </div>
-            <div style={{ height: 6, background: "rgba(255,255,255,0.07)", borderRadius: 999, overflow: "hidden" }}>
-              <div
-                style={{
-                  height: "100%",
-                  width: `${visualRenderPct * 100}%`,
-                  background: renderDone
-                    ? "linear-gradient(90deg, #4CAF82, #2ecc71)"
-                    : "linear-gradient(90deg, #FF6B35, #ff9966)",
-                  borderRadius: 999,
-                  transition: "width 1s linear, background 0.4s",
-                }}
-              />
-            </div>
+            )}
             {/* Sub-line: anúncios assistidos */}
             <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.35)", display: "flex", justifyContent: "space-between" }}>
               <span>📺 {adsWatched}/2 anúncios assistidos {adDone && "✓"}</span>
@@ -405,36 +554,19 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
             {/* Botão SEMPRE presente — não-clicável até estar pronto.
                 User pediu: "o botão de gerar fragreel tem que estar no ad o tempo
                 todo, mas não como clicável, ajude o usuário a entender o processo."
-                Local-render flow: nada pra baixar (já tá no Desktop) → vira CTA
-                "Abrir pasta" + path copiável. */}
+                Local-render flow: nada pra baixar (já tá no Desktop) → vira
+                "Abrir FragReel" que invoca /render/open no client (abre o vídeo
+                no app default do Windows). Cliente velho: degrada pra
+                copy-path no chip embaixo. */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
               {localRenderMode ? (
                 <>
-                  {localOutputPath && (
-                    <code
-                      title={localOutputPath}
-                      style={{
-                        fontSize: 11,
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        background: "rgba(255,255,255,0.06)",
-                        color: "rgba(255,255,255,0.65)",
-                        maxWidth: 320,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        userSelect: "all",
-                      }}
-                    >
-                      {localOutputPath}
-                    </code>
-                  )}
                   <button
-                    onClick={canDownload && localOutputDir ? copyOutputPath : undefined}
-                    disabled={!canDownload || !localOutputDir}
+                    onClick={canDownload && localOutputPath && !opening ? handleOpenOutput : undefined}
+                    disabled={!canDownload || !localOutputPath || opening}
                     title={
                       canDownload
-                        ? "Copiar caminho da pasta (o arquivo está no seu Desktop)"
+                        ? "Abrir o vídeo no seu reprodutor padrão"
                         : !renderDone
                           ? "Esperando o vídeo terminar de renderizar"
                           : `Faltam ${totalAdRemaining}s de anúncio`
@@ -447,12 +579,12 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
                       border: "none",
                       background: canDownload ? "#FF6B35" : "rgba(255,107,53,0.25)",
                       color: canDownload ? "white" : "rgba(255,255,255,0.5)",
-                      cursor: canDownload && localOutputDir ? "pointer" : "not-allowed",
+                      cursor: canDownload && localOutputPath && !opening ? "pointer" : "not-allowed",
                       display: "inline-flex", alignItems: "center", gap: 6,
                       transition: "background 0.3s",
                     }}
                   >
-                    {pathCopied ? "✓ Caminho copiado" : "📂 Abrir pasta"}
+                    {opening ? "Abrindo…" : "▶ Abrir FragReel"}
                   </button>
                   {canDownload && (
                     <button
@@ -527,6 +659,53 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
             }}>
               <b>Não rolou baixar agora:</b> {downloadError}. O vídeo pode ainda estar
               finalizando — aguarde alguns segundos e clique de novo.
+            </div>
+          )}
+          {/* Local-render: chip com o caminho do arquivo (fallback caso o
+              "Abrir FragReel" falhe + atalho pra quem quer arrastar pra
+              outro app). Só aparece pós-conclusão pra não poluir a UI
+              durante o render. */}
+          {localRenderMode && canDownload && localOutputPath && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+              {openError && (
+                <div style={{ fontSize: 12, color: "#ffb088" }}>
+                  ⚠️ {openError}
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <code
+                  title={localOutputPath}
+                  style={{
+                    flex: 1,
+                    fontSize: 11,
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.06)",
+                    color: "rgba(255,255,255,0.65)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    userSelect: "all",
+                  }}
+                >
+                  {localOutputPath}
+                </code>
+                <button
+                  onClick={copyOutputPath}
+                  style={{
+                    fontSize: 11,
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    background: "transparent",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    color: "rgba(255,255,255,0.65)",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {pathCopied ? "✓ copiado" : "copiar"}
+                </button>
+              </div>
             </div>
           )}
         </div>
