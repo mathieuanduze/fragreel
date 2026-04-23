@@ -14,8 +14,10 @@ import {
   type LocalRenderSession,
 } from "@/lib/local";
 import { getUser } from "@/lib/session";
+import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
+import UpdateRequiredModal from "@/components/UpdateRequiredModal";
 
 const CS2_TICKRATE = 64;
 
@@ -103,6 +105,11 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
   const [diskFullPrompt, setDiskFullPrompt] = useState<{ open: boolean; issues?: DiskIssue[] }>({ open: false });
   const [clientOfflinePrompt, setClientOfflinePrompt] = useState(false);
   const [renderErrorPrompt, setRenderErrorPrompt] = useState<{ open: boolean; message?: string }>({ open: false });
+  // Gate de versão: o `.exe` instalado precisa estar igual ou mais novo que
+  // CLIENT_VERSION pra evitar usuário gerar reels com bugs já corrigidos
+  // (ex: ProRes .mov ilegível pré-v0.2.9). O hook polla /version a cada 8s.
+  const clientVersion = useClientVersionStatus();
+  const [updatePrompt, setUpdatePrompt] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isQueued = match.highlights.length === 0;
@@ -177,6 +184,15 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
       const clientOnline = await pingLocalClient();
       if (!clientOnline) {
         setClientOfflinePrompt(true);
+        return;
+      }
+
+      // Gate de versão. Sem auto-update no `.exe`, deixar usuário antigo
+      // disparar render gera reels com bugs corrigidos (ex: ProRes .mov
+      // ilegível em WMP pré-v0.2.9, câmera estática pré-v0.2.6, ou bate
+      // em endpoints novos como /render/open com 404). Bloqueia hard.
+      if (clientVersion.status === "outdated") {
+        setUpdatePrompt(true);
         return;
       }
 
@@ -355,6 +371,13 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
             </div>
           </div>
         </div>
+      )}
+
+      {updatePrompt && (
+        <UpdateRequiredModal
+          localVersion={clientVersion.local}
+          onClose={() => setUpdatePrompt(false)}
+        />
       )}
 
       {clientOfflinePrompt && (

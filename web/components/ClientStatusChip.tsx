@@ -1,41 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { pingLocalClient } from "@/lib/local";
-import { CLIENT_VERSION } from "@/lib/version";
-
-type Status = "checking" | "online" | "offline";
+import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 
 /**
- * Pinga 127.0.0.1:5775/health a cada 8s (e ao focar a aba).
- * Mostra "✓ Client conectado" (verde) quando o desktop client está rodando,
- * ou um link "⬇ Baixar client" (laranja) quando não está.
+ * Chip de status no header. 4 estados:
+ *   - checking → cinza, "verificando…"
+ *   - online + atualizado → verde, "✓ Client conectado"
+ *   - online + desatualizado → amarelo, "⚠ Atualizar · vX → vY" (link p/ download)
+ *   - offline → laranja, "⬇ Baixar client · vY" (link p/ download)
+ *
+ * Polling a cada 8s (e ao focar a aba). Compartilha o hook
+ * `useClientVersionStatus` com o gate de render no MatchClient.
  */
 export default function ClientStatusChip() {
-  const [status, setStatus] = useState<Status>("checking");
-
-  useEffect(() => {
-    let alive = true;
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    const tick = async () => {
-      const ok = await pingLocalClient();
-      if (!alive) return;
-      setStatus(ok ? "online" : "offline");
-    };
-
-    tick();
-    timer = setInterval(tick, 8000);
-
-    const onFocus = () => tick();
-    window.addEventListener("focus", onFocus);
-
-    return () => {
-      alive = false;
-      if (timer) clearInterval(timer);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, []);
+  const { status, local, required } = useClientVersionStatus();
 
   if (status === "checking") {
     return (
@@ -60,10 +38,10 @@ export default function ClientStatusChip() {
     );
   }
 
-  if (status === "online") {
+  if (status === "current") {
     return (
       <span
-        title="FragReel client rodando em 127.0.0.1:5775"
+        title={`FragReel client ${local} rodando em 127.0.0.1:5775`}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -80,6 +58,32 @@ export default function ClientStatusChip() {
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#5be38f" }} />
         Client conectado
       </span>
+    );
+  }
+
+  if (status === "outdated") {
+    return (
+      <a
+        href="/download"
+        download="FragReel.exe"
+        title={`Atualize do ${local ?? "?"} para ${required}`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "5px 12px",
+          borderRadius: 999,
+          fontSize: 12,
+          fontWeight: 600,
+          color: "#FFC107",
+          background: "rgba(255,193,7,0.10)",
+          border: "1px solid rgba(255,193,7,0.45)",
+          textDecoration: "none",
+        }}
+      >
+        <span style={{ fontSize: 13, lineHeight: 1 }}>⚠</span>
+        Atualizar · {local ?? "?"} → {required}
+      </a>
     );
   }
 
@@ -104,7 +108,7 @@ export default function ClientStatusChip() {
       }}
     >
       <span style={{ fontSize: 13, lineHeight: 1 }}>⬇</span>
-      Baixar client · {CLIENT_VERSION}
+      Baixar client · {required}
     </a>
   );
 }
