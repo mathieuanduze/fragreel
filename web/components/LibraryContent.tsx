@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   getLocalDemos,
@@ -71,6 +71,12 @@ export default function LibraryContent() {
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeAnalyze, setActiveAnalyze] = useState<{ sha: string; mapName: string } | null>(null);
+  // Estado transitório quando user clica "Editar FragReel" e descobrimos que
+  // o match_id local aponta pra algo que o backend não tem mais (deploy limpou
+  // a base, user trocou de conta, etc). Antes (v0.2.11) o re-upload silenciava
+  // pelo catch em openProcessedMatch e a UI travava sem feedback. Esse estado
+  // mostra "Re-analisando…" no botão da demo + um banner explicativo.
+  const [recovering, setRecovering] = useState<string | null>(null); // sha1 ou null
   // Gate de versão: aplica o MESMO bloqueio que MatchClient antes de
   // qualquer ação que dispara render/upload no client antigo. Sem esse
   // gate na biblioteca (regressão v0.2.10), o user clicava "Gerar
@@ -144,6 +150,36 @@ export default function LibraryContent() {
     return () => { alive = false; clearInterval(id); };
   }, [offline, load]);
 
+  // Bug 4 (v0.2.11 PC testing): se o client morrer DURANTE a sessão (silent
+  // death pós-idle, kill manual, etc), as demos continuavam visíveis em cache
+  // do React e o user clicava em ações que falhavam silenciosamente. O
+  // useClientVersionStatus já polla /health a cada 8s — espelhamos o status
+  // aqui pra esconder os cards e mostrar o CTA de reinstall logo que o
+  // client some. Só sincroniza ONLINE→OFFLINE; o caminho contrário é tratado
+  // pelo effect acima (pingLocalClient + load).
+  useEffect(() => {
+    if (clientVersion.status === "offline" && !offline) {
+      setOffline(true);
+    }
+  }, [clientVersion.status, offline]);
+
+  // Bug 2 (v0.2.11 PC testing): após auto-update, a versão local muda de
+  // v0.2.10 → v0.2.11, mas a lista de demos vinha do cache do React stale e
+  // não refletia o estado novo (user precisava F5 manual). Quando detectamos
+  // que `clientVersion.local` mudou pra um valor não-nulo (ou seja, o client
+  // voltou ao ar com nova versão), forçamos refresh do /demos.
+  const lastLocalVersion = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = lastLocalVersion.current;
+    const curr = clientVersion.local;
+    // Só reaja a transições real prev→curr com curr definido. Ignora o
+    // primeiro tick (prev null + curr null = boot).
+    if (curr && prev && prev !== curr && !offline) {
+      load(true);
+    }
+    lastLocalVersion.current = curr;
+  }, [clientVersion.local, offline, load]);
+
   // Abre uma match já processada com validação: se o match_id local
   // aponta pra algo que o backend não tem mais (deploy limpou, user
   // trocou de conta, etc), caímos pro fluxo de re-upload em vez de
@@ -151,6 +187,9 @@ export default function LibraryContent() {
   //
   // v0.2.9 bug: o Library não validava — clicar "Ver FragReel" levava
   // pra /match/<id> que estourava em 404. v0.2.10 valida antes.
+  // v0.2.12 bug: o re-upload era silencioso (sem feedback visual) e o
+  // user achava que UI tinha travado. Agora seta `recovering` pra mudar
+  // o label do botão pra "Re-analisando…" e mostrar banner explicativo.
   const openProcessedMatch = useCallback(async (demo: LocalDemo) => {
     if (!demo.match_id) return;
     setError(null);
@@ -158,8 +197,8 @@ export default function LibraryContent() {
       await getMatch(demo.match_id);
       router.push(`/match/${demo.match_id}`);
     } catch {
-      // Match sumiu do backend — cai pro re-upload. Não mostramos o 404
-      // como erro porque o fallback é silencioso e recupera o estado.
+      // Match sumiu do backend — cai pro re-upload com feedback.
+      setRecovering(demo.sha1);
       try {
         await triggerLocalUpload(demo.sha1);
         setActiveAnalyze({ sha: demo.sha1, mapName: demo.map_name });
@@ -167,6 +206,8 @@ export default function LibraryContent() {
         setError(
           `O FragReel anterior dessa partida não existe mais. Tentei re-analisar a demo mas falhou: ${(err as Error).message}`,
         );
+      } finally {
+        setRecovering(null);
       }
     }
   }, [router]);
@@ -204,17 +245,11 @@ export default function LibraryContent() {
     await triggerReupload(demo);
   };
 
-  // "Gerar outro formato" — re-uploada e re-analisa a demo. Como limpamos
-  // todos os intermediários do PC após o render anterior, NÃO dá pra
-  // reaproveitar nada local; precisa começar do zero. Mesmo gate de
-  // versão que onPick.
-  const onRegenerate = useCallback(async (demo: LocalDemo) => {
-    if (clientVersion.status === "outdated") {
-      setUpdatePrompt(true);
-      return;
-    }
-    await triggerReupload(demo);
-  }, [clientVersion.status, triggerReupload]);
+  // v0.2.11 tinha um botão extra "🔁 Gerar outro formato" pros cards já
+  // processados — removido em v0.2.12 (UX redundante: o destino era a
+  // mesma página /match/{id} que o "Editar FragReel" já abre, e lá o user
+  // pode regenerar). onRegenerate continua aqui caso a gente queira
+  // expor de novo, mas atualmente sem callsite.
 
   if (offline) {
     return (
@@ -314,6 +349,28 @@ export default function LibraryContent() {
       {error && demos && demos.length > 0 && (
         <div style={{ padding: 12, marginBottom: 12, fontSize: 13, color: "#ffb088", border: "1px solid rgba(255,150,80,0.35)", borderRadius: 8, background: "rgba(255,150,80,0.06)" }}>
           Aviso do client: {error}
+        </div>
+      )}
+
+      {/* Banner enquanto re-analisamos uma demo cujo FragReel sumiu do
+          backend (Bug 3 v0.2.11 → fix v0.2.12). Sem isso, o user clica
+          "Editar FragReel", a UI parecia travar 5-10s e ele achava que
+          o botão não funcionou. */}
+      {recovering && (
+        <div style={{
+          padding: 12, marginBottom: 12, fontSize: 13,
+          color: "#9ec5ff",
+          border: "1px solid rgba(120,180,255,0.35)",
+          borderRadius: 8,
+          background: "rgba(120,180,255,0.07)",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ fontSize: 16 }}>⏳</span>
+          <span>
+            O FragReel anterior dessa partida não está mais disponível no
+            servidor — re-analisando a demo do zero. O seletor abre automaticamente
+            quando terminar (~30s).
+          </span>
         </div>
       )}
 
@@ -497,39 +554,32 @@ export default function LibraryContent() {
                   </span>
                 </div>
 
-                {/* CTA copy v0.2.11 (renamed per user feedback):
-                      - Não processado:  "Mapear plays de impacto"
-                        (era "Gerar FragReel" — confuso porque a geração
-                        do reel em si só acontece DEPOIS, na /match. O
-                        clique aqui só dispara análise IA dos highlights.)
-                      - Já processado:   "Editar FragReel"
-                        (era "Ver FragReel" — agora reflete que a /match
-                        é uma página de edição/escolha, não de visualização
-                        passiva.)
-                      - "Gerar outro formato" mantém o label, mas agora
-                        re-uploada do zero (vê comentário em onRegenerate). */}
+                {/* CTA copy v0.2.12:
+                      - Não processado: "Mapear plays de impacto"
+                      - Já processado:  "Editar FragReel" (botão único —
+                        a página /match/{id} é onde o user regenera/troca
+                        formato. v0.2.11 tinha um "Gerar outro formato"
+                        redundante que confundia mais do que ajudava.)
+
+                    O `recovering === d.sha1` muda o label pra mostrar que
+                    estamos reagindo (caso /matches/{id} retorne 404 e a
+                    gente esteja re-uploadando — sem isso a UI parecia
+                    travada por 5-10s). */}
                 {isProcessed ? (
-                  <>
-                    <button
-                      onClick={() => openProcessedMatch(d)}
-                      className="btn-primary"
-                      style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
-                    >
-                      ✏️ Editar FragReel
-                    </button>
-                    <button
-                      onClick={() => onRegenerate(d)}
-                      title="Re-analisa a demo e abre o seletor de formato. Necessário porque os frames originais foram apagados após o render anterior pra liberar espaço no seu PC."
-                      style={{
-                        fontSize: 12, padding: "8px 14px", marginTop: 0,
-                        background: "transparent", color: "rgba(255,255,255,0.65)",
-                        border: "1px solid #2D2D44", borderRadius: 8,
-                        cursor: "pointer", fontWeight: 600,
-                      }}
-                    >
-                      🔁 Gerar outro formato
-                    </button>
-                  </>
+                  <button
+                    onClick={() => openProcessedMatch(d)}
+                    className="btn-primary"
+                    disabled={recovering === d.sha1}
+                    style={{
+                      fontSize: 13, padding: "10px 18px", marginTop: 2,
+                      cursor: recovering === d.sha1 ? "wait" : undefined,
+                      opacity: recovering === d.sha1 ? 0.7 : 1,
+                    }}
+                  >
+                    {recovering === d.sha1
+                      ? "⏳ Re-analisando demo…"
+                      : "✏️ Editar FragReel"}
+                  </button>
                 ) : (
                   <>
                     <button
