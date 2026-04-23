@@ -13,6 +13,7 @@ import {
   type DiskIssue,
   type LocalRenderSession,
 } from "@/lib/local";
+import { getUser } from "@/lib/session";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
 
@@ -218,8 +219,21 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         end_tick: Math.max(1, Math.floor(h.end * CS2_TICKRATE)),
       }));
 
+      // Sem player name + steamid64, o capture_script.py cai pro free-cam
+      // (CS2 não tem spec_player_by_accountid — precisa do nome string).
+      // Pega do JWT do Steam OAuth: name = display name do Steam, steamid =
+      // SteamID64. Risco residual: display name do Steam pode divergir do
+      // nome in-game na demo — nesse caso o spec_player falha silenciosamente
+      // no console do CS2 e cai pro free-cam de novo. Mitigação completa
+      // exige extrair o nome in-game do parser durante o upload.
+      const user = getUser();
       try {
-        await startLocalRender({ demo_path: localDemo.demo_path, segments });
+        await startLocalRender({
+          demo_path: localDemo.demo_path,
+          segments,
+          user_steamid64: user?.steamid || undefined,
+          user_player_name: user?.name || undefined,
+        });
         setLocalRender(true);
         setRenderDuration(
           Math.max(30, Math.ceil(segments.reduce((s, x) => s + (x.end_tick - x.start_tick), 0) / CS2_TICKRATE * 4)),
