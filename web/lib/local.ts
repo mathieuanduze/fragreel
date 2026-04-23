@@ -177,9 +177,25 @@ export async function renderPreflight(): Promise<RenderPreflight> {
   }
 }
 
+export interface DiskIssue {
+  drive: string;
+  needed_gb: number;
+  free_gb: number;
+  /** Backend marker of what stage needed the space (e.g. "tga_capture",
+   *  "ffmpeg_convert"). Used by the UI to phrase the message. */
+  kind: string;
+}
+
 /** Kick off the capture pipeline on the user's PC. Returns the initial
  *  session; the web should then poll `getLocalRenderStatus()` to show
- *  progress while the user watches ads. */
+ *  progress while the user watches ads.
+ *
+ *  Throws typed errors that the UI can branch on:
+ *    • `LocalClientOffline` — client process not running on 127.0.0.1
+ *    • `Error & { code: "cs2_running", cs2_pids }` — 409
+ *    • `Error & { code: "insufficient_disk", issues }` — 507
+ *    • generic `Error` — unexpected backend failure
+ */
 export async function startLocalRender(plan: LocalRenderPlan): Promise<LocalRenderSession> {
   const res = await fetch(`${LOCAL_BASE}/render`, {
     method: "POST",
@@ -197,6 +213,21 @@ export async function startLocalRender(plan: LocalRenderPlan): Promise<LocalRend
     };
     err.code = body.error || "cs2_running";
     err.cs2_pids = body.cs2_pids;
+    throw err;
+  }
+  if (res.status === 507) {
+    // Disk preflight failed — typed error carrying the per-drive breakdown
+    // so the UI can show "libere X GB no drive Y" em vez de erro genérico.
+    // Caía no fallback "server-side render" silencioso pré-fix, que abria
+    // o AdModal prometendo um download que nunca ia chegar (server não
+    // tem Remotion ainda — render é 100% local).
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.detail || "insufficient disk space") as Error & {
+      code: string;
+      issues?: DiskIssue[];
+    };
+    err.code = body.error || "insufficient_disk";
+    err.issues = body.issues;
     throw err;
   }
   if (!res.ok) {

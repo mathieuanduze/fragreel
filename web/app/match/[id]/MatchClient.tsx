@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { MatchOut, Mood, Orientation, generateVideo, getMatch, renderDownloadUrl } from "@/lib/api";
+import { MatchOut, Mood, Orientation, getMatch } from "@/lib/api";
 import {
   cancelLocalRender,
   getLocalDemos,
+  LocalClientOffline,
   pingLocalClient,
   renderPreflight,
   startLocalRender,
+  type DiskIssue,
   type LocalRenderSession,
 } from "@/lib/local";
 import AdSlot from "@/components/AdSlot";
@@ -90,11 +92,16 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
   const [generating, setGenerating] = useState(false);
   const [jobMsg, setJobMsg] = useState<string | null>(null);
   const [showAd, setShowAd] = useState(false);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [renderDuration, setRenderDuration] = useState(90);
   const [elapsed, setElapsed] = useState(0);
   const [localRender, setLocalRender] = useState(false);
   const [cs2BusyPrompt, setCs2BusyPrompt] = useState<{ open: boolean; pids?: number[] }>({ open: false });
+  // Render-blocked prompts (preflight passou mas backend recusou). A gente
+  // mostra modal explicando o porquê em vez de cair num "fallback server"
+  // fantasma — o pipeline de render é 100% local hoje.
+  const [diskFullPrompt, setDiskFullPrompt] = useState<{ open: boolean; issues?: DiskIssue[] }>({ open: false });
+  const [clientOfflinePrompt, setClientOfflinePrompt] = useState(false);
+  const [renderErrorPrompt, setRenderErrorPrompt] = useState<{ open: boolean; message?: string }>({ open: false });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isQueued = match.highlights.length === 0;
@@ -159,65 +166,86 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     if (selected.size === 0 || generating) return;
     setGenerating(true);
     setJobMsg(null);
-    setDownloadUrl(null);
     setLocalRender(false);
 
-    // Try local render first — it's what keeps the user on the site
-    // watching ads while CS2 runs hidden on their PC. Falls back to the
-    // server path if the desktop client isn't running.
+    // Render é 100% local: HLAE captura no PC do user, ffmpeg converte,
+    // arquivo final cai no Desktop. NÃO existe fallback server-side hoje —
+    // a "geração via server" foi removida porque o backend ainda não tem
+    // Remotion. Se algo falhar aqui, mostramos modal explicando.
     try {
       const clientOnline = await pingLocalClient();
-      if (clientOnline) {
-        // Find the demo file on the user's PC by matching match_id.
-        // The local scanner already indexed it when the user opened the
-        // dashboard; we just look it up instead of asking the user to
-        // re-select anything.
-        const demos = await getLocalDemos();
-        const localDemo = demos.matches.find((d) => d.match_id === match.id);
-        if (localDemo) {
-          const pre = await renderPreflight();
-          if (!pre.ready) {
-            if (pre.reason === "cs2_running") {
-              setCs2BusyPrompt({ open: true, pids: pre.cs2_pids });
-              return;
-            }
-            // Silently fall through to server for other reasons
-          } else {
-            const selectedHighlights = match.highlights.filter((h) => selected.has(h.rank));
-            const segments = selectedHighlights.map((h) => ({
-              start_tick: Math.max(0, Math.floor(h.start * CS2_TICKRATE)),
-              end_tick: Math.max(1, Math.floor(h.end * CS2_TICKRATE)),
-            }));
-            try {
-              await startLocalRender({ demo_path: localDemo.demo_path, segments });
-              setLocalRender(true);
-              setRenderDuration(
-                Math.max(30, Math.ceil(segments.reduce((s, x) => s + (x.end_tick - x.start_tick), 0) / CS2_TICKRATE * 4)),
-              );
-              setJobMsg("Renderizando no seu PC com gameplay real (HLAE).");
-              setShowAd(true);
-              return;
-            } catch (e) {
-              const err = e as Error & { code?: string };
-              if (err.code === "cs2_running") {
-                setCs2BusyPrompt({ open: true });
-                return;
-              }
-              // Fall through to server on unexpected local errors
-              console.warn("local render failed, falling back to server:", err);
-            }
-          }
-        }
+      if (!clientOnline) {
+        setClientOfflinePrompt(true);
+        return;
       }
 
-      // Server fallback (existing path)
-      const res = await generateVideo(match.id, format, Array.from(selected), mood, undefined, orientation);
-      setRenderDuration(res.estimated_seconds ?? 90);
-      setJobMsg(res.message);
-      setDownloadUrl(renderDownloadUrl(match.id, format));
-      setShowAd(true);
-    } catch {
-      setJobMsg("Erro ao iniciar geração. Tente novamente.");
+      // Localiza a .dem pelo match_id (já indexada pelo scanner local).
+      const demos = await getLocalDemos();
+      const localDemo = demos.matches.find((d) => d.match_id === match.id);
+      if (!localDemo) {
+        setRenderErrorPrompt({
+          open: true,
+          message:
+            "Não achei a demo desta partida no seu PC. Confirme que o arquivo .dem ainda está em replays/ e tente de novo.",
+        });
+        return;
+      }
+
+      const pre = await renderPreflight();
+      if (!pre.ready) {
+        if (pre.reason === "cs2_running") {
+          setCs2BusyPrompt({ open: true, pids: pre.cs2_pids });
+          return;
+        }
+        if (pre.reason === "render_in_progress") {
+          setRenderErrorPrompt({
+            open: true,
+            message:
+              "Já tem um render rolando no FragReel. Espere terminar (ou cancele) antes de começar outro.",
+          });
+          return;
+        }
+        setRenderErrorPrompt({
+          open: true,
+          message: "FragReel client não está pronto pra renderizar agora. Reinicie o app e tente de novo.",
+        });
+        return;
+      }
+
+      const selectedHighlights = match.highlights.filter((h) => selected.has(h.rank));
+      const segments = selectedHighlights.map((h) => ({
+        start_tick: Math.max(0, Math.floor(h.start * CS2_TICKRATE)),
+        end_tick: Math.max(1, Math.floor(h.end * CS2_TICKRATE)),
+      }));
+
+      try {
+        await startLocalRender({ demo_path: localDemo.demo_path, segments });
+        setLocalRender(true);
+        setRenderDuration(
+          Math.max(30, Math.ceil(segments.reduce((s, x) => s + (x.end_tick - x.start_tick), 0) / CS2_TICKRATE * 4)),
+        );
+        setJobMsg("Renderizando no seu PC com gameplay real (HLAE).");
+        setShowAd(true);
+      } catch (e) {
+        const err = e as Error & { code?: string; cs2_pids?: number[]; issues?: DiskIssue[] };
+        if (err instanceof LocalClientOffline) {
+          setClientOfflinePrompt(true);
+          return;
+        }
+        if (err.code === "cs2_running") {
+          setCs2BusyPrompt({ open: true, pids: err.cs2_pids });
+          return;
+        }
+        if (err.code === "insufficient_disk") {
+          setDiskFullPrompt({ open: true, issues: err.issues });
+          return;
+        }
+        // Erro inesperado — surfaceia mensagem real (sem fallback fantasma).
+        setRenderErrorPrompt({
+          open: true,
+          message: err.message || "Falha desconhecida ao iniciar o render.",
+        });
+      }
     } finally {
       setGenerating(false);
     }
@@ -232,7 +260,6 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         <AdModal
           formatLabel={formatLabel}
           renderDuration={renderDuration}
-          downloadUrl={downloadUrl}
           matchId={match.id}
           format={format}
           localRenderMode={localRender}
@@ -241,6 +268,161 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
             setShowAd(false);
           }}
         />
+      )}
+
+      {diskFullPrompt.open && (
+        <div
+          onClick={() => setDiskFullPrompt({ open: false })}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 480,
+              background: "#13131f",
+              border: "1px solid #2D2D44",
+              borderRadius: 14,
+              padding: 28,
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 12 }}>💾</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
+              Sem espaço em disco pra capturar
+            </div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 14 }}>
+              O HLAE captura cada frame da partida como TGA não-comprimido (necessário pra qualidade
+              do vídeo final). Esses arquivos vão pro drive onde o CS2 está instalado e somem assim
+              que o ffmpeg termina de converter.
+            </p>
+            {diskFullPrompt.issues && diskFullPrompt.issues.length > 0 && (
+              <div style={{ marginBottom: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+                {diskFullPrompt.issues.map((issue, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: "10px 12px",
+                      background: "rgba(255,107,53,0.06)",
+                      border: "1px solid rgba(255,107,53,0.25)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      color: "rgba(255,255,255,0.75)",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    <div style={{ fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>
+                      {issue.drive}
+                    </div>
+                    <div>
+                      Precisa de <b style={{ color: "#FF6B35" }}>{issue.needed_gb.toFixed(1)} GB</b>,
+                      mas só tem <b style={{ color: "#ffb088" }}>{issue.free_gb.toFixed(1)} GB</b> livres.
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, marginBottom: 20 }}>
+              <b style={{ color: "rgba(255,255,255,0.7)" }}>Soluções:</b> liberar espaço no drive,
+              selecionar menos cenas (cada highlight ocupa ~7 GB de TGA), ou aguardar o suporte
+              a redirecionamento de captura pra outro drive (em breve).
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setDiskFullPrompt({ open: false })}
+                className="btn-primary"
+                style={{ fontSize: 13, padding: "9px 18px" }}
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clientOfflinePrompt && (
+        <div
+          onClick={() => setClientOfflinePrompt(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 440,
+              background: "#13131f",
+              border: "1px solid #2D2D44",
+              borderRadius: 14,
+              padding: 28,
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 12 }}>🔌</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
+              Abra o FragReel client
+            </div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 20 }}>
+              Pra renderizar, o FragReel.exe precisa estar rodando no seu PC. Abra ele
+              (vai aparecer um ícone na bandeja do sistema) e clique em <b>Renderizar</b>{" "}
+              de novo.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setClientOfflinePrompt(false)}
+                className="btn-primary"
+                style={{ fontSize: 13, padding: "9px 18px" }}
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {renderErrorPrompt.open && (
+        <div
+          onClick={() => setRenderErrorPrompt({ open: false })}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 460,
+              background: "#13131f",
+              border: "1px solid #2D2D44",
+              borderRadius: 14,
+              padding: 28,
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
+              Não consegui iniciar o render
+            </div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 20 }}>
+              {renderErrorPrompt.message}
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setRenderErrorPrompt({ open: false })}
+                className="btn-primary"
+                style={{ fontSize: 13, padding: "9px 18px" }}
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {cs2BusyPrompt.open && (
