@@ -9,6 +9,7 @@ import {
   LocalClientOffline,
   LocalDemo,
 } from "@/lib/local";
+import { getMatch } from "@/lib/api";
 import AnalyzeModal from "./AnalyzeModal";
 
 function fmtDate(epoch: number): string {
@@ -134,10 +135,37 @@ export default function LibraryContent() {
     return () => { alive = false; clearInterval(id); };
   }, [offline, load]);
 
-  const onPick = async (demo: LocalDemo) => {
-    // Demo já processada → vai direto pro match (sem refazer análise/upload).
-    if (demo.match_id) {
+  // Abre uma match já processada com validação: se o match_id local
+  // aponta pra algo que o backend não tem mais (deploy limpou, user
+  // trocou de conta, etc), caímos pro fluxo de re-upload em vez de
+  // deixar o user cair numa /match/<id> 404.
+  //
+  // v0.2.9 bug: o Library não validava — clicar "Ver FragReel" levava
+  // pra /match/<id> que estourava em 404. v0.2.10 valida antes.
+  const openProcessedMatch = useCallback(async (demo: LocalDemo) => {
+    if (!demo.match_id) return;
+    setError(null);
+    try {
+      await getMatch(demo.match_id);
       router.push(`/match/${demo.match_id}`);
+    } catch {
+      // Match sumiu do backend — cai pro re-upload. Não mostramos o 404
+      // como erro porque o fallback é silencioso e recupera o estado.
+      try {
+        await triggerLocalUpload(demo.sha1);
+        setActiveAnalyze({ sha: demo.sha1, mapName: demo.map_name });
+      } catch (err) {
+        setError(
+          `O FragReel anterior dessa partida não existe mais. Tentei re-analisar a demo mas falhou: ${(err as Error).message}`,
+        );
+      }
+    }
+  }, [router]);
+
+  const onPick = async (demo: LocalDemo) => {
+    // Demo já processada → valida e navega (ou cai pro re-upload).
+    if (demo.match_id) {
+      await openProcessedMatch(demo);
       return;
     }
     try {
@@ -148,15 +176,12 @@ export default function LibraryContent() {
     }
   };
 
-  // Re-gerar (forçar nova análise mesmo já processada).
-  const onRegenerate = async (demo: LocalDemo) => {
-    try {
-      await triggerLocalUpload(demo.sha1);
-      setActiveAnalyze({ sha: demo.sha1, mapName: demo.map_name });
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
+  // "Gerar outro formato" — leva pra página da match onde fica o seletor
+  // de formatos (9:16, 1:1, etc). Antes do v0.2.10 esse botão re-disparava
+  // o upload completo, o que (a) re-analisava a demo do zero sem razão e
+  // (b) não abria o seletor. Agora é o mesmo fluxo de "Ver FragReel" —
+  // abre a /match onde o user escolhe o novo formato.
+  const onRegenerate = openProcessedMatch;
 
   if (offline) {
     return (
