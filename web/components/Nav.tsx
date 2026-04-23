@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUser, logout, type SessionUser } from "@/lib/session";
 import ClientStatusChip from "./ClientStatusChip";
+import SettingsModal from "./SettingsModal";
 
 export default function Nav() {
   const path      = usePathname();
@@ -12,6 +13,7 @@ export default function Nav() {
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     setUser(getUser());
@@ -98,6 +100,46 @@ export default function Nav() {
 
               {/* Client status (online/offline) */}
               <ClientStatusChip />
+
+              {/* Settings (engrenagem) — só faz sentido com client conectado,
+                  mas mostramos sempre. Se offline, o modal pega o erro. */}
+              <button
+                onClick={() => setSettingsOpen(true)}
+                aria-label="Configurações"
+                title="Configurações do FragReel client"
+                style={{
+                  width: 32,
+                  height: 32,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "1px solid #2D2D44",
+                  borderRadius: 8,
+                  color: "rgba(255,255,255,0.55)",
+                  cursor: "pointer",
+                  padding: 0,
+                  fontSize: 16,
+                  lineHeight: 1,
+                }}
+              >
+                {/* Inline gear SVG — keeps the icon crisp without an extra
+                    icon-lib dep. 16×16 viewBox, currentColor inherits chip color. */}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </button>
 
               {/* User chip */}
               <div
@@ -193,6 +235,9 @@ export default function Nav() {
           )}
         </div>
       </div>
+      {settingsOpen && (
+        <SettingsModal onClose={() => setSettingsOpen(false)} />
+      )}
     </nav>
   );
 }
