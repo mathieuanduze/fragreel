@@ -51,10 +51,21 @@ export class LocalClientOffline extends Error {
   }
 }
 
+// Chrome 120+ enforces Private Network Access (PNA): HTTPS pages can't hit
+// HTTP 127.0.0.1 without this opt-in. Without it, every fetch here silently
+// fails ("blocked by PNA") and the UI thinks the client is offline.
+// The flag isn't in lib.dom.d.ts yet — cast through a typed extension.
+type PrivateFetchInit = RequestInit & { targetAddressSpace?: "private" | "local" | "public" };
+const PNA_INIT: PrivateFetchInit = { targetAddressSpace: "private" };
+
+function privateFetch(input: string, init?: RequestInit): Promise<Response> {
+  return fetch(input, { ...PNA_INIT, ...init } as RequestInit);
+}
+
 async function fetchLocal<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${LOCAL_BASE}${path}`, init);
+    res = await privateFetch(`${LOCAL_BASE}${path}`, init);
   } catch {
     throw new LocalClientOffline();
   }
@@ -69,7 +80,7 @@ export async function pingLocalClient(timeoutMs = 1500): Promise<boolean> {
   try {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), timeoutMs);
-    const res = await fetch(`${LOCAL_BASE}/health`, { signal: ctl.signal, cache: "no-store" });
+    const res = await privateFetch(`${LOCAL_BASE}/health`, { signal: ctl.signal, cache: "no-store" });
     clearTimeout(t);
     return res.ok;
   } catch {
@@ -82,7 +93,7 @@ export async function getLocalClientVersion(timeoutMs = 1500): Promise<string | 
   try {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), timeoutMs);
-    const res = await fetch(`${LOCAL_BASE}/version`, { signal: ctl.signal, cache: "no-store" });
+    const res = await privateFetch(`${LOCAL_BASE}/version`, { signal: ctl.signal, cache: "no-store" });
     clearTimeout(t);
     if (!res.ok) return null;
     const data = await res.json().catch(() => null) as { version?: string } | null;
@@ -202,7 +213,7 @@ export interface DiskIssue {
  *    • generic `Error` — unexpected backend failure
  */
 export async function startLocalRender(plan: LocalRenderPlan): Promise<LocalRenderSession> {
-  const res = await fetch(`${LOCAL_BASE}/render`, {
+  const res = await privateFetch(`${LOCAL_BASE}/render`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(plan),
@@ -307,7 +318,7 @@ export interface ClientUpdateResult {
 export async function triggerClientUpdate(): Promise<ClientUpdateResult> {
   let res: Response;
   try {
-    res = await fetch(`${LOCAL_BASE}/update`, { method: "POST" });
+    res = await privateFetch(`${LOCAL_BASE}/update`, { method: "POST" });
   } catch {
     throw new LocalClientOffline();
   }
