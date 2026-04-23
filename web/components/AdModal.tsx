@@ -138,7 +138,15 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   // Etapa 1 — Captura (HLAE): completa quando saiu da fase de captura.
   // Durante a captura usa o `progress` reportado (= frames_captured/expected),
   // capado em 0.99 pra não mostrar "100%" enquanto state ainda é "capturing".
-  const capturePct = !localRenderMode
+  //
+  // v0.2.9 regressão: multi-segment renders alternam o state entre
+  // capturing → converting → capturing (uma vez por take, porque a conversão
+  // pra ProRes acontece streaming durante a captura do próximo segmento).
+  // Antes do v0.2.10 o frontend reagia a essas transições com capturePct
+  // = 1 quando converting, = progress quando capturing — o que fazia a
+  // barra pular pra 100%, voltar pra 40%, 100%, 40%… (ping-pong).
+  // Solução: monotônico via max() acumulado (ver useEffect abaixo).
+  const captureRaw = !localRenderMode
     ? renderDone ? 1 : Math.min(0.95, renderElapsed / renderDuration)
     : !localStatus
       ? 0
@@ -151,13 +159,27 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   //   rendering  → hook do remotion render (--out-frame stdout)
   //   done       → 1
   const MOCK_EDIT_DURATION = 30;
-  const editPct = !localRenderMode
+  const editRaw = !localRenderMode
     ? renderDone ? 1 : 0
     : !localStatus || isCapturePhase
       ? 0
       : renderDone
         ? 1
         : Math.min(0.95, mockEditElapsed / MOCK_EDIT_DURATION);
+  // Monotonic clamp: both bars only ever go UP, never back down. Pinned
+  // to 1 once renderDone. Avoids the ping-pong described above and also
+  // avoids "barra voltou pra 95% depois de ficar em 100%" caused by the
+  // state label flip at the tail end.
+  const [maxCapturePct, setMaxCapturePct] = useState(0);
+  const [maxEditPct, setMaxEditPct] = useState(0);
+  useEffect(() => {
+    if (captureRaw > maxCapturePct) setMaxCapturePct(captureRaw);
+  }, [captureRaw, maxCapturePct]);
+  useEffect(() => {
+    if (editRaw > maxEditPct) setMaxEditPct(editRaw);
+  }, [editRaw, maxEditPct]);
+  const capturePct = renderDone ? 1 : maxCapturePct;
+  const editPct = renderDone ? 1 : maxEditPct;
   // Modo server: só uma barra faz sentido (não tem split de stages).
   const renderRemaining = Math.max(0, renderDuration - renderElapsed);
   const adCount       = adIndex + 1;
