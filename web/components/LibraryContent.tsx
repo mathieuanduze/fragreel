@@ -10,7 +10,9 @@ import {
   LocalDemo,
 } from "@/lib/local";
 import { getMatch } from "@/lib/api";
+import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import AnalyzeModal from "./AnalyzeModal";
+import UpdateRequiredModal from "./UpdateRequiredModal";
 
 function fmtDate(epoch: number): string {
   return new Date(epoch * 1000).toLocaleDateString("pt-BR", {
@@ -69,6 +71,13 @@ export default function LibraryContent() {
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeAnalyze, setActiveAnalyze] = useState<{ sha: string; mapName: string } | null>(null);
+  // Gate de versão: aplica o MESMO bloqueio que MatchClient antes de
+  // qualquer ação que dispara render/upload no client antigo. Sem esse
+  // gate na biblioteca (regressão v0.2.10), o user clicava "Gerar
+  // FragReel" e o client desatualizado começava a processar com bugs
+  // já corrigidos antes do MatchClient ter chance de barrar.
+  const clientVersion = useClientVersionStatus();
+  const [updatePrompt, setUpdatePrompt] = useState(false);
 
   const load = useCallback(async (refresh = false) => {
     setLoading(true);
@@ -162,26 +171,50 @@ export default function LibraryContent() {
     }
   }, [router]);
 
-  const onPick = async (demo: LocalDemo) => {
-    // Demo já processada → valida e navega (ou cai pro re-upload).
-    if (demo.match_id) {
-      await openProcessedMatch(demo);
-      return;
-    }
+  // Re-analisa a demo do zero — usado tanto pela 1ª "Mapear plays" quanto
+  // pelo "Gerar outro formato" das demos já processadas. v0.2.11 trouxe
+  // re-upload de volta no regenerate fluxo: como o client APAGA todos os
+  // frames TGA + ProRes .mov após o render (pra não estourar o disco do
+  // user), regenerar um novo formato exige re-extrair tudo da .dem. Sem
+  // re-upload, "Gerar outro formato" abria a /match mas não tinha como
+  // produzir novos arquivos.
+  const triggerReupload = useCallback(async (demo: LocalDemo) => {
     try {
       await triggerLocalUpload(demo.sha1);
       setActiveAnalyze({ sha: demo.sha1, mapName: demo.map_name });
     } catch (e) {
       setError((e as Error).message);
     }
+  }, []);
+
+  const onPick = async (demo: LocalDemo) => {
+    // Hard gate: client desatualizado nunca passa daqui. Sem esse check
+    // o user antigo conseguia clicar "Gerar FragReel" e o client começava
+    // a uploadar/renderizar com bugs já corrigidos antes do MatchClient
+    // ter chance de barrar (bug reportado no v0.2.10 testing).
+    if (clientVersion.status === "outdated") {
+      setUpdatePrompt(true);
+      return;
+    }
+    // Demo já processada → valida e navega (ou cai pro re-upload).
+    if (demo.match_id) {
+      await openProcessedMatch(demo);
+      return;
+    }
+    await triggerReupload(demo);
   };
 
-  // "Gerar outro formato" — leva pra página da match onde fica o seletor
-  // de formatos (9:16, 1:1, etc). Antes do v0.2.10 esse botão re-disparava
-  // o upload completo, o que (a) re-analisava a demo do zero sem razão e
-  // (b) não abria o seletor. Agora é o mesmo fluxo de "Ver FragReel" —
-  // abre a /match onde o user escolhe o novo formato.
-  const onRegenerate = openProcessedMatch;
+  // "Gerar outro formato" — re-uploada e re-analisa a demo. Como limpamos
+  // todos os intermediários do PC após o render anterior, NÃO dá pra
+  // reaproveitar nada local; precisa começar do zero. Mesmo gate de
+  // versão que onPick.
+  const onRegenerate = useCallback(async (demo: LocalDemo) => {
+    if (clientVersion.status === "outdated") {
+      setUpdatePrompt(true);
+      return;
+    }
+    await triggerReupload(demo);
+  }, [clientVersion.status, triggerReupload]);
 
   if (offline) {
     return (
@@ -464,17 +497,29 @@ export default function LibraryContent() {
                   </span>
                 </div>
 
+                {/* CTA copy v0.2.11 (renamed per user feedback):
+                      - Não processado:  "Mapear plays de impacto"
+                        (era "Gerar FragReel" — confuso porque a geração
+                        do reel em si só acontece DEPOIS, na /match. O
+                        clique aqui só dispara análise IA dos highlights.)
+                      - Já processado:   "Editar FragReel"
+                        (era "Ver FragReel" — agora reflete que a /match
+                        é uma página de edição/escolha, não de visualização
+                        passiva.)
+                      - "Gerar outro formato" mantém o label, mas agora
+                        re-uploada do zero (vê comentário em onRegenerate). */}
                 {isProcessed ? (
                   <>
                     <button
-                      onClick={() => onPick(d)}
+                      onClick={() => openProcessedMatch(d)}
                       className="btn-primary"
                       style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
                     >
-                      ▶ Ver FragReel
+                      ✏️ Editar FragReel
                     </button>
                     <button
                       onClick={() => onRegenerate(d)}
+                      title="Re-analisa a demo e abre o seletor de formato. Necessário porque os frames originais foram apagados após o render anterior pra liberar espaço no seu PC."
                       style={{
                         fontSize: 12, padding: "8px 14px", marginTop: 0,
                         background: "transparent", color: "rgba(255,255,255,0.65)",
@@ -492,10 +537,10 @@ export default function LibraryContent() {
                       className="btn-primary"
                       style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
                     >
-                      🎬 Gerar FragReel
+                      🎯 Mapear plays de impacto
                     </button>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.4 }}>
-                      A IA vai detectar ACEs, clutches e multi-kills · ~30s
+                      A IA detecta ACEs, clutches e multi-kills · ~30s · você escolhe o formato depois
                     </div>
                   </>
                 )}
@@ -514,6 +559,17 @@ export default function LibraryContent() {
             setActiveAnalyze(null);
             router.push(`/match/${matchId}`);
           }}
+        />
+      )}
+
+      {/* Modal bloqueante de update — sem ele, o `setUpdatePrompt(true)`
+          dispara em onPick/onRegenerate mas nada aparece pro user. Foi
+          o bug do v0.2.10: gate lógico existia no MatchClient, faltou
+          o render aqui na biblioteca. */}
+      {updatePrompt && (
+        <UpdateRequiredModal
+          localVersion={clientVersion.local}
+          onClose={() => setUpdatePrompt(false)}
         />
       )}
     </div>

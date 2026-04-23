@@ -274,3 +274,62 @@ export interface OpenOutputResult {
 export async function openLocalRenderOutput(): Promise<OpenOutputResult> {
   return fetchLocal<OpenOutputResult>(`/render/open`, { method: "POST" });
 }
+
+// ── Auto-update (v0.2.11+) ────────────────────────────────────────────
+
+export interface ClientUpdateResult {
+  started: boolean;
+  new_exe: string;
+  current_exe: string;
+  pid: number;
+  size_mb: number;
+  message: string;
+}
+
+/** Tell the local client to download the latest .exe and swap+relaunch
+ *  itself. Returns once the download finished and the swap helper has
+ *  been spawned — the actual exit happens ~2s later, then the new client
+ *  comes back online in another ~3-10s.
+ *
+ *  Caller is expected to:
+ *    1. Show "baixando…" while this promise is pending
+ *    2. Switch to "esperando reiniciar…" once it resolves
+ *    3. Poll `useClientVersionStatus` (which polls /version every 8s)
+ *       and close the modal when status flips to "current"
+ *
+ *  Errors:
+ *    • LocalClientOffline — client process not running
+ *    • Error("not_frozen ...") — running from `python main.py` in dev,
+ *      not the .exe; user must update manually
+ *    • Error("download_failed ...") — network/server issue, surface to user
+ *    • Error("download_too_small ...") — got HTML instead of .exe (404?)
+ */
+export async function triggerClientUpdate(): Promise<ClientUpdateResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${LOCAL_BASE}/update`, { method: "POST" });
+  } catch {
+    throw new LocalClientOffline();
+  }
+  // 501 from older clients (<= v0.2.10) means /update doesn't exist OR
+  // the user is on a non-frozen / non-Windows build — either way, manual
+  // update is the only path. Surface a typed error so the modal can fall
+  // back to the manual download CTA cleanly.
+  if (res.status === 501) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(
+      body.detail || "auto-update não suportado neste client",
+    ) as Error & { code: string };
+    err.code = body.error || "not_supported";
+    throw err;
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(
+      body.detail || `update failed (${res.status})`,
+    ) as Error & { code: string };
+    err.code = body.error || "update_failed";
+    throw err;
+  }
+  return res.json();
+}

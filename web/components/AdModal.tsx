@@ -72,11 +72,10 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   const [serverStatus, setServerStatus] = useState<RenderStatus | null>(null);
   const [localStatus, setLocalStatus]   = useState<LocalRenderSession | null>(null);
   // Mock da barra de edição: Remotion ainda não está plugado no client
-  // (editor_dir não resolve dentro do .exe — bug separado), então a 2ª
+  // (editor_dir não resolve dentro do .exe — bug separado), então a 3ª
   // barra é puramente visual hoje. Quando Remotion entrar de verdade,
-  // troca esse contador por sinal real do backend (segments_done/total
-  // pra ffmpeg + um hook do remotion render). Duração escolhida a olho —
-  // captura típica de ~5 highlights leva ~30s pra ffmpeg passar pra MP4.
+  // troca esse contador por sinal real do backend (hook do remotion render).
+  // Duração escolhida a olho — Remotion compor uma cena típica leva ~20-25s.
   const [mockEditElapsed, setMockEditElapsed] = useState(0);
 
   // Poll render status every 2s. When running locally (on the user's PC)
@@ -124,17 +123,27 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   const adRemainingThis = Math.max(0, AD_DURATION - adElapsed);
   const totalAdRemaining = Math.max(0, MIN_AD_SECONDS - totalAdSeconds);
   const adProgress    = Math.min(1, adElapsed / AD_DURATION);
-  // ── Pipeline em 2 etapas (modo local) ────────────────────────────────────
+  // ── Pipeline em 3 etapas (modo local) ────────────────────────────────────
   // O backend reporta `state` ∈ {staging, launching, capturing, converting,
-  // rendering, done}. A captura HLAE (TGAs) já dá um `progress` real em
-  // frames; depois disso vem ffmpeg→ProRes (converting) e Remotion→MP4
-  // (rendering). O user pediu duas barras consecutivas pra entender que
-  // ainda tem etapa pós-captura.
+  // rendering, done}. v0.2.11 separou em 3 barras (pedido do user no v0.2.10
+  // testing: "podemos adicionar uma 3a barra, no meio das duas de
+  // renderização, que de fato aconteça durante a renderização dos vídeos.
+  // Aí, a de edição, será para quando o remotion estiver editando a cena").
+  //
+  //   1. Captura (HLAE)        — staging | launching | capturing
+  //                               progress = frames_captured / frames_expected
+  //   2. Render (ffmpeg ProRes) — converting
+  //                               progress = segments_done / segments_total
+  //                               (real! emitido pelo backend a cada .mov pronto)
+  //   3. Edição (Remotion MP4)  — rendering
+  //                               progress = mock por enquanto (Remotion ainda
+  //                               não emite hook de progresso — ver
+  //                               MOCK_EDIT_DURATION abaixo)
   const localState = localStatus?.state;
   const isCapturePhase =
     localState === "staging" || localState === "launching" || localState === "capturing";
-  const isEditPhase =
-    localState === "converting" || localState === "rendering";
+  const isRenderPhase = localState === "converting";
+  const isEditPhase   = localState === "rendering";
   // Etapa 1 — Captura (HLAE): completa quando saiu da fase de captura.
   // Durante a captura usa o `progress` reportado (= frames_captured/expected),
   // capado em 0.99 pra não mostrar "100%" enquanto state ainda é "capturing".
@@ -153,33 +162,55 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
       : isCapturePhase
         ? Math.min(0.99, Math.max(0.02, localStatus.progress))
         : 1; // converting/rendering/done → captura terminou
-  // Etapa 2 — Edição (mock por enquanto, ver MOCK_EDIT_DURATION abaixo).
-  // Quando Remotion estiver plugado, esse cálculo vira:
-  //   converting → segments_done/total (ffmpeg ProRes)
-  //   rendering  → hook do remotion render (--out-frame stdout)
-  //   done       → 1
-  const MOCK_EDIT_DURATION = 30;
+  // Etapa 2 — Render (ffmpeg ProRes). Esta é a única fase com sinal de
+  // progresso REAL hoje: o backend emite segments_done/segments_total a
+  // cada .mov finalizado. Antes da fase de render começar, fica em 0;
+  // durante, vai por segments; depois (rendering/done) trava em 1.
+  const totalSegs = localStatus?.segments_total ?? 0;
+  const doneSegs  = localStatus?.segments_done ?? 0;
+  const renderRaw = !localRenderMode
+    ? 0 // server mode: pipeline é um só, não faz sentido split
+    : !localStatus || isCapturePhase
+      ? 0
+      : isRenderPhase
+        ? totalSegs > 0
+          ? Math.min(0.99, Math.max(0.02, doneSegs / totalSegs))
+          // Backend antigo (<= v0.2.7) não emite segments_total — degrada
+          // pra fração linear baseada no tempo desde o entrou em converting.
+          // Não temos timestamp da transição aqui então usa um valor neutro
+          // pra mostrar "tá rolando" sem fingir progresso preciso.
+          : 0.5
+        : 1; // rendering/done → render terminou
+  // Etapa 3 — Edição (Remotion). Mock até Remotion emitir progresso real.
+  // Duração reduzida pra ~20s porque Remotion compor cena curta é rápido;
+  // se demorar mais, a barra fica pegada em 95% até renderDone — o user
+  // já entende "tá quase".
+  const MOCK_EDIT_DURATION = 20;
   const editRaw = !localRenderMode
     ? renderDone ? 1 : 0
-    : !localStatus || isCapturePhase
+    : !localStatus || isCapturePhase || isRenderPhase
       ? 0
       : renderDone
         ? 1
         : Math.min(0.95, mockEditElapsed / MOCK_EDIT_DURATION);
-  // Monotonic clamp: both bars only ever go UP, never back down. Pinned
-  // to 1 once renderDone. Avoids the ping-pong described above and also
-  // avoids "barra voltou pra 95% depois de ficar em 100%" caused by the
-  // state label flip at the tail end.
+  // Monotonic clamp: cada barra só sobe, nunca desce. Pinned em 1 quando
+  // renderDone. Evita o ping-pong descrito acima e também o "barra voltou
+  // pra 95% depois de ficar em 100%" causado pela troca de label no final.
   const [maxCapturePct, setMaxCapturePct] = useState(0);
+  const [maxRenderPct, setMaxRenderPct] = useState(0);
   const [maxEditPct, setMaxEditPct] = useState(0);
   useEffect(() => {
     if (captureRaw > maxCapturePct) setMaxCapturePct(captureRaw);
   }, [captureRaw, maxCapturePct]);
   useEffect(() => {
+    if (renderRaw > maxRenderPct) setMaxRenderPct(renderRaw);
+  }, [renderRaw, maxRenderPct]);
+  useEffect(() => {
     if (editRaw > maxEditPct) setMaxEditPct(editRaw);
   }, [editRaw, maxEditPct]);
   const capturePct = renderDone ? 1 : maxCapturePct;
-  const editPct = renderDone ? 1 : maxEditPct;
+  const renderPct  = renderDone ? 1 : maxRenderPct;
+  const editPct    = renderDone ? 1 : maxEditPct;
   // Modo server: só uma barra faz sentido (não tem split de stages).
   const renderRemaining = Math.max(0, renderDuration - renderElapsed);
   const adCount       = adIndex + 1;
@@ -221,19 +252,21 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
     return () => clearInterval(id);
   }, [renderDone]);
 
-  // Mock timer da barra 2 (edição). Só roda em modo local e enquanto a
-  // captura não terminou a barra fica parada em 0. Quando entra na fase
-  // de edição (converting/rendering), começa a contar; trava se o render
-  // virou done. É puramente visual — placeholder até Remotion ser plugado.
+  // Mock timer da barra 3 (edição/Remotion). Só roda em modo local e
+  // SOMENTE quando o backend está em state=rendering (Remotion plugado).
+  // v0.2.10 também rodava em `converting`, mas v0.2.11 separou render
+  // (ffmpeg ProRes, com sinal real via segments_done) de edição (Remotion,
+  // mock até hook real). Trava se o render virou done.
   useEffect(() => {
     if (!localRenderMode) return;
-    if (isCapturePhase || !localStatus) return;
+    if (!localStatus) return;
+    if (isCapturePhase || isRenderPhase) return;
     if (renderDone) return;
     const id = setInterval(() => {
       setMockEditElapsed((e) => e + 1);
     }, 1000);
     return () => clearInterval(id);
-  }, [localRenderMode, isCapturePhase, localStatus, renderDone]);
+  }, [localRenderMode, isCapturePhase, isRenderPhase, localStatus, renderDone]);
 
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -465,9 +498,12 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
             transition: "border-color 0.4s",
           }}
         >
-          {/* Render progress — duas barras consecutivas em modo local
-              (captura HLAE → edição ffmpeg/Remotion). Modo server colapsa
-              em uma só (não tem split de stages). */}
+          {/* Render progress — TRÊS barras consecutivas em modo local
+              (captura HLAE → render ffmpeg → edição Remotion). Modo server
+              colapsa em uma só (não tem split de stages).
+              v0.2.11: split antiga "Edição" → "Render" + "Edição" porque
+              o user pediu visibilidade do que rola entre captura e o
+              composer Remotion. */}
           <div style={{ marginBottom: 14 }}>
             {localRenderMode ? (
               <>
@@ -495,9 +531,50 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
                     />
                   </div>
                 </div>
-                {/* Etapa 2 — Edição/composição (placeholder visual; Remotion
-                    ainda não está plugado no client — bug tracker: editor_dir
-                    não resolve dentro do .exe PyInstaller). */}
+                {/* Etapa 2 — Render ffmpeg (TGA → ProRes .mov por highlight).
+                    Sinal REAL: backend emite segments_done/segments_total a
+                    cada .mov fechado. Antes do v0.2.11 essa fase ficava
+                    invisível (era colapsada em "Edição"), o que confundia
+                    o user que via "Editando…" mas nada acontecendo na UI
+                    durante 30-60s de ffmpeg. */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: 600,
+                      color: renderPct >= 1 ? "#4CAF82"
+                        : isRenderPhase ? "rgba(255,255,255,0.7)"
+                        : "rgba(255,255,255,0.35)",
+                    }}>
+                      {renderPct >= 1 ? "✓ Render dos clips concluído"
+                        : isRenderPhase
+                          ? totalSegs > 0
+                            ? `🎞️ Renderizando clips (${doneSegs}/${totalSegs})…`
+                            : "🎞️ Renderizando clips em ProRes…"
+                          : "Render — aguardando captura"}
+                    </div>
+                    <div style={{ fontSize: 12, color: renderPct >= 1 ? "#4CAF82" : "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
+                      {Math.round(renderPct * 100)}%
+                    </div>
+                  </div>
+                  <div style={{ height: 6, background: "rgba(255,255,255,0.07)", borderRadius: 999, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${renderPct * 100}%`,
+                        background: renderPct >= 1
+                          ? "linear-gradient(90deg, #4CAF82, #2ecc71)"
+                          : "linear-gradient(90deg, #4a9eff, #6dc1ff)",
+                        borderRadius: 999,
+                        transition: "width 1s linear, background 0.4s",
+                      }}
+                    />
+                  </div>
+                </div>
+                {/* Etapa 3 — Edição/composição Remotion. Placeholder visual
+                    enquanto Remotion ainda não está plugado no .exe (bug
+                    separado: editor_dir não resolve dentro do PyInstaller).
+                    Quando entrar de verdade, troca o mock timer por hook
+                    do remotion render --out-frame stdout. */}
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                     <div style={{
@@ -507,8 +584,8 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
                         : "rgba(255,255,255,0.35)",
                     }}>
                       {renderDone ? `✓ ${formatLabel} pronto!`
-                        : isEditPhase ? `✏️ Editando ${formatLabel}…`
-                        : "Edição — aguardando captura"}
+                        : isEditPhase ? `✏️ Editando ${formatLabel} (Remotion)…`
+                        : "Edição — aguardando render"}
                     </div>
                     <div style={{ fontSize: 12, color: renderDone ? "#4CAF82" : "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
                       {Math.round(editPct * 100)}%
