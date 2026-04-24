@@ -42,6 +42,15 @@ export interface LocalJob {
   duration_s?: number;
   reason?: string;
   error?: string;
+  /**
+   * True when the local client short-circuited a re-analyze because the demo
+   * was already uploaded before (scanner cache hit). In this case `event`
+   * goes straight to `done`, `duration_s` is 0, and `highlights` reflects
+   * whatever was cached at upload time (may be 0 for legacy entries from
+   * clients older than v0.2.15). The UI should use this flag to avoid
+   * showing "0 highlights detectados" as if the analysis produced nothing.
+   */
+  cache_hit?: boolean;
 }
 
 export class LocalClientOffline extends Error {

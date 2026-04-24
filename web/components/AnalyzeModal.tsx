@@ -98,7 +98,20 @@ export default function AnalyzeModal({ sha, mapName, onClose, onReady }: Props) 
 
   const statusLine = (() => {
     if (analyzeFailed) return `❌ Falhou: ${job?.error || "erro desconhecido"}`;
-    if (analyzeDone) return `✓ Análise pronta — ${job?.highlights ?? 0} highlights detectados`;
+    if (analyzeDone) {
+      // v0.2.15 Bug #6v2 — cache hit branch. When the demo was already
+      // analyzed, `duration_s` is 0 and `highlights` may be 0 for legacy
+      // cache entries (pre-v0.2.15 clients didn't store the count). Show a
+      // dedicated line so the user doesn't read "0 highlights detectados"
+      // and think the analysis produced nothing.
+      if (job?.cache_hit) {
+        const h = job?.highlights ?? 0;
+        return h > 0
+          ? `✓ Já analisada — ${h} highlights prontos`
+          : "✓ Já analisada — highlights prontos";
+      }
+      return `✓ Análise pronta — ${job?.highlights ?? 0} highlights detectados`;
+    }
     if (job?.event === "uploading") return `⬆ Enviando demo (tentativa ${job.attempt ?? 1})…`;
     if (job?.event === "queued") return "⏳ Na fila…";
     if (pollError) return `⚠ Cliente offline — abra o FragReel no PC`;
