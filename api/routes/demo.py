@@ -123,6 +123,14 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
                         }
                         for k in h.kills
                     ],
+                    # v0.3.0-alpha — scoring v2 context (nullable / default-false)
+                    "clutch_situation":      h.clutch_situation,
+                    "won_round":             h.won_round,
+                    "bomb_action":           h.bomb_action,
+                    "is_round_winning_kill": h.is_round_winning_kill,
+                    # v0.3.0-alpha — payload pro capture_script clusterizar
+                    "kill_ticks":            h.kill_ticks,
+                    "kill_timestamps":       h.kill_timestamps,
                 }
                 for h in highlights
             ],

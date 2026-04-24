@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Literal, Optional
 from enum import Enum
 
 
@@ -36,6 +36,22 @@ class HighlightOut(BaseModel):
     end: float
     kills: list[KillOut]
     clip_url: Optional[str] = None   # URL do clipe de vídeo, se disponível
+    # ── v0.3.0-alpha — scoring v2 context ─────────────────────────────────────
+    # Web usa esses campos pra mostrar tags ("⚡ 1v3 Clutch", "💣 Defuse")
+    # nos cards de pré-seleção. Todos opcionais → highlights antigos
+    # (gerados antes do deploy v0.3) continuam válidos com defaults.
+    clutch_situation: Optional[Literal["1v2", "1v3", "1v4", "1v5"]] = None
+    won_round: bool = False
+    bomb_action: Optional[Literal["defuse", "plant_won"]] = None
+    is_round_winning_kill: bool = False
+    # ── v0.3.0-alpha — payload pro client clusterizar a captura ────────────────
+    # Server pontua por round inteiro (1 highlight = 1 round); cluster de
+    # captura (gap=10s, pad=±5s/±3.5s) é responsabilidade do capture_script
+    # no client (v0.3.0-beta). Estes campos viajam intactos do scorer.py
+    # → capture_script, que decide quais ticks gravar dentro do round escolhido.
+    # Defaults vazios mantêm compatibilidade com highlights legados.
+    kill_ticks: list[int] = []           # ticks de cada kill do user no round
+    kill_timestamps: list[float] = []    # mesmas kills em segundos do jogo
 
 
 class MatchStats(BaseModel):
