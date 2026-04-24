@@ -9,7 +9,6 @@ import {
   LocalClientOffline,
   LocalDemo,
 } from "@/lib/local";
-import { getMatch } from "@/lib/api";
 import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import AnalyzeModal from "./AnalyzeModal";
 import UpdateRequiredModal from "./UpdateRequiredModal";
@@ -71,12 +70,6 @@ export default function LibraryContent() {
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeAnalyze, setActiveAnalyze] = useState<{ sha: string; mapName: string } | null>(null);
-  // Estado transitório quando user clica "Editar FragReel" e descobrimos que
-  // o match_id local aponta pra algo que o backend não tem mais (deploy limpou
-  // a base, user trocou de conta, etc). Antes (v0.2.11) o re-upload silenciava
-  // pelo catch em openProcessedMatch e a UI travava sem feedback. Esse estado
-  // mostra "Re-analisando…" no botão da demo + um banner explicativo.
-  const [recovering, setRecovering] = useState<string | null>(null); // sha1 ou null
   // Gate de versão: aplica o MESMO bloqueio que MatchClient antes de
   // qualquer ação que dispara render/upload no client antigo. Sem esse
   // gate na biblioteca (regressão v0.2.10), o user clicava "Gerar
@@ -180,45 +173,22 @@ export default function LibraryContent() {
     lastLocalVersion.current = curr;
   }, [clientVersion.local, offline, load]);
 
-  // Abre uma match já processada com validação: se o match_id local
-  // aponta pra algo que o backend não tem mais (deploy limpou, user
-  // trocou de conta, etc), caímos pro fluxo de re-upload em vez de
-  // deixar o user cair numa /match/<id> 404.
+  // Dispara a pipeline client → backend (upload + detect + mapear plays).
   //
-  // v0.2.9 bug: o Library não validava — clicar "Ver FragReel" levava
-  // pra /match/<id> que estourava em 404. v0.2.10 valida antes.
-  // v0.2.12 bug: o re-upload era silencioso (sem feedback visual) e o
-  // user achava que UI tinha travado. Agora seta `recovering` pra mudar
-  // o label do botão pra "Re-analisando…" e mostrar banner explicativo.
-  const openProcessedMatch = useCallback(async (demo: LocalDemo) => {
-    if (!demo.match_id) return;
-    setError(null);
-    try {
-      await getMatch(demo.match_id);
-      router.push(`/match/${demo.match_id}`);
-    } catch {
-      // Match sumiu do backend — cai pro re-upload com feedback.
-      setRecovering(demo.sha1);
-      try {
-        await triggerLocalUpload(demo.sha1);
-        setActiveAnalyze({ sha: demo.sha1, mapName: demo.map_name });
-      } catch (err) {
-        setError(
-          `O FragReel anterior dessa partida não existe mais. Tentei re-analisar a demo mas falhou: ${(err as Error).message}`,
-        );
-      } finally {
-        setRecovering(null);
-      }
-    }
-  }, [router]);
-
-  // Re-analisa a demo do zero — usado tanto pela 1ª "Mapear plays" quanto
-  // pelo "Gerar outro formato" das demos já processadas. v0.2.11 trouxe
-  // re-upload de volta no regenerate fluxo: como o client APAGA todos os
-  // frames TGA + ProRes .mov após o render (pra não estourar o disco do
-  // user), regenerar um novo formato exige re-extrair tudo da .dem. Sem
-  // re-upload, "Gerar outro formato" abria a /match mas não tinha como
-  // produzir novos arquivos.
+  // v0.2.16 unificou o fluxo: toda demo (processada ou não) passa por
+  // aqui. Antes existiam 2 caminhos — "Editar FragReel" (pulava direto
+  // pra /match/{id} com getMatch() validando 404) e "Mapear plays"
+  // (re-upload). A distinção expunha um bug quando o match_id local
+  // apontava pra um job garbage-collected no servidor: o /match/{id}
+  // carregava mas o polling de /jobs/{sha} ficava eterno. Unificando
+  // tudo via triggerLocalUpload + AnalyzeModal, o backend decide:
+  //   - demo já processada com job vivo → cache HIT fast-path (~1s)
+  //   - demo não processada → pipeline completa (~30s)
+  //   - demo processada mas job expirou → re-análise (como se 1ª vez)
+  // O user vê a mesma UX nos 3 casos: modal de análise → abre /match/{id}.
+  //
+  // Além disso mata o "✏️ Editar FragReel" do menu que estava confundindo
+  // (B1 do redesign UX): demo aparece = mapear jogadas de impacto, ponto.
   const triggerReupload = useCallback(async (demo: LocalDemo) => {
     try {
       await triggerLocalUpload(demo.sha1);
@@ -230,26 +200,15 @@ export default function LibraryContent() {
 
   const onPick = async (demo: LocalDemo) => {
     // Hard gate: client desatualizado nunca passa daqui. Sem esse check
-    // o user antigo conseguia clicar "Gerar FragReel" e o client começava
-    // a uploadar/renderizar com bugs já corrigidos antes do MatchClient
-    // ter chance de barrar (bug reportado no v0.2.10 testing).
+    // o user antigo conseguia clicar e o client começava a uploadar/
+    // renderizar com bugs já corrigidos antes do MatchClient ter chance
+    // de barrar (bug reportado no v0.2.10 testing).
     if (clientVersion.status === "outdated") {
       setUpdatePrompt(true);
       return;
     }
-    // Demo já processada → valida e navega (ou cai pro re-upload).
-    if (demo.match_id) {
-      await openProcessedMatch(demo);
-      return;
-    }
     await triggerReupload(demo);
   };
-
-  // v0.2.11 tinha um botão extra "🔁 Gerar outro formato" pros cards já
-  // processados — removido em v0.2.12 (UX redundante: o destino era a
-  // mesma página /match/{id} que o "Editar FragReel" já abre, e lá o user
-  // pode regenerar). onRegenerate continua aqui caso a gente queira
-  // expor de novo, mas atualmente sem callsite.
 
   if (offline) {
     return (
@@ -349,28 +308,6 @@ export default function LibraryContent() {
       {error && demos && demos.length > 0 && (
         <div style={{ padding: 12, marginBottom: 12, fontSize: 13, color: "#ffb088", border: "1px solid rgba(255,150,80,0.35)", borderRadius: 8, background: "rgba(255,150,80,0.06)" }}>
           Aviso do client: {error}
-        </div>
-      )}
-
-      {/* Banner enquanto re-analisamos uma demo cujo FragReel sumiu do
-          backend (Bug 3 v0.2.11 → fix v0.2.12). Sem isso, o user clica
-          "Editar FragReel", a UI parecia travar 5-10s e ele achava que
-          o botão não funcionou. */}
-      {recovering && (
-        <div style={{
-          padding: 12, marginBottom: 12, fontSize: 13,
-          color: "#9ec5ff",
-          border: "1px solid rgba(120,180,255,0.35)",
-          borderRadius: 8,
-          background: "rgba(120,180,255,0.07)",
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <span style={{ fontSize: 16 }}>⏳</span>
-          <span>
-            O FragReel anterior dessa partida não está mais disponível no
-            servidor — re-analisando a demo do zero. O seletor abre automaticamente
-            quando terminar (~30s).
-          </span>
         </div>
       )}
 
@@ -554,46 +491,27 @@ export default function LibraryContent() {
                   </span>
                 </div>
 
-                {/* CTA copy v0.2.12:
-                      - Não processado: "Mapear plays de impacto"
-                      - Já processado:  "Editar FragReel" (botão único —
-                        a página /match/{id} é onde o user regenera/troca
-                        formato. v0.2.11 tinha um "Gerar outro formato"
-                        redundante que confundia mais do que ajudava.)
-
-                    O `recovering === d.sha1` muda o label pra mostrar que
-                    estamos reagindo (caso /matches/{id} retorne 404 e a
-                    gente esteja re-uploadando — sem isso a UI parecia
-                    travada por 5-10s). */}
-                {isProcessed ? (
-                  <button
-                    onClick={() => openProcessedMatch(d)}
-                    className="btn-primary"
-                    disabled={recovering === d.sha1}
-                    style={{
-                      fontSize: 13, padding: "10px 18px", marginTop: 2,
-                      cursor: recovering === d.sha1 ? "wait" : undefined,
-                      opacity: recovering === d.sha1 ? 0.7 : 1,
-                    }}
-                  >
-                    {recovering === d.sha1
-                      ? "⏳ Re-analisando demo…"
-                      : "✏️ Editar FragReel"}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => onPick(d)}
-                      className="btn-primary"
-                      style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
-                    >
-                      🎯 Mapear plays de impacto
-                    </button>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.4 }}>
-                      A IA detecta ACEs, clutches e multi-kills · ~30s · você escolhe o formato depois
-                    </div>
-                  </>
-                )}
+                {/* CTA único v0.2.16 (B1 do redesign UX):
+                    Antes tinha 2 botões diferentes — "Mapear plays" pra
+                    demo nova e "Editar FragReel" pra demo já processada.
+                    A dualidade confundia e expunha um bug quando o
+                    match_id apontava pra job garbage-collected no
+                    servidor (UI travava em "⏳ Re-analisando" infinito).
+                    Decisão do user: demo aparece = mapear jogadas, ponto.
+                    O backend decide se re-processa ou usa cache HIT
+                    fast-path — a UI é a mesma nos 2 casos. */}
+                <button
+                  onClick={() => onPick(d)}
+                  className="btn-primary"
+                  style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
+                >
+                  🎯 Mapear jogadas de impacto
+                </button>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.4 }}>
+                  {isProcessed
+                    ? "Demo já processada · abre rápido no seletor de formato"
+                    : "A IA detecta ACEs, clutches e multi-kills · ~30s · você escolhe o formato depois"}
+                </div>
               </div>
             </div>
           );

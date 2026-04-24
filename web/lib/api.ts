@@ -42,18 +42,11 @@ export interface MatchOut {
   highlights: HighlightOut[];
 }
 
-export interface MatchSummary {
-  id: string;
-  map: string;
-  date: string;
-  score: string;
-  side: string;
-  status: string;
-  highlights_count: number;
-  top_play: string;
-  rating: string;
-  kd: string;
-}
+// v0.2.16: `MatchSummary` + `getMatches()` removidos com a descontinuação
+// do /dashboard (B1 do redesign UX). Esse endpoint listava o histórico de
+// FragReels gerados — não tem mais superfície de UI que use. Se voltar a
+// fazer sentido expor essa lista, reintroduzir aqui ao invés de chamar o
+// backend direto de outro lugar.
 
 export type Mood = "eletronica" | "acao" | "heroico" | "chill";
 
@@ -96,15 +89,6 @@ export async function getRenderStatus(
 
 export function renderDownloadUrl(matchId: string, format: string): string {
   return `${BASE}/renders/${matchId}/${format}`;
-}
-
-export async function getMatches(): Promise<MatchSummary[]> {
-  const res = await fetch(`${BASE}/matches`, {
-    cache: "no-store",
-    headers: authHeader(),
-  });
-  if (!res.ok) throw new Error("Failed to fetch matches");
-  return res.json();
 }
 
 export async function getMatch(id: string): Promise<MatchOut> {

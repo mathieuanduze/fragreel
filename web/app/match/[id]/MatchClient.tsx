@@ -508,7 +508,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
 
         {/* Breadcrumb */}
         <div style={{ marginBottom: 28, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
-          <Link href="/dashboard" style={{ color: "inherit", textDecoration: "none" }}>Minhas Partidas</Link>
+          <Link href="/library" style={{ color: "inherit", textDecoration: "none" }}>Minhas Demos</Link>
           {" / "}
           <span style={{ color: "rgba(255,255,255,0.7)" }}>{match.map} · {match.date}</span>
         </div>

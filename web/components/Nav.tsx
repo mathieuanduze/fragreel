@@ -78,6 +78,13 @@ export default function Nav() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {isLoggedIn ? (
             <>
+              {/* v0.2.16 (B1 do redesign UX): removido o link "Meus
+                  FragReels" que apontava pra /dashboard. Agora toda a
+                  navegação da área logada passa por "Minhas Demos" —
+                  a página /library mostra os cards de demo com o CTA
+                  "Mapear jogadas de impacto", e a /match/{id} é o
+                  destino de edição/formato. O hist\u00f3rico de renders
+                  foi intencionalmente descartado (decisão do user). */}
               <Link
                 href="/library"
                 style={{
@@ -90,19 +97,6 @@ export default function Nav() {
                 }}
               >
                 Minhas Demos
-              </Link>
-              <Link
-                href="/dashboard"
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: path === "/dashboard" ? "#FF6B35" : "rgba(255,255,255,0.6)",
-                  textDecoration: "none",
-                }}
-              >
-                Meus FragReels
               </Link>
 
               {/* Client status (online/offline) */}
