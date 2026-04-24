@@ -7,4 +7,4 @@
  * confirmar visualmente qual versão está pegando (e dar bypass de
  * cache do navegador quando muda).
  */
-export const CLIENT_VERSION = "v0.2.13";
+export const CLIENT_VERSION = "v0.2.14";
