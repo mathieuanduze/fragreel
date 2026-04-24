@@ -1,6 +1,6 @@
 import Nav from "@/components/Nav";
 import Link from "next/link";
-import { CLIENT_VERSION } from "@/lib/version";
+import { getLatestClientVersion } from "@/lib/server/getLatestClientVersion";
 
 const MAPS = [
   { id: "de_dust2",    name: "Dust2" },
@@ -33,7 +33,16 @@ const outputs = [
   { icon: "🖼️", label: "Story Card",      format: "9:16 imagem · estático",    desc: "Card com nick, mapa, K/D, rating e top play do jogo. Gerado em segundos, sem renderização.",              dest: "Instagram Stories · WhatsApp" },
 ];
 
-export default function Home() {
+// Server Component async: pega a última versão publicada no GitHub pra
+// exibir nos CTAs de download. Fetch server-side tem cache de 5min, então
+// esta page só re-renderiza a cada 5min no ISR do Next.
+export default async function Home() {
+  // `latest` pode ser null se a API do GitHub estiver indisponível no
+  // momento do build/revalidate. Os CTAs abaixo têm fallback gracioso
+  // — nunca mostram string vazia, só omitem o sufixo de versão.
+  const { latest } = await getLatestClientVersion();
+  const versionSuffix = latest ? ` · ${latest}` : "";
+  const versionLabel = latest ? ` · Última versão ${latest}` : "";
   return (
     <div style={{ minHeight: "100vh", background: "#0D0D1A", color: "#E8E8F0" }}>
       <Nav />
@@ -74,7 +83,7 @@ export default function Home() {
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <a href="/download" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px", textDecoration: "none" }}>
-              ⬇ Baixar client · Windows · {CLIENT_VERSION}
+              ⬇ Baixar client · Windows{versionSuffix}
             </a>
             <Link href="/login" className="btn-ghost" style={{ fontSize: 16 }}>
               Entrar com Steam →
@@ -82,7 +91,7 @@ export default function Home() {
           </div>
 
           <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            Windows 10/11 · ~120 MB · Login com Steam · Sem assinatura · Última versão {CLIENT_VERSION}
+            Windows 10/11 · ~120 MB · Login com Steam · Sem assinatura{versionLabel}
           </p>
         </div>
       </section>
@@ -208,10 +217,10 @@ export default function Home() {
           Baixe o client. Jogue uma partida. Compartilhe seus melhores momentos.
         </p>
         <a href="/download" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 36px", textDecoration: "none" }}>
-          ⬇ Baixar client · Grátis · {CLIENT_VERSION}
+          ⬇ Baixar client · Grátis{versionSuffix}
         </a>
         <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-          Windows 10/11 · Requer Counter-Strike 2 instalado · Login com Steam obrigatório · Última versão {CLIENT_VERSION}
+          Windows 10/11 · Requer Counter-Strike 2 instalado · Login com Steam obrigatório{versionLabel}
         </p>
       </section>
 

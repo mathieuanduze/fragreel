@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import MatchList from "@/components/MatchList";
 import AdSlot from "@/components/AdSlot";
 import Link from "next/link";
-import { CLIENT_VERSION } from "@/lib/version";
+import { useLatestClientVersion } from "@/lib/useLatestClientVersion";
 import { pingLocalClient, getLocalClientVersion } from "@/lib/local";
 import { getMatches, type MatchSummary } from "@/lib/api";
 
@@ -16,6 +16,9 @@ export default function DashboardContent() {
   const [installedVersion, setInstalledVersion] = useState<string | null>(null);
   const [matches, setMatches] = useState<MatchSummary[] | null>(null);
   const [matchesLoading, setMatchesLoading] = useState(true);
+  // Última versão publicada no GitHub release. Fonte dinâmica — antes era
+  // hardcoded em lib/version.ts, agora vem de /api/client-version (cache 5min).
+  const { latest: latestVersion } = useLatestClientVersion();
 
   // Ping ao client local — define se mostra hero de download ou estado "tudo certo".
   // Quando online, lê /version pra detectar update disponível.
@@ -63,10 +66,15 @@ export default function DashboardContent() {
   const hasMatches = (matches?.length ?? 0) > 0;
   const showOnboarding = clientStatus === "offline" && !hasMatches;
   const showQuietHeader = clientStatus === "online" || hasMatches;
+  // Update available só se (1) client online, (2) soubemos a versão instalada,
+  // (3) GitHub API respondeu com uma latest, e (4) elas são diferentes.
+  // Se latestVersion === null (API falhou/loading) NÃO mostramos banner —
+  // evita false positive de "atualize" por instabilidade do GitHub.
   const updateAvailable =
     clientStatus === "online" &&
     installedVersion !== null &&
-    installedVersion !== CLIENT_VERSION;
+    latestVersion !== null &&
+    installedVersion !== latestVersion;
 
   return (
     <>
@@ -86,7 +94,7 @@ export default function DashboardContent() {
             <span style={{ fontSize: 18 }}>🔔</span>
             <div>
               <div style={{ fontWeight: 700, color: "#FF6B35", marginBottom: 2 }}>
-                Nova versão disponível: {CLIENT_VERSION}
+                Nova versão disponível: {latestVersion}
               </div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
                 Você está rodando {installedVersion}. Baixa a versão nova pra pegar
@@ -164,10 +172,10 @@ export default function DashboardContent() {
                 letterSpacing: "-0.01em",
               }}
             >
-              ⬇ Baixar client · {CLIENT_VERSION}
+              ⬇ Baixar client{latestVersion ? ` · ${latestVersion}` : ""}
             </a>
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "right" }}>
-              Windows 10/11 · ~120 MB · Última versão {CLIENT_VERSION}
+              Windows 10/11 · ~120 MB{latestVersion ? ` · Última versão ${latestVersion}` : ""}
             </span>
           </div>
         </div>
@@ -232,7 +240,7 @@ export default function DashboardContent() {
                   display: "inline-flex", alignItems: "center", gap: 6,
                 }}
               >
-                ⬇ {installedVersion ?? CLIENT_VERSION} <span style={{ color: "#5be38f" }}>● rodando</span>
+                ⬇ {installedVersion ?? latestVersion ?? "…"} <span style={{ color: "#5be38f" }}>● rodando</span>
               </span>
             ) : (
               <a
@@ -245,7 +253,7 @@ export default function DashboardContent() {
                   borderRadius: 7, textDecoration: "none",
                 }}
               >
-                ⬇ {CLIENT_VERSION}
+                ⬇ {latestVersion ?? "Baixar"}
               </a>
             )}
           </div>

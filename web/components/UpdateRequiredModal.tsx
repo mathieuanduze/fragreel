@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CLIENT_VERSION } from "@/lib/version";
+import { useLatestClientVersion } from "@/lib/useLatestClientVersion";
 import { triggerClientUpdate, pingLocalClient, getLocalClientVersion } from "@/lib/local";
 import { isOutdated } from "@/lib/version-compare";
 
@@ -40,6 +40,9 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   // Detalhes pra mostrar progresso real ("baixou 32.4 MB", etc).
   const [downloadInfo, setDownloadInfo] = useState<{ size_mb: number } | null>(null);
+  // Última release publicada no GitHub (antes vinha hardcoded em lib/version.ts).
+  // Pode ser null em loading / erro de API — todos os callsites abaixo têm fallback.
+  const { latest } = useLatestClientVersion();
 
   const handleAutoUpdate = async () => {
     setState("updating");
@@ -77,7 +80,15 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
       if (!online) return; // ainda reiniciando
       const v = await getLocalClientVersion();
       if (!alive) return;
-      if (v && !isOutdated(v, CLIENT_VERSION)) {
+      // Check "atualizado" tem 2 caminhos:
+      //   - Se sabemos qual é a latest (GitHub API OK): compara via isOutdated
+      //   - Se latest === null (GitHub indisponível): proxy = versão reportada
+      //     mudou em relação à localVersion que o user tinha no mount. Menos
+      //     preciso, mas garante que o flow não trava por causa de rate limit.
+      const targetOK = latest
+        ? !isOutdated(v || "", latest)
+        : !!v && v !== localVersion;
+      if (v && targetOK) {
         clearInterval(id);
         // Pequeno delay pra que o usuário veja "✓ atualizado" antes de
         // o modal sumir (UX — fecha sem feedback parece bug).
@@ -85,7 +96,7 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
       }
     }, 2000);
     return () => { alive = false; clearInterval(id); };
-  }, [state, onClose]);
+  }, [state, onClose, latest, localVersion]);
 
   const isBusy = state === "updating" || state === "swapping";
 
@@ -189,7 +200,9 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
           <div style={{ fontSize: 18, color: "rgba(255,255,255,0.3)" }}>→</div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 11, color: "rgba(255,193,7,0.85)", textTransform: "uppercase", letterSpacing: 0.5 }}>Atualizar para</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#FFC107", marginTop: 2 }}>{CLIENT_VERSION}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#FFC107", marginTop: 2 }}>
+              {latest ?? "última versão"}
+            </div>
           </div>
         </div>
 
@@ -256,7 +269,7 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
           }}
         >
           {state === "failed"
-            ? `⬇ Baixar FragReel ${CLIENT_VERSION} manualmente`
+            ? `⬇ Baixar FragReel ${latest ?? ""} manualmente`.replace(/\s+/g, " ").trim()
             : "Prefiro baixar e instalar manualmente"}
         </a>
 

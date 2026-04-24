@@ -106,8 +106,9 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
   const [clientOfflinePrompt, setClientOfflinePrompt] = useState(false);
   const [renderErrorPrompt, setRenderErrorPrompt] = useState<{ open: boolean; message?: string }>({ open: false });
   // Gate de versão: o `.exe` instalado precisa estar igual ou mais novo que
-  // CLIENT_VERSION pra evitar usuário gerar reels com bugs já corrigidos
-  // (ex: ProRes .mov ilegível pré-v0.2.9). O hook polla /version a cada 8s.
+  // a última release publicada (buscada de /api/client-version → GitHub API)
+  // pra evitar usuário gerar reels com bugs já corrigidos (ex: ProRes .mov
+  // ilegível pré-v0.2.9). O hook polla /version a cada 8s.
   const clientVersion = useClientVersionStatus();
   const [updatePrompt, setUpdatePrompt] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
