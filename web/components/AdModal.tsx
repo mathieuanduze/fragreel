@@ -548,7 +548,14 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
                       {renderPct >= 1 ? "✓ Render dos clips concluído"
                         : isRenderPhase
                           ? totalSegs > 0
-                            ? `🎞️ Renderizando clips (${doneSegs}/${totalSegs})…`
+                            // v0.2.15 UX Ponto 4: doneSegs pode vir como float
+                            // (ex.: 1.247) quando o coordinator reporta
+                            // progresso intra-segmento pra a barra ficar
+                            // suave. No texto queremos "1/3", não "1.247/3"
+                            // — Math.floor porque estamos em "quantos já
+                            // fecharam" (ainda não contou o que está em
+                            // andamento), não "quantos estamos próximos de".
+                            ? `🎞️ Renderizando clips (${Math.floor(doneSegs)}/${totalSegs})…`
                             : "🎞️ Renderizando clips em ProRes…"
                           : "Render — aguardando captura"}
                     </div>
