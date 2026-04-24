@@ -13,6 +13,16 @@ export interface KillOut {
   hp: number;
 }
 
+// Situações de clutch detectadas server-side em v0.3.0-alpha (outcome-based:
+// user fica 1vN no meio do round E ganha o round → marca como clutch N).
+export type ClutchSituation = "1v1" | "1v2" | "1v3" | "1v4" | "1v5";
+
+// Ação da bomba atribuída ao user no round (v0.3.0-alpha).
+// - "defuse": user defusou o C4 no round (CT side)
+// - "plant_won": user plantou e o time ganhou (por defender até explodir OU
+//                por aces / map control pós-plant)
+export type BombAction = "defuse" | "plant_won";
+
 export interface HighlightOut {
   rank: number;
   round_num: number;
@@ -22,6 +32,19 @@ export interface HighlightOut {
   end: number;
   kills: KillOut[];
   clip_url?: string | null;
+
+  // Campos v0.3.0-alpha — opcionais pra compatibilidade com demos antigas
+  // parseadas por versões anteriores do scorer (retornam undefined).
+  // Web usa pra renderizar badges contextuais nos cards de highlight; client
+  // usa `kill_ticks` / `kill_timestamps` pra clusterizar a captura em sub-
+  // janelas (`capture_script.py` v0.3.0-beta, algoritmo em `v0.3 Plano
+  // Produto` §2 linhas 164-189).
+  clutch_situation?: ClutchSituation | null;
+  won_round?: boolean;
+  bomb_action?: BombAction | null;
+  is_round_winning_kill?: boolean;
+  kill_ticks?: number[];        // ticks (exatos) de cada kill do user no round
+  kill_timestamps?: number[];   // mesmas kills em segundos do jogo (tick / tickrate)
 }
 
 export interface MatchStats {

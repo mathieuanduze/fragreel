@@ -139,6 +139,15 @@ export async function getLocalJob(sha: string): Promise<LocalJob | null> {
 export interface RenderSegment {
   start_tick: number;
   end_tick: number;
+
+  // v0.3.0-alpha — opcionais. Server expõe em `HighlightOut`; web repassa pro
+  // client que aplica `cluster_round_kills()` (gap=10s, pad ±5s/±3.5s) em
+  // `capture_script.py` v0.3.0-beta pra capturar só os trechos com ação
+  // dentro do round, em vez do round inteiro. Client v0.2.x ignora esses
+  // campos — fallback gracioso pra round window completo. Detalhes:
+  // `v0.3 Plano Produto.md` §2 linhas 164-189 (algoritmo + garantia de echo).
+  kill_ticks?: number[];
+  kill_timestamps?: number[];
 }
 
 export interface LocalRenderPlan {

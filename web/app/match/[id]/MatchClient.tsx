@@ -234,6 +234,15 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
       const segments = selectedHighlights.map((h) => ({
         start_tick: Math.max(0, Math.floor(h.start * CS2_TICKRATE)),
         end_tick: Math.max(1, Math.floor(h.end * CS2_TICKRATE)),
+        // v0.3.0-alpha: repassa `kill_ticks` / `kill_timestamps` do server
+        // pra cada highlight. Client v0.3.0-beta usa pra `cluster_round_kills()`
+        // capturar só os trechos com ação dentro do round (gap=10s, pad
+        // ±5s/±3.5s) em vez do round inteiro. Clients v0.2.x ignoram esses
+        // campos e caem no round window completo (fallback gracioso).
+        // Demos parseadas por scorers pre-v0.3.0-alpha não têm esses campos
+        // e o spread de `undefined` faz JSON.stringify omitir as chaves.
+        kill_ticks: h.kill_ticks,
+        kill_timestamps: h.kill_timestamps,
       }));
 
       // Sem player name + steamid64, o capture_script.py cai pro free-cam
@@ -622,6 +631,42 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                       >
                         💀 {h.kills.length}
                       </span>
+                      {/* v0.3.0-alpha badges contextuais. Server expõe em `HighlightOut`;
+                          demos antigas parseadas por scorer pre-v0.3 retornam undefined
+                          e nenhum badge aparece (fallback gracioso). Ordem de prioridade:
+                          clutch > bomb > RWK — reflete o valor narrativo decrescente. */}
+                      {h.clutch_situation && (
+                        <span
+                          title={`Ficou em ${h.clutch_situation} e ${h.won_round ? "venceu" : "perdeu"} o round`}
+                          style={{ fontSize: 11, fontWeight: 700, color: "#FFC857", background: "rgba(255,200,87,0.12)", border: "1px solid rgba(255,200,87,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
+                        >
+                          ⚡ {h.clutch_situation} Clutch
+                        </span>
+                      )}
+                      {h.bomb_action === "defuse" && (
+                        <span
+                          title="Defusou a bomba neste round"
+                          style={{ fontSize: 11, fontWeight: 700, color: "#5D9CEC", background: "rgba(93,156,236,0.12)", border: "1px solid rgba(93,156,236,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
+                        >
+                          💣 Defuse
+                        </span>
+                      )}
+                      {h.bomb_action === "plant_won" && (
+                        <span
+                          title="Plantou a bomba e o time venceu o round"
+                          style={{ fontSize: 11, fontWeight: 700, color: "#E8A855", background: "rgba(232,168,85,0.12)", border: "1px solid rgba(232,168,85,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
+                        >
+                          💣 Plant
+                        </span>
+                      )}
+                      {h.is_round_winning_kill && (
+                        <span
+                          title="A última kill do round foi sua (Round-Winning Kill)"
+                          style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", background: "rgba(255,107,53,0.12)", border: "1px solid rgba(255,107,53,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
+                        >
+                          ★ RWK
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {h.kills.map((k, i) => {
