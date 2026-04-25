@@ -356,12 +356,14 @@ export default function LibraryContent() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
         {(demos || []).map((d) => {
-          // v0.3.1 (A3): passa game_mode do server quando disponível.
-          // LocalDemo do scanner local NÃO tem game_mode ainda — precisa
-          // cross-ref com /matches/{id} (TODO: adicionar ao cache scanner
-          // depois do primeiro analyze). Por enquanto: undefined → heurística
-          // fallback (com "?" indicando incerteza).
-          const type = matchType(d.score_ct, d.score_t, undefined);
+          // v0.3.1 (Sprint A2 follow-up, Mathieu 25/04): badge de game mode
+          // removida do card. Por hora tudo é competitivo então a tag
+          // adicionava ruído. matchType() permanece definida no arquivo
+          // pra recuperar quando voltar a fazer sentido (multi-mode
+          // support no Sprint C2 de Steam discovery, por exemplo).
+          // Linha abaixo deliberadamente comentada em vez de deletada
+          // pra reduzir delta do diff caso seja desfeito:
+          // const type = matchType(d.score_ct, d.score_t, undefined);
           const totalRounds = d.score_ct + d.score_t;
           const kd = fmtKD(d.player_kills, d.player_deaths);
           const mapPretty = prettyMap(d.map_name);
@@ -404,17 +406,16 @@ export default function LibraryContent() {
                 }} />
                 <div style={{
                   position: "absolute", top: 10, left: 12, right: 12,
-                  display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+                  display: "flex", justifyContent: "flex-end", alignItems: "flex-start",
                 }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: type.color,
-                    padding: "3px 8px",
-                    background: "rgba(0,0,0,0.55)",
-                    border: `1px solid ${type.color}33`,
-                    borderRadius: 5,
-                  }}>{type.label}</span>
+                  {/* v0.3.1 (Sprint A2 follow-up, Mathieu 25/04): badge de
+                      game mode (Premier/Wingman/Casual) removida — por hora
+                      tudo é competitivo, tag adiciona ruído visual sem
+                      semântica útil. Detection no server (parser.game_mode)
+                      mantida pra quando voltar a fazer sentido (multi-mode
+                      support, separação Premier/MM no flow de discovery, etc).
+                      Lado direito do card mantém timestamp + indicador
+                      isProcessed. */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                     {/* v0.3.1 (Sprint A2): badge "FragReel pronto" removida.
                        Pivot v0.2.x pro modelo on-demand removeu o conceito —
