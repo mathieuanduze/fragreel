@@ -71,6 +71,11 @@ export interface MatchOut {
   status: string;
   stats: MatchStats;
   highlights: HighlightOut[];
+  // v0.3.0-beta-3 (Bug #11 fix): in-game name extraído do parser do server.
+  // Web prefere isso ao Steam display name pra evitar mismatch que faz
+  // capture_script cair em free-cam autodirector. Null em demos antigas
+  // parseadas pré-v0.3.0-beta-3.
+  player_name?: string | null;
 }
 
 // v0.2.16: `MatchSummary` + `getMatches()` removidos com a descontinuação

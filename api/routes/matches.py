@@ -173,8 +173,20 @@ def generate_video(match_id: str, body: GenerateRequest, request: Request):
 
     match_out = _to_match_out(doc)
 
-    # Player name: usa o fornecido, ou cai para steamid curto, ou "player"
-    player_name = body.player_name or (doc.get("steamid") or "")[-6:] or "player"
+    # Player name: precedence pra `spec_player "<name>"` no client capture:
+    #   1. Body explícito (override manual)
+    #   2. parsed.player_name salvo no match_doc (v0.3.0-beta-3, Bug #11 fix)
+    #   3. Fallback "player" (placeholder, NÃO mais (steamid)[-6:] que era
+    #      "607343" e nunca batia com nome in-game CS2 → Bug #11 root cause)
+    #
+    # CS2 (Source 2) NÃO tem `spec_player_by_accountid` — só aceita o nome
+    # in-game string. Sem name correto, capture_script.py emite só
+    # `spec_mode 1` SEM `spec_player`, câmera vira free-cam autodirector.
+    player_name = (
+        body.player_name
+        or doc.get("player_name")
+        or "player"
+    )
 
     # Card é estático e sempre vertical (formato semântico do produto);
     # reel/recap respeitam a escolha do user.
@@ -280,6 +292,9 @@ def _to_match_out(doc: dict) -> MatchOut:
         score=doc.get("score", "0–0"),
         side=doc.get("side", "ct"),
         status=doc.get("status", "parsed"),
+        # v0.3.0-beta-3 (Bug #11): expose in-game player_name pra web preferir
+        # ao Steam display name no payload do /render local.
+        player_name=doc.get("player_name"),
         stats=stats,
         highlights=highlights,
     )

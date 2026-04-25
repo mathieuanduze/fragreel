@@ -79,6 +79,12 @@ class MatchOut(BaseModel):
     status: str
     stats: MatchStats
     highlights: list[HighlightOut]
+    # v0.3.0-beta-3 (Bug #11 fix): nome in-game do user extraído do demo
+    # parser. Web prefere isso ao display name do Steam (que pode divergir)
+    # quando passa `user_player_name` no payload do /render local. CS2 só
+    # aceita o name string em `spec_player "<name>"` — sem isso, capture
+    # cai em free-cam autodirector. None pra demos antigas pré-v0.3.0-beta-3.
+    player_name: Optional[str] = None
 
 
 class MatchSummary(BaseModel):

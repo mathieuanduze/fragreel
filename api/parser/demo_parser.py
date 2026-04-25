@@ -69,6 +69,13 @@ class ParsedDemo:
     t_score: int
     bomb_events: list[BombEvent] = field(default_factory=list)
     round_states: dict[int, RoundState] = field(default_factory=dict)
+    # v0.3.0-beta-3 — in-game name pra `spec_player "<name>"` no client.
+    # CS2 (Source 2) NÃO tem `spec_player_by_accountid` — só aceita name.
+    # Bug #11 (catched 25/04 madrugada-4): se vazio, capture_script cai no
+    # elif que emite só `spec_mode 1` SEM `spec_player`, câmera segue
+    # auto-director's pick (random per segment) ao invés do user.
+    # Extraído via parse_player_info() ou fallback parse_ticks(["name"]).
+    player_name: Optional[str] = None
 
 
 # ── DataFrame compat helpers (Polars 0.x and 1.x) ────────────────────────────
@@ -219,6 +226,36 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
         log.warning(f"Round state building failed (non-fatal): {e}")
         round_states = {}
 
+    # ── In-game name lookup pra `spec_player "<name>"` no client ─────────────
+    # v0.3.0-beta-3 (Bug #11 fix): client precisa do nome in-game pra travar
+    # câmera no user durante render. CS2 Source 2 não tem `spec_player_by_*`
+    # — só aceita name string. Sem isso, capture_script cai num elif que
+    # emite só `spec_mode 1`, câmera vira free-cam autodirector.
+    player_name: Optional[str] = None
+    if steamid_str:
+        try:
+            info_df = dp.parse_player_info()
+            if not _df_is_empty(info_df):
+                rows = _df_iter_rows(info_df)
+                for r in rows:
+                    if str(r.get("steamid", "")) == steamid_str:
+                        player_name = str(r.get("name", "")).strip() or None
+                        break
+            # Fallback: parse_player_info pode vir vazio (broadcast captures
+            # raros). Cai pra parse_ticks ([name]) tirando primeira ocorrência.
+            if not player_name:
+                tick_df = dp.parse_ticks(["name", "steamid"])
+                if not _df_is_empty(tick_df):
+                    for r in _df_iter_rows(tick_df):
+                        if str(r.get("steamid", "")) == steamid_str:
+                            n = str(r.get("name", "")).strip()
+                            if n:
+                                player_name = n
+                                break
+            log.info(f"Player name resolved: {player_name!r} for steamid {steamid_str}")
+        except Exception as e:
+            log.warning(f"Player name lookup failed (non-fatal): {e}")
+
     return ParsedDemo(
         map_name=map_name,
         tickrate=tickrate,
@@ -230,6 +267,7 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
         t_score=t_score,
         bomb_events=bomb_events,
         round_states=round_states,
+        player_name=player_name,
     )
 
 

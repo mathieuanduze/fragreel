@@ -255,17 +255,21 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
       // Sem player name + steamid64, o capture_script.py cai pro free-cam
       // (CS2 não tem spec_player_by_accountid — precisa do nome string).
       // Pega do JWT do Steam OAuth: name = display name do Steam, steamid =
-      // SteamID64. Risco residual: display name do Steam pode divergir do
-      // nome in-game na demo — nesse caso o spec_player falha silenciosamente
-      // no console do CS2 e cai pro free-cam de novo. Mitigação completa
-      // exige extrair o nome in-game do parser durante o upload.
+      // SteamID64. Bug #11 (catched 25/04 madrugada-4): user.name é o
+      // STEAM display name que pode divergir do nome in-game CS2 (ex: Steam
+      // = "Mathieu Anduze", in-game = "donk"). Mismatch faz spec_player
+      // falhar silencioso no CS2 console → câmera vira free-cam autodirector
+      // → reel mostra outro player. Fix v0.3.0-beta-3: server agora extrai
+      // o name in-game do parser e expõe em match.player_name. Web prefere
+      // esse, com fallback no Steam display name pra demos antigas.
       const user = getUser();
+      const inGameName = match.player_name || user?.name || undefined;
       try {
         await startLocalRender({
           demo_path: localDemo.demo_path,
           segments,
           user_steamid64: user?.steamid || undefined,
-          user_player_name: user?.name || undefined,
+          user_player_name: inGameName,
         });
         setLocalRender(true);
         setRenderDuration(

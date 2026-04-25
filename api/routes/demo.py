@@ -88,6 +88,13 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         match_doc = {
             # Identity
             "steamid":          steamid,
+            # v0.3.0-beta-3 (Bug #11 fix): in-game name extraído do parser.
+            # Cliente usa pra `spec_player "<name>"` no capture.cfg. Sem isso,
+            # capture_script cai num elif que emite só `spec_mode 1`, câmera
+            # vira free-cam autodirector. Pode ser None pra demos antigas
+            # parseadas pré-v0.3.0-beta-3 — matches.py tem fallback que pelo
+            # menos não envia (steamid)[-6:] como antes.
+            "player_name":      parsed.player_name,
             # Summary fields (for list view)
             "id":               match_id,
             "map":              parsed.map_name,
