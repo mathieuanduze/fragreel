@@ -257,6 +257,17 @@ def _to_match_out(doc: dict) -> MatchOut:
             end=h.get("end", 0.0),
             kills=kills,
             clip_url=h.get("clip_url"),
+            # ── v0.3.0-alpha — scoring v2 context ─────────────────────────────
+            # Bug v0.3.0-beta: estes campos eram salvos pelo scorer no JSON
+            # via demo.py, mas _to_match_out() não os repassava ao HighlightOut
+            # → caíam nos defaults do Pydantic (None / False / []), bloqueando
+            # badges na UI e clustering no client. Fix: forward explícito.
+            clutch_situation=h.get("clutch_situation"),
+            won_round=h.get("won_round", False),
+            bomb_action=h.get("bomb_action"),
+            is_round_winning_kill=h.get("is_round_winning_kill", False),
+            kill_ticks=h.get("kill_ticks", []),
+            kill_timestamps=h.get("kill_timestamps", []),
         ))
 
     return MatchOut(
