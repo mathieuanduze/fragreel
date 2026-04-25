@@ -114,6 +114,10 @@ class Highlight:
     start: float                  # round capture window start (seconds from demo start)
     end: float                    # round capture window end
     kills: list[KillInfo] = field(default_factory=list)
+    # v0.3.1 (Sprint A4) — Resumo PT-BR ao lado das tags. Tags continuam
+    # em inglês pra internacionalização; narrative descreve em prosa o que
+    # aconteceu pra usuários casuais entenderem sem decorar jargão.
+    narrative: str = ""
     # v0.3.0-alpha — scoring v2 context (per round)
     clutch_situation: Optional[str] = None       # "1v2", "1v3", "1v4", "1v5"
     won_round: bool = False
@@ -234,6 +238,7 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
         rank=0,  # set by score_kills after sorting
         round_num=round_num,
         label=_round_label(n, round_kills, ctx),
+        narrative=_round_narrative(n, round_kills, ctx),
         score=round(score, 1),
         start=start,
         end=end,
@@ -479,6 +484,135 @@ def _round_label(n: int, round_kills: list[Kill], ctx: Optional[dict] = None) ->
         parts.append("Plant")
 
     return " + ".join(parts) + f" · Round {round_n}"
+
+
+# ── v0.3.1 (Sprint A4) — Resumo PT-BR ao lado das tags ──────────────────────
+#
+# Tags em inglês (RWK/Defuse/Plant/1v3) são scannable mas hardcore. Mathieu
+# pediu (25/04): manter tags inglês PRA INTERNACIONALIZAÇÃO + adicionar
+# narrative PT-BR ao lado descrevendo o que aconteceu na jogada em prosa.
+#
+# Design: 2nd person ("Você matou..."), 1 frase máximo, combinatória das
+# 4 dimensões principais:
+#   1. Opening (clutch / multikill / solo) — descreve a ação principal
+#   2. Bomb action (defuse / plant_won) — add-on
+#   3. Cinema flair (no-scope / through-smoke / wallbang / blind / low-HP) — em parens se houver
+#   4. Closing (RWK / round perdido) — context
+#
+# Exemplos do design final:
+#   "Sozinho contra 5, fez um ACE pra virar o round em clutch."
+#   "Pegou um double pra abrir o site, plantou e o time fechou."
+#   "Solo kill chave do round."
+#   "Defusou a bomba sob pressão (1v1) e fechou o round."
+#   "Quad clean — começou em 1v4 e virou sozinho."
+
+def _multikill_word_pt(n: int) -> str:
+    """Português pra n kills (2-5+)."""
+    return {
+        2: "double",
+        3: "triple",
+        4: "quad",
+        5: "ACE",
+    }.get(n, f"{n}K")
+
+
+def _round_narrative(n: int, round_kills: list[Kill], ctx: Optional[dict] = None) -> str:
+    """
+    Resumo PT-BR (1 frase, 2nd person) do que aconteceu no round.
+    Companion de `_round_label()` — o label tem as TAGS, narrative tem a PROSA.
+
+    Args:
+        n: número de kills do user no round
+        round_kills: kills cronológicas do user neste round
+        ctx: dict com clutch_situation, bomb_action, is_round_winning_kill, won_round
+
+    Returns:
+        Frase 1-line tipo "Sozinho contra 3, fez uma triple pra virar o round."
+    """
+    ctx = ctx or {}
+    won_round = bool(ctx.get("won_round"))
+    rwk = bool(ctx.get("is_round_winning_kill"))
+    bomb = ctx.get("bomb_action")
+    clutch = ctx.get("clutch_situation")
+
+    # ── 1. Opening — ação principal ───────────────────────────────────────
+    if clutch:
+        n_enemies = int(clutch[-1])
+        if n == 1 and n_enemies == 1:
+            opening = "Sozinho contra 1, matou o último"
+        elif n == 1:
+            opening = f"Sozinho contra {n_enemies}, matou 1"
+        elif n >= n_enemies:
+            multi = _multikill_word_pt(n)
+            opening = f"Sozinho contra {n_enemies}, fez {multi} pra virar o round em clutch"
+        else:
+            multi = _multikill_word_pt(n)
+            opening = f"Sozinho contra {n_enemies}, fez {multi}"
+    elif n == 1:
+        kill = round_kills[0]
+        wep = _weapon_display(kill.weapon)
+        if kill.headshot:
+            opening = f"Solo kill de {wep} na cabeça"
+        else:
+            opening = f"Solo kill de {wep}"
+    else:
+        multi = _multikill_word_pt(n)
+        opening = f"Pegou um {multi}"
+
+    # ── 2. Bomb action add-on ─────────────────────────────────────────────
+    bomb_addon = ""
+    if bomb == "defuse":
+        # Se já é clutch + defuse, ênfase narrativa diferente
+        if clutch:
+            bomb_addon = "e ainda defusou a bomba"
+        else:
+            bomb_addon = "e defusou a bomba"
+    elif bomb == "plant_won":
+        bomb_addon = "e plantou pro time fechar"
+
+    # ── 3. Cinema flair (parens se houver flag relevante) ────────────────
+    cinema_bits = []
+    if any(getattr(k, "thrusmoke", False) for k in round_kills):
+        cinema_bits.append("through smoke")
+    if any(getattr(k, "noscope", False) for k in round_kills):
+        cinema_bits.append("no-scope")
+    if any(getattr(k, "penetrated", 0) > 0 for k in round_kills):
+        cinema_bits.append("wallbang")
+    if any(getattr(k, "attackerblind", False) for k in round_kills):
+        cinema_bits.append("flashado")
+    if any(
+        getattr(k, "attacker_health", None) is not None and k.attacker_health < LOW_HP_THRESHOLD
+        for k in round_kills
+    ):
+        cinema_bits.append("HP crítico")
+
+    cinema_str = f" ({', '.join(cinema_bits)})" if cinema_bits else ""
+
+    # ── 4. Closing — RWK / outcome ────────────────────────────────────────
+    if rwk and not bomb and not clutch:
+        # Solo RWK simples — destaque a closer kill
+        closing = "— a kill que fechou o round"
+    elif rwk and clutch:
+        closing = ""  # já implícito no clutch wording
+    elif not won_round:
+        closing = "— time perdeu o round mesmo assim"
+    else:
+        closing = ""
+
+    # ── Compose ───────────────────────────────────────────────────────────
+    sentence = opening
+    if bomb_addon:
+        sentence += " " + bomb_addon
+    sentence += cinema_str
+    if closing:
+        sentence += " " + closing
+
+    # Capitalize first + ensure period
+    sentence = sentence.strip()
+    if not sentence.endswith("."):
+        sentence += "."
+
+    return sentence
 
 
 _WEAPON_NAMES: dict[str, str] = {

@@ -294,6 +294,8 @@ def _to_match_out(doc: dict) -> MatchOut:
             rank=h["rank"],
             round_num=h.get("round_num", 1),
             label=h.get("label", ""),
+            # v0.3.1 (A4): forward narrative PT-BR
+            narrative=h.get("narrative"),
             score=h.get("score", 0.0),
             start=h.get("start", 0.0),
             end=h.get("end", 0.0),

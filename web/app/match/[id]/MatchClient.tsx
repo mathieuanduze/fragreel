@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { MatchOut, Mood, Orientation, getMatch } from "@/lib/api";
+import { MatchOut, HighlightOut, Mood, Orientation, getMatch } from "@/lib/api";
 import {
   cancelLocalRender,
   getLocalDemos,
@@ -79,6 +79,79 @@ function fmt(sec: number) {
   const m = Math.floor(sec / 60);
   const s = (sec % 60).toFixed(1);
   return `${m}:${Number(s) < 10 ? "0" : ""}${s}`;
+}
+
+// ── v0.3.1 (Sprint A1) — Hero badge pra HighlightCard ────────────────────
+//
+// Substitui thumbnail (que prometia vídeo inexistente até render rolar) por
+// badge da jogada principal centralizado. Prioridade DESCENDENTE:
+//   1. ACE (5K)            — narrativa máxima
+//   2. Clutch 1vN          — solo against odds
+//   3. Defuse              — clímax CT
+//   4. Plant_won           — clímax T
+//   5. Multikill (3K, 4K)  — alto skill
+//   6. RWK                 — last kill closer
+//   7. Solo HS             — kill clean
+//   8. 2K                  — dupla
+//   9. Solo kill           — fallback genérico
+//
+// Cores reaproveitam paleta dos badges contextuais inline.
+
+interface HeroBadge { icon: string; label: string; fg: string; }
+
+function heroBadgeFor(h: HighlightOut): HeroBadge {
+  const nKills = h.kills.length;
+  if (nKills >= 5) {
+    return { icon: "🔥", label: "ACE", fg: "#FF6B35" };
+  }
+  if (h.clutch_situation) {
+    return { icon: "⚡", label: `${h.clutch_situation}\nCLUTCH`, fg: "#FFC857" };
+  }
+  if (h.bomb_action === "defuse") {
+    return { icon: "💣", label: "DEFUSE", fg: "#5D9CEC" };
+  }
+  if (h.bomb_action === "plant_won") {
+    return { icon: "💣", label: "PLANT", fg: "#E8A855" };
+  }
+  if (nKills === 4) {
+    return { icon: "💀", label: "QUAD KILL", fg: "#FF6B35" };
+  }
+  if (nKills === 3) {
+    return { icon: "💀", label: "TRIPLE KILL", fg: "#FF8C5A" };
+  }
+  if (h.is_round_winning_kill) {
+    return { icon: "★", label: "RWK\nROUND CLOSER", fg: "#FF6B35" };
+  }
+  if (nKills === 1 && h.kills[0]?.headshot) {
+    return { icon: "🎯", label: "HEADSHOT", fg: "rgba(255,255,255,0.85)" };
+  }
+  if (nKills === 2) {
+    return { icon: "💀", label: "DOUBLE", fg: "rgba(255,255,255,0.75)" };
+  }
+  return { icon: "🎯", label: "KILL", fg: "rgba(255,255,255,0.65)" };
+}
+
+function heroBadgeBg(h: HighlightOut): string {
+  // Background subtle, do escuro pra cor do badge — gradiente vertical
+  const hero = heroBadgeFor(h);
+  if (hero.fg.startsWith("rgba")) {
+    return "linear-gradient(135deg, #131325, #0D0D1A)";  // neutro
+  }
+  // Opaca → 12% transparency overlay
+  return `linear-gradient(135deg, ${hero.fg}18, #0D0D1A 75%)`;
+}
+
+function heroBadgeBorder(h: HighlightOut): string {
+  const hero = heroBadgeFor(h);
+  if (hero.fg.startsWith("rgba")) return "#2D2D44";
+  return `${hero.fg}40`;
+}
+
+function heroBadgeAccent(h: HighlightOut): string {
+  // Border quando o card está selecionado — versão mais opaca da cor do hero
+  const hero = heroBadgeFor(h);
+  if (hero.fg.startsWith("rgba")) return "rgba(255,107,53,0.3)";
+  return `${hero.fg}80`;
 }
 
 export default function MatchClient({ match: initialMatch }: { match: MatchOut }) {
@@ -607,8 +680,14 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                     #{h.rank}
                   </div>
 
-                  {/* Preview thumbnail — vídeo real se disponível, placeholder caso contrário */}
-                  <div style={{ width: 142, height: 80, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative", background: "linear-gradient(135deg,#131325,#0D0D1A)", border: on ? "1px solid rgba(255,107,53,0.3)" : "1px solid #2D2D44" }}>
+                  {/* v0.3.1 (Sprint A1) — Badge proeminente substitui thumbnail.
+                      Mathieu feedback 25/04: thumbnails prometiam vídeo que não
+                      existia (demo só vira video após render). Substituído por
+                      badge da jogada principal (Ace > Clutch > Defuse > Plant >
+                      Multikill > RWK > HS > Solo) + duração no canto.
+                      Mantém clip_url path: SE vídeo existir (caso futuro pós-render),
+                      mostra preview; senão badge contextual. */}
+                  <div style={{ width: 142, height: 80, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative", background: heroBadgeBg(h), border: on ? `1px solid ${heroBadgeAccent(h)}` : `1px solid ${heroBadgeBorder(h)}` }}>
                     {h.clip_url ? (
                       <video
                         src={h.clip_url}
@@ -621,14 +700,21 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                       />
                     ) : (
                       <>
-                        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,rgba(255,255,255,0.02) 0px,rgba(255,255,255,0.02) 1px,transparent 1px,transparent 3px)" }} />
-                        <div style={{ position: "absolute", top: 6, left: 8, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>{match.map.replace("de_","")}</div>
-                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, paddingLeft: 2, color: "rgba(255,255,255,0.3)" }}>▶</div>
-                        </div>
-                        <div style={{ position: "absolute", bottom: 6, left: 8, fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase" }}>sem client</div>
+                        {/* Map name no canto top — discreto, contexto */}
+                        <div style={{ position: "absolute", top: 6, left: 8, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>{match.map.replace("de_","")}</div>
+                        {/* HERO badge — icon + tag dominante centralized */}
+                        {(() => {
+                          const hero = heroBadgeFor(h);
+                          return (
+                            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: hero.fg, padding: "8px 4px 14px" }}>
+                              <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 2 }}>{hero.icon}</div>
+                              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", textAlign: "center", lineHeight: 1.1 }}>{hero.label}</div>
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
+                    {/* Duração no canto bottom-right (preserved from thumbnail design) */}
                     <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 10, fontWeight: 600, color: "white", fontFamily: "monospace", background: "rgba(0,0,0,0.6)", padding: "1px 5px", borderRadius: 3 }}>{Math.round(h.end - h.start)}s</div>
                   </div>
 
@@ -707,6 +793,22 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                         );
                       })}
                     </div>
+                    {/* v0.3.1 (Sprint A4) — narrative PT-BR ao lado das tags.
+                        Aparece abaixo dos kill chips, em texto secundário pra
+                        casual users entenderem sem decorar jargão das tags em
+                        inglês. Null em demos legacy parseadas pré-v0.3.1 →
+                        omitido (graceful degradation). */}
+                    {h.narrative && (
+                      <div style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        lineHeight: 1.45,
+                        color: "rgba(255,255,255,0.65)",
+                        fontStyle: "italic",
+                      }}>
+                        {h.narrative}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>

@@ -32,6 +32,7 @@ from parser.scorer import (
     _detect_clutch,
     _enrich_with_round_context,
     _round_label,
+    _round_narrative,
     score_kills,
 )
 
@@ -506,6 +507,66 @@ def test_round_based_bomb_bonus_NOT_duplicated_across_intra_round_gaps():
     print(f"  ✓ plant_won bonus applied exactly once per round → score={h.score}")
 
 
+# ── v0.3.1 (Sprint A4) — Narrative PT-BR generator tests ───────────────────
+
+def test_narrative_solo_kill_plain():
+    """Solo kill simples → 'Solo kill de <weapon>...'"""
+    kills = [_kill(tick=100, weapon="ak47")]
+    n = _round_narrative(1, kills, {"won_round": True})
+    assert n.startswith("Solo kill de AK-47"), f"narrative inesperado: {n}"
+    assert n.endswith("."), "frase deve terminar com ponto"
+    print(f"  ✓ solo kill plain → '{n}'")
+
+
+def test_narrative_clutch_1v3_with_3K():
+    """1v3 clutch com triple → linguagem heroica."""
+    kills = [_kill(tick=i, weapon="ak47") for i in (100, 200, 300)]
+    n = _round_narrative(3, kills, {"clutch_situation": "1v3", "won_round": True})
+    assert "Sozinho contra 3" in n, f"clutch context faltando: {n}"
+    assert "triple" in n, f"multikill word faltando: {n}"
+    assert "clutch" in n.lower(), f"clutch wording faltando: {n}"
+    print(f"  ✓ 1v3 + 3K clutch → '{n}'")
+
+
+def test_narrative_defuse_in_clutch_1v1():
+    """1v1 + defuse → 'matou o último e ainda defusou'."""
+    kills = [_kill(tick=100, weapon="m4a1_silencer")]
+    n = _round_narrative(1, kills, {
+        "clutch_situation": "1v1",
+        "bomb_action": "defuse",
+        "won_round": True,
+        "is_round_winning_kill": True,
+    })
+    assert "matou o último" in n or "matou 1" in n, f"clutch 1v1 wording: {n}"
+    assert "defusou" in n, f"defuse missing: {n}"
+    print(f"  ✓ 1v1 + defuse → '{n}'")
+
+
+def test_narrative_plant_won():
+    """plant_won → 'plantou pro time fechar'."""
+    kills = [_kill(tick=100, weapon="glock"), _kill(tick=200, weapon="glock")]
+    n = _round_narrative(2, kills, {"bomb_action": "plant_won", "won_round": True})
+    assert "double" in n, f"multikill word: {n}"
+    assert "plantou" in n, f"plant wording: {n}"
+    print(f"  ✓ 2K + plant_won → '{n}'")
+
+
+def test_narrative_cinema_flair_in_parens():
+    """Cinema events (thrusmoke, no-scope, wallbang, blind, low-HP) aparecem em parens."""
+    kills = [_kill(tick=100, weapon="awp", noscope=True, thrusmoke=True)]
+    n = _round_narrative(1, kills, {"won_round": True})
+    assert "(through smoke" in n or "(no-scope" in n, f"cinema parens missing: {n}"
+    print(f"  ✓ cinema flair → '{n}'")
+
+
+def test_narrative_round_lost_signaled():
+    """Time perdeu o round → 'time perdeu o round mesmo assim'."""
+    kills = [_kill(tick=100, weapon="ak47")]
+    n = _round_narrative(1, kills, {"won_round": False})
+    assert "time perdeu" in n.lower(), f"round-lost context missing: {n}"
+    print(f"  ✓ round perdido → '{n}'")
+
+
 # ── v0.3.1 — Cinema events scoring tests (B4 do roadmap) ────────────────────
 
 def test_thrusmoke_kill_adds_bonus():
@@ -629,6 +690,7 @@ def test_bomb_action_tick_survives_persist_roundtrip():
     # Mock Highlight com TODOS os campos v0.3.0+ populados
     h = Highlight(
         rank=1, round_num=8, label="2K · 1v2 Clutch · Defuse",
+        narrative="Sozinho contra 2, fez double e ainda defusou a bomba.",
         score=740.0, start=866.3, end=898.3,
         kills=[],
         clutch_situation="1v2",
@@ -652,6 +714,7 @@ def test_bomb_action_tick_survives_persist_roundtrip():
                 "rank":      h.rank,
                 "round_num": h.round_num,
                 "label":     h.label,
+                "narrative": h.narrative,
                 "score":     h.score,
                 "start":     h.start,
                 "end":       h.end,
@@ -686,6 +749,10 @@ def test_bomb_action_tick_survives_persist_roundtrip():
     assert h_out.is_round_winning_kill is True, f"RWK lost"
     assert h_out.kill_ticks == [56404, 57174], f"kill_ticks lost: {h_out.kill_ticks}"
     assert h_out.kill_timestamps == [881.312, 893.344], f"kill_timestamps lost"
+    # v0.3.1 — narrative PT-BR também sobrevive
+    assert h_out.narrative == "Sozinho contra 2, fez double e ainda defusou a bomba.", (
+        f"narrative lost: got {h_out.narrative!r}"
+    )
     # Os 2 campos do v0.3.0-beta-2 — historicamente onde a cadeia quebrou
     assert h_out.bomb_action_tick == 57550, (
         f"bomb_action_tick lost (THIS is the regression — check demo.py "
@@ -721,6 +788,13 @@ if __name__ == "__main__":
         test_label_clutch_plus_defuse,
         test_label_awp_2k_plus_plant,
         test_label_solo_awp_hs,
+        # v0.3.1 (Sprint A4) — Narrative PT-BR
+        test_narrative_solo_kill_plain,
+        test_narrative_clutch_1v3_with_3K,
+        test_narrative_defuse_in_clutch_1v1,
+        test_narrative_plant_won,
+        test_narrative_cinema_flair_in_parens,
+        test_narrative_round_lost_signaled,
         # v0.3.1 — Cinema events scoring (B4)
         test_thrusmoke_kill_adds_bonus,
         test_noscope_kill_adds_bonus_once_per_round,

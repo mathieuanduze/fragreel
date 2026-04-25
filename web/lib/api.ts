@@ -27,6 +27,10 @@ export interface HighlightOut {
   rank: number;
   round_num: number;
   label: string;
+  // v0.3.1 (A4): resumo PT-BR ao lado das tags. Tags continuam em inglês
+  // pra internacionalização; narrative descreve em prosa o que aconteceu
+  // pra usuários casuais sem decorar jargão. Null em demos legacy.
+  narrative?: string | null;
   score: number;
   start: number;
   end: number;

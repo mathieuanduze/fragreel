@@ -36,6 +36,11 @@ class HighlightOut(BaseModel):
     end: float
     kills: list[KillOut]
     clip_url: Optional[str] = None   # URL do clipe de vídeo, se disponível
+    # v0.3.1 (Sprint A4): resumo PT-BR ao lado das tags. Tags continuam
+    # em inglês pra internacionalização; narrative descreve em prosa o que
+    # aconteceu pra usuários casuais sem decorar jargão. None pra demos
+    # legacy parseadas pré-v0.3.1.
+    narrative: Optional[str] = None
     # ── v0.3.0-alpha — scoring v2 context ─────────────────────────────────────
     # Web usa esses campos pra mostrar tags ("⚡ 1v3 Clutch", "💣 Defuse")
     # nos cards de pré-seleção. Todos opcionais → highlights antigos

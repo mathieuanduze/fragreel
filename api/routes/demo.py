@@ -124,6 +124,8 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
                     "rank":      h.rank,
                     "round_num": h.round_num,
                     "label":     h.label,
+                    # v0.3.1 (A4): resumo PT-BR
+                    "narrative": h.narrative,
                     "score":     h.score,
                     "start":     h.start,
                     "end":       h.end,
