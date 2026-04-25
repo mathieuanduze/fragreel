@@ -110,6 +110,14 @@ class Highlight:
     # v0.3.0-alpha round-based — for client-side capture clustering
     kill_ticks: list[int] = field(default_factory=list)
     kill_timestamps: list[float] = field(default_factory=list)
+    # v0.3.0-beta-2 — bomb event tick (back-calc anim window in client v2 algo)
+    # Hotfix urgente: faltava no commit 6334960 — Highlight.__init__ crashava
+    # com TypeError "unexpected keyword argument 'bomb_action_tick'" porque
+    # _enrich_with_round_context.scorer passava o kwarg mas o dataclass não
+    # tinha o slot. Catch silencioso em demo.py escondia o erro como
+    # status=queued/highlights=0. Caught no smoke test do PC (25/04 madrugada).
+    bomb_action_tick: Optional[int] = None
+    bomb_action_timestamp: Optional[float] = None
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
