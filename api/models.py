@@ -85,6 +85,10 @@ class MatchOut(BaseModel):
     # aceita o name string em `spec_player "<name>"` — sem isso, capture
     # cai em free-cam autodirector. None pra demos antigas pré-v0.3.0-beta-3.
     player_name: Optional[str] = None
+    # v0.3.1 (Sprint A3): game mode robusto. Substitui heurística antiga
+    # do web por round_count. Valores: premier|competitive|wingman|casual
+    # |deathmatch|scrimmage|None
+    game_mode: Optional[str] = None
 
 
 class MatchSummary(BaseModel):
@@ -98,6 +102,9 @@ class MatchSummary(BaseModel):
     top_play: str
     rating: str
     kd: str
+    # v0.3.1 (Sprint A3): game mode robusto. Web prefere isso à heurística
+    # antiga por round_count que errava em casos edge.
+    game_mode: Optional[str] = None  # premier|competitive|wingman|casual|deathmatch|scrimmage|None
 
 
 class Mood(str, Enum):

@@ -34,6 +34,15 @@ class Kill:
     victim_steamid: str
     attacker_team: Optional[int] = None   # 2=CT, 3=T (None if not in demo)
     victim_team: Optional[int] = None     # 2=CT, 3=T
+    # v0.3.1 — cinema flags pra scoring boost (B4). Default false/None pra
+    # backwards-compat com demos parseadas pré-v0.3.1.
+    noscope: bool = False                 # AWP no-scope
+    thrusmoke: bool = False               # kill através de smoke
+    penetrated: int = 0                   # wallbang count (0 = sem penetration)
+    attackerblind: bool = False           # attacker estava cego (flashed)
+    attackerinair: bool = False           # jumping kill
+    distance: Optional[float] = None      # distância attacker→victim em units CS2
+    attacker_health: Optional[int] = None # HP do attacker no tick da kill (low-HP heroico)
 
 
 @dataclass
@@ -76,6 +85,13 @@ class ParsedDemo:
     # auto-director's pick (random per segment) ao invés do user.
     # Extraído via parse_player_info() ou fallback parse_ticks(["name"]).
     player_name: Optional[str] = None
+    # v0.3.1 (A3 do roadmap) — game mode detection robusto. Web mostrava
+    # heurística por round count que falhava em casos edge (Premier 13-5
+    # mostrava como Wingman). Agora extraído de server_cvar event +
+    # server_name + player_count com confiança alta.
+    # Valores possíveis: "premier" | "competitive" | "wingman" | "casual"
+    #                    | "deathmatch" | "scrimmage" | "workshop" | None
+    game_mode: Optional[str] = None
 
 
 # ── DataFrame compat helpers (Polars 0.x and 1.x) ────────────────────────────
@@ -226,6 +242,73 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
         log.warning(f"Round state building failed (non-fatal): {e}")
         round_states = {}
 
+    # ── v0.3.1 (A3): game mode detection ─────────────────────────────────────
+    # Combina 3 sinais de alta confiança:
+    #   1. server_name (header) — "Premier" string explícita pra Premier
+    #   2. mp_maxrounds (server_cvar) — 24=MR12 (Premier/Comp), 16=MR8 (Wingman)
+    #   3. player count (parse_player_info) — 10=5v5, 4=Wingman 2v2, <4=outro
+    # Web hoje usa heurística por round_count que erra (13-5 vira "Wingman"
+    # em vez de "Premier"). Extração no server elimina a heurística do front.
+    game_mode: Optional[str] = None
+    try:
+        # Sinal 1: server_name
+        server_name_lower = str(header.get("server_name", "")).lower()
+        is_premier_server = "premier" in server_name_lower
+
+        # Sinal 2: mp_maxrounds via server_cvar event
+        maxrounds: Optional[int] = None
+        try:
+            cvars_df = dp.parse_event("server_cvar")
+            if not _df_is_empty(cvars_df):
+                # Pega último valor de mp_maxrounds (rounds finais valem mais
+                # que defaults iniciais)
+                mr_rows = [r for r in _df_iter_rows(cvars_df) if r.get("name") == "mp_maxrounds"]
+                if mr_rows:
+                    maxrounds = int(mr_rows[-1].get("value") or 0)
+        except Exception as e:
+            log.debug(f"Game mode: server_cvar lookup failed: {e}")
+
+        # Sinal 3: player count
+        player_count = 0
+        try:
+            info_df = dp.parse_player_info()
+            if not _df_is_empty(info_df):
+                player_count = len(_df_iter_rows(info_df))
+        except Exception:
+            pass
+        # Fallback: count unique steamids em parse_ticks(name, steamid)
+        if player_count == 0:
+            try:
+                tick_df = dp.parse_ticks(["name", "steamid"])
+                if not _df_is_empty(tick_df):
+                    seen = {str(r.get("steamid", "")) for r in _df_iter_rows(tick_df)}
+                    seen.discard("")
+                    player_count = len(seen)
+            except Exception:
+                pass
+
+        # Decisão combinada
+        if is_premier_server and maxrounds == 24 and player_count >= 9:
+            game_mode = "premier"
+        elif maxrounds == 24 and player_count >= 9:
+            game_mode = "competitive"  # Premier ou Comp 5v5 (sem signal explícito)
+        elif maxrounds == 16 and player_count == 4:
+            game_mode = "wingman"
+        elif player_count == 10:
+            game_mode = "casual"  # 5v5 mas sem MR12 (casual round limits variam)
+        elif player_count >= 12:
+            game_mode = "deathmatch"  # DM tem 16 slots tipicamente
+        elif player_count > 0:
+            game_mode = "scrimmage"  # outros formatos
+        # else: None (não conseguiu detectar)
+
+        log.info(
+            f"Game mode: {game_mode!r} (server_name='{server_name_lower[:40]}...', "
+            f"maxrounds={maxrounds}, player_count={player_count})"
+        )
+    except Exception as e:
+        log.warning(f"Game mode detection failed (non-fatal): {e}")
+
     # ── In-game name lookup pra `spec_player "<name>"` no client ─────────────
     # v0.3.0-beta-3 (Bug #11 fix): client precisa do nome in-game pra travar
     # câmera no user durante render. CS2 Source 2 não tem `spec_player_by_*`
@@ -268,6 +351,7 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
         bomb_events=bomb_events,
         round_states=round_states,
         player_name=player_name,
+        game_mode=game_mode,
     )
 
 
@@ -356,6 +440,23 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
             attacker_team = _coerce_team(row.get(attacker_team_col)) if attacker_team_col else None
             victim_team   = _coerce_team(row.get(victim_team_col))   if victim_team_col   else None
 
+            # v0.3.1 — Cinema flags do player_death event. Defaults seguros
+            # se a coluna não existir (demoparser2 antigo ou demo formato
+            # legacy). Não-fatal: kill ainda registra mesmo sem esses dados.
+            noscope        = bool(row.get("noscope", False))
+            thrusmoke      = bool(row.get("thrusmoke", False))
+            penetrated_raw = row.get("penetrated")
+            penetrated     = int(penetrated_raw) if penetrated_raw is not None else 0
+            attackerblind  = bool(row.get("attackerblind", False))
+            attackerinair  = bool(row.get("attackerinair", False))
+            distance_raw   = row.get("distance")
+            distance       = float(distance_raw) if distance_raw is not None else None
+            # attacker_health: demoparser2 expõe via parse_ticks(["health"]) per tick
+            # OU as vezes vem direto no player_death (depending da versão).
+            # Tentamos ambos com defaults graceful.
+            attacker_health_raw = row.get("attacker_health") or row.get("attacker_hp")
+            attacker_health = int(attacker_health_raw) if attacker_health_raw is not None else None
+
             kills.append(Kill(
                 tick=tick,
                 timestamp=round(tick / tickrate, 3),
@@ -366,6 +467,13 @@ def _parse_kills(dp, tickrate: float) -> list[Kill]:
                 victim_steamid=victim,
                 attacker_team=attacker_team,
                 victim_team=victim_team,
+                noscope=noscope,
+                thrusmoke=thrusmoke,
+                penetrated=penetrated,
+                attackerblind=attackerblind,
+                attackerinair=attackerinair,
+                distance=distance,
+                attacker_health=attacker_health,
             ))
         except Exception as e:
             log.debug(f"Skipping kill row: {e}")

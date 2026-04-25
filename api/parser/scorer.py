@@ -68,6 +68,18 @@ ROUND_WINNING_KILL_BONUS = 150
 DEFUSE_BONUS  = 200   # CT user defused on round their team won
 PLANT_WON_BONUS = 150  # T user planted and team held round
 
+# v0.3.1 — Cinema events bonuses (B4 do roadmap pós-v0.3.0).
+# Pesos calibrados em discussion com Mathieu durante research v0.3 cluster
+# tuning (25/04). Magnitudes baixas (5-50 pts) — não devem dominar score
+# em rounds banais, só puxar pra cima rounds com signature de "cinema-worthy"
+# events. Comparativo: HS_BONUS=20, CLUTCH_1v3=700, RWK=150.
+THRUSMOKE_BONUS  = 50  # kill através de smoke — alto valor narrativo
+NOSCOPE_BONUS    = 40  # AWP no-scope — clip-worthy mesmo solo
+WALLBANG_BONUS   = 30  # kill com penetração de wall
+BLIND_KILL_BONUS = 30  # attacker estava cego (flashed) — pure muscle memory
+LOW_HP_BONUS     = 20  # attacker com HP < 20 (kill heroico)
+LOW_HP_THRESHOLD = 20
+
 # Standard CS round size — assumed 5v5 at round_start. Legitimate edge cases
 # (5v4 due to disconnect mid-round) cause approximate alive counts; clutch
 # detection is best-effort. If team data is missing entirely, clutch detection
@@ -190,6 +202,25 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
         bonus += DEFUSE_BONUS
     elif ctx["bomb_action"] == "plant_won":
         bonus += PLANT_WON_BONUS
+
+    # v0.3.1 — Cinema events bonus (B4). Cada bonus dispara AT MOST ONCE
+    # por round (any() em vez de soma per-kill) pra não inflacionar rounds
+    # com múltiplas kills do mesmo tipo. Defaults graceful: kills sem flags
+    # (demos pré-v0.3.1) retornam False/0/None → no bonus aplicado.
+    if any(getattr(k, "thrusmoke", False) for k in round_kills):
+        bonus += THRUSMOKE_BONUS
+    if any(getattr(k, "noscope", False) for k in round_kills):
+        bonus += NOSCOPE_BONUS
+    if any(getattr(k, "penetrated", 0) > 0 for k in round_kills):
+        bonus += WALLBANG_BONUS
+    if any(getattr(k, "attackerblind", False) for k in round_kills):
+        bonus += BLIND_KILL_BONUS
+    if any(
+        getattr(k, "attacker_health", None) is not None
+        and k.attacker_health < LOW_HP_THRESHOLD
+        for k in round_kills
+    ):
+        bonus += LOW_HP_BONUS
 
     score = float(base + bonus)
 

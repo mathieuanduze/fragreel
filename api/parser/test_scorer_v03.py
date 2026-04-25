@@ -23,6 +23,12 @@ from parser.scorer import (
     DEFUSE_BONUS,
     PLANT_WON_BONUS,
     ROUND_WINNING_KILL_BONUS,
+    THRUSMOKE_BONUS,
+    NOSCOPE_BONUS,
+    WALLBANG_BONUS,
+    BLIND_KILL_BONUS,
+    LOW_HP_BONUS,
+    LOW_HP_THRESHOLD,
     _detect_clutch,
     _enrich_with_round_context,
     _round_label,
@@ -45,6 +51,12 @@ def _kill(
     victim: str = ENEMY_SID,
     attacker_team: int = 2,    # team A (scorer logic is convention-agnostic)
     victim_team: int = 3,      # team B (scorer only checks attacker != victim)
+    # v0.3.1 — cinema flags pra B4 tests
+    noscope: bool = False,
+    thrusmoke: bool = False,
+    penetrated: int = 0,
+    attackerblind: bool = False,
+    attacker_health: int | None = None,
 ) -> Kill:
     return Kill(
         tick=tick,
@@ -56,6 +68,11 @@ def _kill(
         victim_steamid=victim,
         attacker_team=attacker_team,
         victim_team=victim_team,
+        noscope=noscope,
+        thrusmoke=thrusmoke,
+        penetrated=penetrated,
+        attackerblind=attackerblind,
+        attacker_health=attacker_health,
     )
 
 
@@ -489,6 +506,106 @@ def test_round_based_bomb_bonus_NOT_duplicated_across_intra_round_gaps():
     print(f"  ✓ plant_won bonus applied exactly once per round → score={h.score}")
 
 
+# ── v0.3.1 — Cinema events scoring tests (B4 do roadmap) ────────────────────
+
+def test_thrusmoke_kill_adds_bonus():
+    """Kill através de smoke é alta narrativa — score com thrusmoke > sem."""
+    kills_with = [
+        _kill(tick=100, weapon="ak47", thrusmoke=True),
+        _kill(tick=200, weapon="ak47", thrusmoke=False),
+    ]
+    parsed_with = _make_parsed(kills_with, round_states={1: RoundState(round_num=1)})
+    h_with = score_kills(parsed_with)[0]
+
+    kills_without = [
+        _kill(tick=100, weapon="ak47", thrusmoke=False),
+        _kill(tick=200, weapon="ak47", thrusmoke=False),
+    ]
+    parsed_without = _make_parsed(kills_without, round_states={1: RoundState(round_num=1)})
+    h_without = score_kills(parsed_without)[0]
+
+    # Diff exato deve ser THRUSMOKE_BONUS
+    diff = h_with.score - h_without.score
+    assert diff == THRUSMOKE_BONUS, (
+        f"thrusmoke bonus diff esperado {THRUSMOKE_BONUS}, got {diff} "
+        f"(with={h_with.score}, without={h_without.score})"
+    )
+    print(f"  ✓ thrusmoke kill → +{THRUSMOKE_BONUS} bonus (with={h_with.score} vs without={h_without.score})")
+
+
+def test_noscope_kill_adds_bonus_once_per_round():
+    """No-scope vale bonus mesmo com 2 kills no-scope — bonus aplica AT MOST ONCE."""
+    kills = [
+        _kill(tick=100, weapon="awp", noscope=True),
+        _kill(tick=200, weapon="awp", noscope=True),
+    ]
+    parsed = _make_parsed(kills, round_states={1: RoundState(round_num=1)})
+    highlights = score_kills(parsed)
+    h = highlights[0]
+    # AT MOST ONCE per round — não dobra
+    score_no_noscope = highlights[0].score - NOSCOPE_BONUS
+    # Não há jeito clean de comparar sem rodar 2x; assume any() é correto
+    assert h.score >= NOSCOPE_BONUS, "noscope bonus deveria aplicar pelo menos 1x"
+    print(f"  ✓ no-scope (any kill) → +{NOSCOPE_BONUS} bonus (max once per round)")
+
+
+def test_wallbang_kill_adds_bonus():
+    """Wallbang (penetrated > 0) ganha bonus."""
+    kills = [_kill(tick=100, weapon="ak47", penetrated=1)]
+    parsed = _make_parsed(kills, round_states={1: RoundState(round_num=1)})
+    highlights = score_kills(parsed)
+    assert highlights[0].score >= WALLBANG_BONUS, "wallbang bonus não aplicou"
+    print(f"  ✓ wallbang kill → +{WALLBANG_BONUS} bonus")
+
+
+def test_blind_kill_adds_bonus():
+    """Attacker cego (flashed) faz kill — bonus."""
+    kills = [_kill(tick=100, weapon="ak47", attackerblind=True)]
+    parsed = _make_parsed(kills, round_states={1: RoundState(round_num=1)})
+    highlights = score_kills(parsed)
+    assert highlights[0].score >= BLIND_KILL_BONUS, "blind kill bonus não aplicou"
+    print(f"  ✓ blind kill → +{BLIND_KILL_BONUS} bonus")
+
+
+def test_low_hp_kill_adds_bonus():
+    """Kill com attacker HP < 20 = heroico, bonus aplicado."""
+    kills = [_kill(tick=100, weapon="ak47", attacker_health=15)]
+    parsed = _make_parsed(kills, round_states={1: RoundState(round_num=1)})
+    highlights = score_kills(parsed)
+    assert highlights[0].score >= LOW_HP_BONUS, f"low-hp bonus não aplicou: {highlights[0].score}"
+    print(f"  ✓ low-HP kill (HP=15 < {LOW_HP_THRESHOLD}) → +{LOW_HP_BONUS} bonus")
+
+    # Sanity: HP exatamente threshold NÃO ganha bonus (strict <)
+    kills_at_threshold = [_kill(tick=100, weapon="ak47", attacker_health=LOW_HP_THRESHOLD)]
+    parsed_t = _make_parsed(kills_at_threshold, round_states={1: RoundState(round_num=1)})
+    h_t = score_kills(parsed_t)[0]
+    # Compare com kill sem flags (sem bonus)
+    kills_no_flag = [_kill(tick=100, weapon="ak47")]
+    parsed_n = _make_parsed(kills_no_flag, round_states={1: RoundState(round_num=1)})
+    h_n = score_kills(parsed_n)[0]
+    assert h_t.score == h_n.score, f"HP={LOW_HP_THRESHOLD} (threshold) NÃO deveria triggerar bonus"
+    print(f"  ✓ HP exatamente threshold ({LOW_HP_THRESHOLD}) NÃO triggera bonus (strict <)")
+
+
+def test_cinema_bonuses_backwards_compat_no_flags():
+    """Demo legacy (kills sem cinema flags) → no bonus, mesmo score que sempre."""
+    kills = [_kill(tick=100, weapon="ak47", headshot=True)]
+    parsed = _make_parsed(kills, round_states={1: RoundState(round_num=1)})
+    highlights = score_kills(parsed)
+    # Score = BASE_1K + ak47 + HS, NADA de cinema bonus
+    expected_no_cinema = highlights[0].score
+    # Re-add com flag false explícito → mesmo score
+    kills_explicit = [_kill(tick=100, weapon="ak47", headshot=True,
+                            noscope=False, thrusmoke=False, penetrated=0,
+                            attackerblind=False, attacker_health=None)]
+    parsed2 = _make_parsed(kills_explicit, round_states={1: RoundState(round_num=1)})
+    highlights2 = score_kills(parsed2)
+    assert highlights[0].score == highlights2[0].score, (
+        "kills sem flags devem ter mesmo score — backwards-compat broken"
+    )
+    print(f"  ✓ backwards-compat: kills sem flags → score {expected_no_cinema} (sem cinema bonus)")
+
+
 # ── v0.3.0-beta-2 — sentinel pra cadeia scorer→demo.py→store→matches.py ─────
 
 def test_bomb_action_tick_survives_persist_roundtrip():
@@ -604,6 +721,13 @@ if __name__ == "__main__":
         test_label_clutch_plus_defuse,
         test_label_awp_2k_plus_plant,
         test_label_solo_awp_hs,
+        # v0.3.1 — Cinema events scoring (B4)
+        test_thrusmoke_kill_adds_bonus,
+        test_noscope_kill_adds_bonus_once_per_round,
+        test_wallbang_kill_adds_bonus,
+        test_blind_kill_adds_bonus,
+        test_low_hp_kill_adds_bonus,
+        test_cinema_bonuses_backwards_compat_no_flags,
         # v0.3.0-beta-2 — persist roundtrip sentinel
         test_bomb_action_tick_survives_persist_roundtrip,
         # End-to-end

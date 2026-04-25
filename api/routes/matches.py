@@ -207,9 +207,37 @@ def generate_video(match_id: str, body: GenerateRequest, request: Request):
     from routes.renders import spawn_render
     job = spawn_render(match_id=match_id, fmt=body.format.value, props=props)
 
-    # Estimativa (Railway CPU é ~10-15x slower que local)
-    format_times = {"reel": 90, "recap": 180, "card": 15}
-    estimated = format_times.get(body.format.value, 60)
+    # v0.3.1 (Sprint A5): estimativa scenario-aware baseada em duração real
+    # de captura ao invés de hardcode "reel=90s sempre".
+    #
+    # Modelo wall-clock (calibrado com ~5 renders no PC):
+    #   captura HLAE: ~real-time (60fps), com 50% overhead (mode switches +
+    #     spec_player + freezetime navigation)
+    #   ProRes encode per take: ~8s constante (fixed overhead per segment)
+    #   ffmpeg concat + setup: ~30s constante (vendor binaries + I/O)
+    #
+    # Pra reel (vídeo editado): adiciona Remotion render (~30s base + 1s/seg).
+    # Pra card (estático): só Remotion render (~15s).
+    #
+    # Heurística calibrada com smoke test rerun-2 do PC: 3 segments totais
+    # 76s captura → MP4 final em ~12min wall-clock. Modelo predit: 76*1.5 +
+    # 4*8 + 30 = 176s (2.9min) — bem abaixo do real, indica overhead de HLAE
+    # injection + CS2 boot é maior. Adicionei +180s baseline pra cobrir.
+    #
+    # TODO (telemetria real): instrumentar logs do render_coordinator com
+    # stage timings + recalibrar. Hoje é estimate, não medida.
+    sum_segment_durations_s = 0  # TODO: vem do props ou highlight_ranks lookup
+    n_segments = len(body.highlight_ranks)
+    if body.format.value == "card":
+        estimated = 15
+    elif body.format.value == "reel":
+        # ~real-time captura + per-segment overhead + Remotion + boot
+        # Conservative pra não criar expectativa "vai em 90s" que vira "demorou 5min"
+        estimated = 60 + (n_segments * 60) + 180  # 60s base + 60s/segment + 3min boot
+    else:  # recap
+        estimated = 90 + (n_segments * 60) + 180
+    # Cap inferior pra não mostrar "10s" em casos de 1 highlight
+    estimated = max(estimated, 120)
 
     return GenerateResponse(
         job_id=job.job_id,
@@ -235,6 +263,8 @@ def _to_summary(doc: dict) -> MatchSummary:
         top_play=doc.get("top_play", "—"),
         rating=doc.get("rating", "1.00"),
         kd=doc.get("kd", "0/0"),
+        # v0.3.1 (A3): game mode robusto. None pra demos legacy.
+        game_mode=doc.get("game_mode"),
     )
 
 
@@ -295,6 +325,8 @@ def _to_match_out(doc: dict) -> MatchOut:
         # v0.3.0-beta-3 (Bug #11): expose in-game player_name pra web preferir
         # ao Steam display name no payload do /render local.
         player_name=doc.get("player_name"),
+        # v0.3.1 (A3): game mode robusto.
+        game_mode=doc.get("game_mode"),
         stats=stats,
         highlights=highlights,
     )

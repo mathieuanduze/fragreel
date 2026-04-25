@@ -95,6 +95,12 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
             # parseadas pré-v0.3.0-beta-3 — matches.py tem fallback que pelo
             # menos não envia (steamid)[-6:] como antes.
             "player_name":      parsed.player_name,
+            # v0.3.1 (Sprint A3): game mode detection robusto via server_cvar.
+            # Substitui heurística por round_count do web que errava em
+            # casos edge (Premier 13-5 mostrava como Wingman).
+            # Valores: "premier" | "competitive" | "wingman" | "casual" |
+            #          "deathmatch" | "scrimmage" | None
+            "game_mode":        parsed.game_mode,
             # Summary fields (for list view)
             "id":               match_id,
             "map":              parsed.map_name,

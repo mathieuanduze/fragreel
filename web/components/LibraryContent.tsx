@@ -45,15 +45,44 @@ function prettyMap(raw: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
-// Heurística pra inferir tipo da partida pelo total de rounds.
-// Premier/Competitive MR12: até 24 rounds (13-x). Wingman MR8: até 16. Outros: casual/DM.
-function matchType(scoreCt: number, scoreT: number): { label: string; color: string } {
+// v0.3.1 (Sprint A3): game mode robusto vindo do server (parser detection
+// via server_cvar mp_maxrounds + server_name + player count). Fallback pra
+// heurística antiga só quando server_mode é null (demos legacy parseadas
+// pré-v0.3.1, demos com cvars ausentes).
+type GameModeServer =
+  | "premier" | "competitive" | "wingman" | "casual"
+  | "deathmatch" | "scrimmage" | null | undefined;
+
+function matchType(
+  scoreCt: number,
+  scoreT: number,
+  serverGameMode?: GameModeServer,
+): { label: string; color: string } {
+  // Server-provided game mode tem precedência absoluta — extraído de signals
+  // confiáveis (mp_maxrounds + server_name + player count).
+  if (serverGameMode) {
+    const map: Record<string, { label: string; color: string }> = {
+      premier:      { label: "Premier",          color: "#FF6B35" },
+      competitive:  { label: "Competitivo",      color: "#FF6B35" },
+      wingman:      { label: "Wingman",          color: "#a78bfa" },
+      casual:       { label: "Casual",           color: "rgba(255,255,255,0.6)" },
+      deathmatch:   { label: "Deathmatch",       color: "rgba(255,200,100,0.7)" },
+      scrimmage:    { label: "Scrim / Outro",    color: "rgba(255,255,255,0.5)" },
+    };
+    return map[serverGameMode] ?? { label: "Outro", color: "rgba(255,255,255,0.5)" };
+  }
+
+  // Fallback: heurística antiga pra demos legacy (sem game_mode persistido).
+  // Nota: ordem importa — testar Wingman ANTES de Premier pra evitar overlap
+  // (Wingman MR8 max=8 vs Premier MR12 max=13).
   const total = scoreCt + scoreT;
   if (total === 0) return { label: "Em análise", color: "rgba(255,255,255,0.4)" };
-  if (Math.max(scoreCt, scoreT) >= 13) return { label: "Premier / Competitivo", color: "#FF6B35" };
-  if (total >= 13 && total <= 16) return { label: "Wingman", color: "#a78bfa" };
+  if (Math.max(scoreCt, scoreT) <= 8 && total >= 8 && total <= 16) {
+    return { label: "Wingman?", color: "#a78bfa" };  // ? indica heurística incerta
+  }
+  if (Math.max(scoreCt, scoreT) >= 13) return { label: "Premier / Competitivo?", color: "#FF6B35" };
   if (total < 8) return { label: "Demo curta", color: "rgba(255,255,255,0.5)" };
-  return { label: "Casual / Outro", color: "rgba(255,255,255,0.5)" };
+  return { label: "Casual / Outro?", color: "rgba(255,255,255,0.5)" };
 }
 
 function fmtKD(k: number, d: number): string {
@@ -327,7 +356,12 @@ export default function LibraryContent() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
         {(demos || []).map((d) => {
-          const type = matchType(d.score_ct, d.score_t);
+          // v0.3.1 (A3): passa game_mode do server quando disponível.
+          // LocalDemo do scanner local NÃO tem game_mode ainda — precisa
+          // cross-ref com /matches/{id} (TODO: adicionar ao cache scanner
+          // depois do primeiro analyze). Por enquanto: undefined → heurística
+          // fallback (com "?" indicando incerteza).
+          const type = matchType(d.score_ct, d.score_t, undefined);
           const totalRounds = d.score_ct + d.score_t;
           const kd = fmtKD(d.player_kills, d.player_deaths);
           const mapPretty = prettyMap(d.map_name);
@@ -382,17 +416,12 @@ export default function LibraryContent() {
                     borderRadius: 5,
                   }}>{type.label}</span>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                    {isProcessed && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "#5be38f",
-                        padding: "3px 8px",
-                        background: "rgba(91,227,143,0.10)",
-                        border: "1px solid rgba(91,227,143,0.35)",
-                        borderRadius: 5,
-                      }}>✓ FragReel pronto</span>
-                    )}
+                    {/* v0.3.1 (Sprint A2): badge "FragReel pronto" removida.
+                       Pivot v0.2.x pro modelo on-demand removeu o conceito —
+                       não existe mais "FragReel pré-renderizado", todo render
+                       é local sob demanda. `isProcessed` continua significando
+                       "demo já analisada pelo server (highlights extraídos)" —
+                       UX disso fica na border-color + helper text abaixo. */}
                     <span
                       title={new Date(d.mtime * 1000).toLocaleString("pt-BR")}
                       style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}

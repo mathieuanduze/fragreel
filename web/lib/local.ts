@@ -18,7 +18,10 @@ export interface LocalDemo {
   player_kills: number;
   player_deaths: number;
   size_mb: number;
-  /** Quando preenchido, demo já foi enviada e tem FragReel pronto em /match/{id}. */
+  /** Quando preenchido, demo já foi analisada pelo server e tem highlights
+   *  extraídos em /match/{id}. NOTA: NÃO significa que tem reel renderizado —
+   *  pivot v0.2.x pro modelo on-demand removeu o conceito de "FragReel pronto".
+   *  Todo reel é renderizado localmente sob demanda. */
   match_id?: string | null;
   /** Epoch (s) do upload bem-sucedido. */
   processed_at?: number | null;
