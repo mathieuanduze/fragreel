@@ -489,6 +489,98 @@ def test_round_based_bomb_bonus_NOT_duplicated_across_intra_round_gaps():
     print(f"  ✓ plant_won bonus applied exactly once per round → score={h.score}")
 
 
+# ── v0.3.0-beta-2 — sentinel pra cadeia scorer→demo.py→store→matches.py ─────
+
+def test_bomb_action_tick_survives_persist_roundtrip():
+    """Regression sentinel — saga 6334960 / c1ca4c6 / [demo.py fix] do v0.3.0-beta-2.
+
+    Os bugs em sequência mostraram que cada elo da cadeia
+    Highlight (dataclass) → match_doc dict (demo.py) → JSON store → load_match
+    → _to_match_out → HighlightOut response **pode** dropar campos novos
+    silenciosamente. Cada vez foi catched só no PC smoke test (custo ~30min de
+    diagnóstico em produção). Este teste roda o roundtrip inteiro com mock
+    minimal e fail-fast em CI/dev.
+
+    Cobre: clutch_situation, won_round, bomb_action, is_round_winning_kill,
+    kill_ticks, kill_timestamps, bomb_action_tick, bomb_action_timestamp.
+    """
+    import json
+    import tempfile
+    from pathlib import Path
+    from parser.scorer import Highlight
+
+    # Mock Highlight com TODOS os campos v0.3.0+ populados
+    h = Highlight(
+        rank=1, round_num=8, label="2K · 1v2 Clutch · Defuse",
+        score=740.0, start=866.3, end=898.3,
+        kills=[],
+        clutch_situation="1v2",
+        won_round=True,
+        bomb_action="defuse",
+        is_round_winning_kill=True,
+        kill_ticks=[56404, 57174],
+        kill_timestamps=[881.312, 893.344],
+        bomb_action_tick=57550,
+        bomb_action_timestamp=899.219,
+    )
+
+    # 1. Scorer → match_doc dict (mirror exato de routes/demo.py:109-137)
+    #    Se demo.py adicionar/remover campo, espelhar aqui — TESTE TEM QUE BATER
+    #    com a estrutura real ou fica falso-verde.
+    match_doc = {
+        "id": "test_match_v030beta2",
+        "map": "de_inferno",
+        "highlights": [
+            {
+                "rank":      h.rank,
+                "round_num": h.round_num,
+                "label":     h.label,
+                "score":     h.score,
+                "start":     h.start,
+                "end":       h.end,
+                "kills":     [],
+                "clutch_situation":      h.clutch_situation,
+                "won_round":             h.won_round,
+                "bomb_action":           h.bomb_action,
+                "is_round_winning_kill": h.is_round_winning_kill,
+                "kill_ticks":            h.kill_ticks,
+                "kill_timestamps":       h.kill_timestamps,
+                "bomb_action_tick":      h.bomb_action_tick,
+                "bomb_action_timestamp": h.bomb_action_timestamp,
+            }
+        ],
+    }
+
+    # 2. JSON store roundtrip (mock disco com tempfile)
+    with tempfile.TemporaryDirectory() as tmp:
+        store_path = Path(tmp) / "match.json"
+        store_path.write_text(json.dumps(match_doc))
+        loaded = json.loads(store_path.read_text())
+
+    # 3. Roundtrip via _to_match_out
+    from routes.matches import _to_match_out
+    out = _to_match_out(loaded)
+
+    h_out = out.highlights[0]
+    # Assertions: cada campo crítico TEM que sobreviver
+    assert h_out.clutch_situation == "1v2", f"clutch_situation lost: {h_out.clutch_situation}"
+    assert h_out.won_round is True, f"won_round lost: {h_out.won_round}"
+    assert h_out.bomb_action == "defuse", f"bomb_action lost: {h_out.bomb_action}"
+    assert h_out.is_round_winning_kill is True, f"RWK lost"
+    assert h_out.kill_ticks == [56404, 57174], f"kill_ticks lost: {h_out.kill_ticks}"
+    assert h_out.kill_timestamps == [881.312, 893.344], f"kill_timestamps lost"
+    # Os 2 campos do v0.3.0-beta-2 — historicamente onde a cadeia quebrou
+    assert h_out.bomb_action_tick == 57550, (
+        f"bomb_action_tick lost (THIS is the regression — check demo.py "
+        f"match_doc dict + matches.py _to_match_out + scorer.py dataclass): "
+        f"got {h_out.bomb_action_tick}"
+    )
+    assert h_out.bomb_action_timestamp == 899.219, (
+        f"bomb_action_timestamp lost: got {h_out.bomb_action_timestamp}"
+    )
+    print("  ✓ all v0.3.0+ fields survive scorer→match_doc→store→_to_match_out roundtrip")
+
+
 # ── Runner ────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -512,6 +604,8 @@ if __name__ == "__main__":
         test_label_clutch_plus_defuse,
         test_label_awp_2k_plus_plant,
         test_label_solo_awp_hs,
+        # v0.3.0-beta-2 — persist roundtrip sentinel
+        test_bomb_action_tick_survives_persist_roundtrip,
         # End-to-end
         test_clutch_bonus_added_to_score,
         test_defuse_bonus_added_to_score,

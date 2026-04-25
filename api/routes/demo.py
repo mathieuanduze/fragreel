@@ -131,6 +131,14 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
                     # v0.3.0-alpha — payload pro capture_script clusterizar
                     "kill_ticks":            h.kill_ticks,
                     "kill_timestamps":       h.kill_timestamps,
+                    # v0.3.0-beta-2 — bomb event tick (None se não tem bomb action)
+                    # 3º elo dropping da cadeia que escapou no commit 6334960:
+                    # scorer popula → Highlight tem (após c1ca4c6) → demo.py
+                    # esquece de incluir no match_doc → store salva sem → matches.py
+                    # carrega null → cluster_round_kills_v2 fallback → defuse/plant
+                    # truncados. PC smoke test pegou em 25/04 madrugada-3.
+                    "bomb_action_tick":      h.bomb_action_tick,
+                    "bomb_action_timestamp": h.bomb_action_timestamp,
                 }
                 for h in highlights
             ],
