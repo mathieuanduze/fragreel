@@ -235,14 +235,21 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         start_tick: Math.max(0, Math.floor(h.start * CS2_TICKRATE)),
         end_tick: Math.max(1, Math.floor(h.end * CS2_TICKRATE)),
         // v0.3.0-alpha: repassa `kill_ticks` / `kill_timestamps` do server
-        // pra cada highlight. Client v0.3.0-beta usa pra `cluster_round_kills()`
-        // capturar só os trechos com ação dentro do round (gap=10s, pad
-        // ±5s/±3.5s) em vez do round inteiro. Clients v0.2.x ignoram esses
-        // campos e caem no round window completo (fallback gracioso).
-        // Demos parseadas por scorers pre-v0.3.0-alpha não têm esses campos
-        // e o spread de `undefined` faz JSON.stringify omitir as chaves.
+        // pra cada highlight. Client v0.3.0-beta+ usa pra `cluster_round_kills()`
+        // capturar só os trechos com ação dentro do round em vez do round
+        // inteiro. Clients v0.2.x ignoram esses campos e caem no round window
+        // completo (fallback gracioso). Demos parseadas por scorers
+        // pre-v0.3.0-alpha não têm esses campos e o spread de `undefined`
+        // faz JSON.stringify omitir as chaves.
         kill_ticks: h.kill_ticks,
         kill_timestamps: h.kill_timestamps,
+        // v0.3.0-beta-2: scenario context pro cluster_round_kills_v2
+        // ajustar pads + garantir cobertura inteira de plant/defuse.
+        // Vê algoritmo final em [[v0.3 Cluster Tuning Research]].
+        clutch_situation: h.clutch_situation,
+        is_round_winning_kill: h.is_round_winning_kill,
+        bomb_action: h.bomb_action,
+        bomb_action_tick: h.bomb_action_tick,
       }));
 
       // Sem player name + steamid64, o capture_script.py cai pro free-cam

@@ -268,6 +268,9 @@ def _to_match_out(doc: dict) -> MatchOut:
             is_round_winning_kill=h.get("is_round_winning_kill", False),
             kill_ticks=h.get("kill_ticks", []),
             kill_timestamps=h.get("kill_timestamps", []),
+            # v0.3.0-beta-2 — bomb action tick (back-calc anim window in client)
+            bomb_action_tick=h.get("bomb_action_tick"),
+            bomb_action_timestamp=h.get("bomb_action_timestamp"),
         ))
 
     return MatchOut(

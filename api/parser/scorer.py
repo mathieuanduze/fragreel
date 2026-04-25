@@ -205,6 +205,8 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
         is_round_winning_kill=ctx["is_round_winning_kill"],
         kill_ticks=[k.tick for k in round_kills],
         kill_timestamps=[k.timestamp for k in round_kills],
+        bomb_action_tick=ctx.get("bomb_action_tick"),
+        bomb_action_timestamp=ctx.get("bomb_action_timestamp"),
     )
 
 
@@ -223,6 +225,10 @@ def _enrich_with_round_context(seq: list[Kill], parsed: ParsedDemo) -> dict:
         "won_round": False,
         "bomb_action": None,
         "is_round_winning_kill": False,
+        # v0.3.0-beta-2 — bomb event tick (back-calculated to animation start
+        # by the client; here we store the COMPLETION tick from the demo)
+        "bomb_action_tick": None,
+        "bomb_action_timestamp": None,
     }
 
     if not seq:
@@ -242,6 +248,21 @@ def _enrich_with_round_context(seq: list[Kill], parsed: ParsedDemo) -> dict:
             ctx["bomb_action"] = "defuse"
         elif state.bomb_planted_by == user_steamid:
             ctx["bomb_action"] = "plant_won"
+
+        # v0.3.0-beta-2 — find the actual completion tick of the bomb event
+        # so client can back-calc animation window. Looks up bomb_events parsed
+        # from the demo; matches by round_num + action + steamid.
+        if ctx["bomb_action"]:
+            target_action = "defused" if ctx["bomb_action"] == "defuse" else "planted"
+            for be in parsed.bomb_events:
+                if (
+                    be.round_num == round_num
+                    and be.action == target_action
+                    and be.player_steamid == user_steamid
+                ):
+                    ctx["bomb_action_tick"] = int(be.tick)
+                    ctx["bomb_action_timestamp"] = float(be.timestamp)
+                    break
 
     # ── Round-winning kill: last kill of the round AND killer's team won ──────
     if state.user_won and user_steamid:

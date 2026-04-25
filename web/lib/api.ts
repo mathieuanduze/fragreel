@@ -45,6 +45,14 @@ export interface HighlightOut {
   is_round_winning_kill?: boolean;
   kill_ticks?: number[];        // ticks (exatos) de cada kill do user no round
   kill_timestamps?: number[];   // mesmas kills em segundos do jogo (tick / tickrate)
+
+  // v0.3.0-beta-2 — bomb action completion tick (NÃO é o tick de início da
+  // animação; é quando a bomba foi armada/desarmada). Cliente back-calcula
+  // a janela de animação com PLANT_ANIM=3.2s ou DEFUSE_ANIM_NOKIT=10s
+  // pra garantir cobertura inteira do evento (regra dura "defuse + plant
+  // inteiros"). Null em highlights legados.
+  bomb_action_tick?: number | null;
+  bomb_action_timestamp?: number | null;
 }
 
 export interface MatchStats {

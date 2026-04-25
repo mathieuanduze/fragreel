@@ -141,13 +141,22 @@ export interface RenderSegment {
   end_tick: number;
 
   // v0.3.0-alpha — opcionais. Server expõe em `HighlightOut`; web repassa pro
-  // client que aplica `cluster_round_kills()` (gap=10s, pad ±5s/±3.5s) em
-  // `capture_script.py` v0.3.0-beta pra capturar só os trechos com ação
-  // dentro do round, em vez do round inteiro. Client v0.2.x ignora esses
-  // campos — fallback gracioso pra round window completo. Detalhes:
-  // `v0.3 Plano Produto.md` §2 linhas 164-189 (algoritmo + garantia de echo).
+  // client que aplica `cluster_round_kills()` em `capture_script.py` pra
+  // capturar só os trechos com ação dentro do round. Client v0.2.x ignora —
+  // fallback gracioso pra round window completo.
   kill_ticks?: number[];
   kill_timestamps?: number[];
+
+  // v0.3.0-beta-2 — scenario context pro client decidir pads/buffers extras:
+  //   • clutch_situation → pad_pre += 3s flat (POV, não escala com N)
+  //   • is_round_winning_kill → pad_post += 3s
+  //   • bomb_action + bomb_action_tick → garante captura inteira da animação
+  //     (plant 3.2s ou defuse 10s no-kit). Cliente back-calcula start tick.
+  //   Algoritmo cluster_round_kills_v2 spec em [[v0.3 Cluster Tuning Research]].
+  clutch_situation?: "1v1" | "1v2" | "1v3" | "1v4" | "1v5" | null;
+  is_round_winning_kill?: boolean;
+  bomb_action?: "defuse" | "plant_won" | null;
+  bomb_action_tick?: number | null;
 }
 
 export interface LocalRenderPlan {

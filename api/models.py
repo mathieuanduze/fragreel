@@ -52,6 +52,15 @@ class HighlightOut(BaseModel):
     # Defaults vazios mantêm compatibilidade com highlights legados.
     kill_ticks: list[int] = []           # ticks de cada kill do user no round
     kill_timestamps: list[float] = []    # mesmas kills em segundos do jogo
+    # ── v0.3.0-beta-2 — bomb event tick para cluster_round_kills_v2 ───────────
+    # Tick exato de COMPLETION da ação de bomba (planted/defused) feita pelo
+    # PRÓPRIO USER. Permite que o client garanta cobertura inteira da animação
+    # (plant 3.2s ou defuse 10s no-kit) na janela de captura, conforme regra
+    # dura "defuse + plant inteiros" (Mathieu, 25/04/2026).
+    # Server lê de ParsedDemo.bomb_events e popula só quando bomb_action está
+    # set E foi pelo user. None pra highlights legados.
+    bomb_action_tick: Optional[int] = None
+    bomb_action_timestamp: Optional[float] = None
 
 
 class MatchStats(BaseModel):
