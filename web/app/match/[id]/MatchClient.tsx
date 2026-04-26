@@ -337,12 +337,26 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
       // esse, com fallback no Steam display name pra demos antigas.
       const user = getUser();
       const inGameName = match.player_name || user?.name || undefined;
+      // Round 4c Fase 1.6 (Bug PC test 26/04): full ReelProps payload
+      // pro Remotion compositor. Sem isso, hlae_runner passa base_props={}
+      // → composition cai em defaultProps (MOCK_REEL_PROPS = Dust2/mathieu
+      // mock) → MP4 vem com dados errados apesar do pipeline OK. Schema
+      // deve bater com editor/src/types.ts ReelProps.
+      const selectedRanks = selectedHighlights.map((h) => h.rank);
+      const reelProps = {
+        match,                                              // full MatchOut do server
+        selectedRanks,                                      // user's selection
+        mood,                                               // user's mood pick
+        playerName: inGameName ?? "Player",                 // in-game name (preferred over Steam display)
+        orientation: orientation as "vertical" | "horizontal",
+      };
       try {
         await startLocalRender({
           demo_path: localDemo.demo_path,
           segments,
           user_steamid64: user?.steamid || undefined,
           user_player_name: inGameName,
+          reel_props: reelProps,
         });
         setLocalRender(true);
         setRenderDuration(

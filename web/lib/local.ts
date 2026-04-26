@@ -6,6 +6,8 @@
  * estado "instale/abra o FragReel".
  */
 
+import type { MatchOut } from "./api";
+
 export const LOCAL_BASE = "http://127.0.0.1:5775";
 
 export interface LocalDemo {
@@ -171,6 +173,23 @@ export interface LocalRenderPlan {
    *  capture script falls back to free-cam and the camera stays static at
    *  the spawn point. v0.2.6+ wires this through end-to-end. */
   user_player_name?: string;
+  /** Round 4c Fase 1.6 — full ReelProps payload pro Remotion compositor.
+   *  Mirror exato de api/models.py RenderPlanRequest props (computed em
+   *  routes/matches.py /render-plan endpoint). Sem isso, hlae_runner passa
+   *  base_props={} pro Remotion → composition cai em defaultProps
+   *  (MOCK_REEL_PROPS = Dust2/mathieu mock) → MP4 vem com dados errados
+   *  apesar do pipeline rodar OK.
+   *  PC test 26/04 catched: pipeline PASS mas conteúdo FAIL (Dust2 vs Inferno
+   *  real, mock player name vs ZE_CHAMINE.GiF, mock rounds R14/R22/R7 vs
+   *  payload pediu R7/R8/R14, etc).
+   *  Schema deve bater com editor/src/types.ts ReelProps. */
+  reel_props?: {
+    match: MatchOut;
+    selectedRanks: number[];
+    mood: "eletronica" | "acao" | "heroico" | "chill";
+    playerName: string;
+    orientation?: "vertical" | "horizontal";
+  };
   record_name?: string;
   stream_name?: string;
   /** Force-terminate a running CS2 instance. Default false (we refuse). */
