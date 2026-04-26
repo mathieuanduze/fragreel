@@ -81,6 +81,10 @@ export const getDimensions = (orientation: Orientation = "vertical") =>
 // Tracks MP3 presentes em public/music/? Ativado em 2026-04-22 quando as 4
 // trilhas Pixabay CC0 foram adicionadas (eletronica/acao/heroico/chill.mp3).
 // Ver Obsidian nota 09 pro guia de moods.
+// v0.3.1 (Round 4c Fase 1.10): MUSIC_ENABLED é override GLOBAL (debug).
+// Em produção, controle vem de ReelProps.musicEnabled (default true,
+// user pode desligar via UI toggle). Mantido aqui pra dev preview no
+// Studio (Studio não passa props customizados, usa MOCK_REEL_PROPS).
 export const MUSIC_ENABLED = true;
 
 // Helper: segundos → frames
@@ -88,9 +92,18 @@ export const s2f = (sec: number) => Math.round(sec * FPS);
 
 // Duração de highlight em segundos, derivada de highlight.end - highlight.start.
 // Aplicamos um clamp pra não ter cena de 1s (vira flash imperceptível) nem
-// de 30s (cansa o viewer no formato vertical). Bounds diferentes por formato.
-export const REEL_HIGHLIGHT_BOUNDS = { min: 3, max: 7 } as const;
-export const RECAP_HIGHLIGHT_BOUNDS = { min: 4, max: 10 } as const;
+// de 30s+ (cansa o viewer no formato vertical). Bounds diferentes por formato.
+//
+// v0.3.1 Round 4c Fase 1.10 (Mathieu spec confirmada): max bumped 7 → 35.
+// REASON: spec produto é "real-time SEMPRE — sem time-lapse/fast cuts".
+// Antes, source de 32s (com cluster_round_kills_v2 PAD 7+5 + bomb extension)
+// + scene clamp 7s = playbackRate 4.5x → gunfights ilegíveis ("acelerado").
+// Agora scene = source duration garante playbackRate ≈ 1.0 (real-time).
+// Trade: MP4 final fica ~80s pra 3 highlights vs 25s anterior — aceitável
+// pra Reels/TikTok (cap 90s) e legibilidade infinitamente melhor.
+// Cluster v0.3.0-beta-2 já garante max ~30s/highlight (PAD + clamps).
+export const REEL_HIGHLIGHT_BOUNDS = { min: 3, max: 35 } as const;
+export const RECAP_HIGHLIGHT_BOUNDS = { min: 4, max: 45 } as const;
 
 export function clampHighlightSec(
   rawSec: number,

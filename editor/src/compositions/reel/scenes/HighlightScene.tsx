@@ -37,12 +37,13 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   // do screen capture do Round 3) > null (cai no placeholder gradient).
   const gameplaySrc = highlight.gameplayVideoSrc ?? highlight.clip_url ?? null;
 
-  // playbackRate: encaixa a duração real do highlight (highlight.end - .start
-  // em segundos do match) no tempo clampado da cena.
-  // - highlight 12s ace, cena clamp 7s → playbackRate 1.71 (fast cut)
-  // - highlight 4s, cena 4s → 1.0 (real-time)
-  // OffthreadVideo abstrai 300fps source → 60fps timeline; só importa segundos.
-  // TODO Round 5: trocar por curva (real-time → slow-mo no momento da kill).
+  // playbackRate: spec produto v0.3.1 (Mathieu confirmou) é real-time
+  // SEMPRE — sem time-lapse/fast cuts. Antes scene clampada a 7s vs source
+  // 32s dava 4.5x acelerado (gunfights ilegíveis). v0.3.1 Round 4c Fase 1.10
+  // bumpou REEL_HIGHLIGHT_BOUNDS.max pra 35s, então scene = source quase
+  // sempre. Aqui ainda calculamos a razão pra defensive: se algum dia source
+  // estourar o max, ainda dá fast cut suave em vez de overflow visual.
+  // No caso comum (source ≤ 35s), gameplayRate = 1.0 (real-time).
   const sourceDurSec = Math.max(0.1, highlight.end - highlight.start);
   const gameplayRate = sourceDurSec / sceneDurationSec;
 
@@ -91,9 +92,14 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
           <OffthreadVideo
             src={gameplaySrc}
             playbackRate={gameplayRate}
-            muted
-            // Volume deixado 0 (muted) — música vem do <Audio> da Composition raiz.
-            // Se quisermos som de gunfire no futuro, mixar via segunda track.
+            // v0.3.1 Round 4c Fase 1.10 (Mathieu spec): som do jogo SEMPRE
+            // presente (tiros, footsteps, voice, defuse beep, plant beep).
+            // Antes muted=true descartava todo audio do .mov ProRes capturado
+            // pelo HLAE. Agora volume=0.85 dá game audio no foreground sem
+            // soterrar a música de fundo (Audio component da composition raiz
+            // tá em volume=0.65). Mix tunado pra game ≥ música, mas música
+            // audível.
+            volume={0.85}
             style={{
               width: "100%",
               height: "100%",
