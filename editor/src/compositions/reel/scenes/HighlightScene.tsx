@@ -6,7 +6,14 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { theme, MOODS, killTimeInSceneSec, s2f } from "../../../theme";
+import {
+  theme,
+  MOODS,
+  killTimeInSceneSec,
+  s2f,
+  HIGHLIGHT_VIDEO_SKIP_SEC,
+  FPS,
+} from "../../../theme";
 import { Highlight } from "../../../types";
 
 type Props = {
@@ -66,10 +73,14 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
     config: { damping: 14, mass: 0.8 },
   });
 
-  // Fade out últimos 6 frames
+  // Round 4c Fase 1.12 — fadeOut bumped 6 → 12 frames (0.4s) pra transição
+  // perceptivelmente mais suave entre rounds. Antes 6 frames era "blink"
+  // (Mathieu reportou cortes abruptos). Combinado com fadeIn no início via
+  // o flash overlay (já existente) o usuário tem ~0.6s de "respiração"
+  // visual entre highlights sem perder ritmo.
   const fadeOut = interpolate(
     frame,
-    [durationInFrames - 6, durationInFrames],
+    [durationInFrames - 12, durationInFrames],
     [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
@@ -92,6 +103,13 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
           <OffthreadVideo
             src={gameplaySrc}
             playbackRate={gameplayRate}
+            // Round 4c Fase 1.12 (Mathieu reportou "vídeo parado por segundos
+            // entre rounds"). startFrom pula HIGHLIGHT_VIDEO_SKIP_SEC × FPS
+            // frames do início do .mov. Pra .movs do HLAE com PAD_PRE = 7s,
+            // pular 2s remove o "comprando arma" e começa em "saindo do spawn /
+            // peek inicial" — muito mais leitura imediata. HighlightsReel
+            // reduz scene duration em SKIP_SEC pra evitar freeze no fim.
+            startFrom={HIGHLIGHT_VIDEO_SKIP_SEC * FPS}
             // v0.3.1 Round 4c Fase 1.10 (Mathieu spec): som do jogo SEMPRE
             // presente (tiros, footsteps, voice, defuse beep, plant beep).
             // Antes muted=true descartava todo audio do .mov ProRes capturado

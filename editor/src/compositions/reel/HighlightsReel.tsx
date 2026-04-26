@@ -7,6 +7,7 @@ import {
 import { Highlight, ReelProps } from "../../types";
 import {
   FPS,
+  HIGHLIGHT_VIDEO_SKIP_SEC,
   MOODS,
   MUSIC_ENABLED,
   REEL_HIGHLIGHT_BOUNDS,
@@ -20,11 +21,26 @@ import { Outro } from "./scenes/Outro";
 // Durações fixas (em segundos) — só intro e outro são fixas.
 // A duração de cada highlight vem do dado real (h.end - h.start),
 // com clamp em REEL_HIGHLIGHT_BOUNDS pra evitar flash ou tédio.
-export const INTRO_SEC = 2;
-export const OUTRO_SEC = 2.5;
+//
+// Round 4c Fase 1.12 (Mathieu reportou "transições MUITO lentas, vídeo
+// parado por segundos entre rounds"). INTRO 2 → 1.2s e OUTRO 2.5 → 1.5s
+// cortam 1.8s de "branding dead time" sem comprometer leitura de
+// player_name/mapa/score (springs no Intro estabilizam em ~25 frames =
+// 0.83s; resto era margem demais).
+export const INTRO_SEC = 1.2;
+export const OUTRO_SEC = 1.5;
 
-const highlightDurationSec = (h: Highlight) =>
-  clampHighlightSec(h.end - h.start, REEL_HIGHLIGHT_BOUNDS);
+// HIGHLIGHT_VIDEO_SKIP_SEC vive em theme.ts (canonical) pra evitar circular
+// import HighlightScene → HighlightsReel.
+
+// Fase 1.12 — duração efetiva = source duration - SKIP. Como pulamos 2s do
+// início via OffthreadVideo startFrom, a scene precisa ficar 2s mais curta
+// pra não rodar pro fim do .mov e dar freeze/black no end. Mantém
+// playbackRate ≈ 1.0 (real-time spec) e clamp REEL_BOUNDS aplica depois.
+const highlightDurationSec = (h: Highlight) => {
+  const rawSec = h.end - h.start - HIGHLIGHT_VIDEO_SKIP_SEC;
+  return clampHighlightSec(rawSec, REEL_HIGHLIGHT_BOUNDS);
+};
 
 export const calcReelDurationFromHighlights = (highlights: Highlight[]) => {
   const sumSec = highlights.reduce((acc, h) => acc + highlightDurationSec(h), 0);

@@ -66,6 +66,16 @@ export const MOODS: Record<string, MoodDef> = {
 // Frames por segundo do projeto — 30fps para render rápido no Railway
 export const FPS = 30;
 
+// Round 4c Fase 1.12 — pula primeiros N segundos de cada .mov de gameplay.
+// Cluster v0.3.0-beta-2 usa PAD_PRE = 7s pra (a) HLAE warmup + (b) ver
+// player se posicionar. Mas Mathieu reportou (post-Fase 1.10) que o início
+// de cada highlight tem "vídeo parado por segundos" — os primeiros 2s do
+// PAD são compra de arma / walk irrelevante. SKIP=2s deixa highlight
+// começar no peek/posicionamento real, mantendo 5s de warmup pré-tiro.
+// Aplicado via OffthreadVideo startFrom + redução de scene duration em
+// HighlightsReel.tsx (senão dá freeze de 2s no fim da cena).
+export const HIGHLIGHT_VIDEO_SKIP_SEC = 2.0;
+
 // Dimensões por orientação. Vertical = TikTok/Reels/Shorts; Horizontal = YouTube/Twitch.
 // Helper único pra evitar 1080/1920 mágicos espalhados pelo código.
 export const DIMENSIONS = {
