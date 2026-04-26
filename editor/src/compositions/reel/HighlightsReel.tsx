@@ -59,8 +59,17 @@ export const HighlightsReel: React.FC<ReelProps> = ({
   selectedRanks,
   mood,
   playerName,
+  musicEnabled,
 }) => {
   const moodDef = MOODS[mood];
+
+  // Round 4c Fase 1.17 — música tocada quando user opt-in via UI toggle no
+  // match-page (default true). MUSIC_ENABLED é override GLOBAL pra debug:
+  // se setado false em theme.ts, força mute mesmo se props pedir música.
+  // Resolução: precisa BOTH o global ON E o user toggle não-explícito-false.
+  // (musicEnabled === undefined fallback pra true pra compat com Studio
+  // preview que não passa props customizados.)
+  const playMusic = MUSIC_ENABLED && musicEnabled !== false;
 
   const selected = match.highlights
     .filter((h) => selectedRanks.includes(h.rank))
@@ -88,7 +97,7 @@ export const HighlightsReel: React.FC<ReelProps> = ({
 
   return (
     <AbsoluteFill>
-      {MUSIC_ENABLED && (
+      {playMusic && (
         <Audio
           src={staticFile(moodDef.file)}
           volume={0.65}

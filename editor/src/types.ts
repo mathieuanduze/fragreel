@@ -64,6 +64,11 @@ export type ReelProps = {
   // Orientação do vídeo de saída. Default vertical (formato story/reel).
   // horizontal usa 16:9 (1920x1080) — ideal pra YouTube/Twitch.
   orientation?: Orientation;
+  // Round 4c Fase 1.17 — toggle de música de fundo controlado pelo usuário
+  // no match-page (UI). Game audio (tiros/passos/voice) sempre presente,
+  // só a trilha mood que pode ser muted. Default true. Quando false, o
+  // <Audio> da trilha não é renderizado — só o áudio do <OffthreadVideo>.
+  musicEnabled?: boolean;
 };
 
 export type CardProps = {

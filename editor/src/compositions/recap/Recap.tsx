@@ -54,8 +54,12 @@ export const Recap: React.FC<ReelProps> = ({
   selectedRanks,
   mood,
   playerName,
+  musicEnabled,
 }) => {
   const moodDef = MOODS[mood];
+
+  // Round 4c Fase 1.17 — mesmo flag de toggle do HighlightsReel.
+  const playMusic = MUSIC_ENABLED && musicEnabled !== false;
 
   const selected = match.highlights
     .filter((h) => selectedRanks.includes(h.rank))
@@ -83,7 +87,7 @@ export const Recap: React.FC<ReelProps> = ({
 
   return (
     <AbsoluteFill>
-      {MUSIC_ENABLED && (
+      {playMusic && (
         <Audio src={staticFile(moodDef.file)} volume={0.6} startFrom={0} />
       )}
 

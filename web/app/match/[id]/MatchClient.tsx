@@ -162,6 +162,10 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     new Set(initialMatch.highlights.slice(0, Math.min(SCENE_CAPS.reel, 3)).map((h) => h.rank))
   );
   const [mood, setMood] = useState<Mood>("acao");
+  // Round 4c Fase 1.17 — toggle música. Default ON (mantém comportamento
+  // anterior). Quando OFF, só game audio (tiros/passos/voice/bomb beep)
+  // toca no MP4 final.
+  const [musicEnabled, setMusicEnabled] = useState<boolean>(true);
   // vertical = TikTok/Reels (default); horizontal = YouTube/Twitch.
   // Card é sempre vertical (formato semântico do produto), backend força.
   const [orientation, setOrientation] = useState<Orientation>("vertical");
@@ -349,6 +353,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         mood,                                               // user's mood pick
         playerName: inGameName ?? "Player",                 // in-game name (preferred over Steam display)
         orientation: orientation as "vertical" | "horizontal",
+        musicEnabled,                                       // Fase 1.17 toggle
       };
       try {
         await startLocalRender({
@@ -903,19 +908,22 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
               {MOODS.map((m) => {
                 const active = mood === m.id;
+                const dimmed = !musicEnabled;
                 return (
                   <button
                     key={m.id}
                     onClick={() => setMood(m.id)}
+                    disabled={dimmed}
                     style={{
                       padding: "14px 16px",
                       borderRadius: 10,
                       border: active ? `2px solid ${m.color}` : "1px solid #2D2D44",
                       background: active ? `${m.color}12` : "#16213E",
-                      cursor: "pointer",
+                      cursor: dimmed ? "not-allowed" : "pointer",
                       textAlign: "left",
                       position: "relative",
-                      transition: "border-color 0.15s, background 0.15s",
+                      transition: "border-color 0.15s, background 0.15s, opacity 0.15s",
+                      opacity: dimmed ? 0.35 : 1,
                     }}
                   >
                     {active && (
@@ -927,6 +935,66 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                   </button>
                 );
               })}
+            </div>
+
+            {/* Round 4c Fase 1.17 — toggle música. Game audio (tiros/passos/voice)
+                sempre presente (não-toggleable per Mathieu spec). Só a trilha mood
+                que é opt-out. UI: row compacto abaixo do grid de moods com switch. */}
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#16213E",
+                border: "1px solid #2D2D44",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
+                  {musicEnabled ? "🎵 Música de fundo ativa" : "🔇 Sem música"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                  {musicEnabled
+                    ? "Trilha toca por baixo do som do jogo (tiros/passos/voz sempre presentes)."
+                    : "Só áudio do jogo (tiros/passos/voz). Use pra postar onde a música pode dar copyright strike."}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMusicEnabled((v) => !v)}
+                aria-pressed={musicEnabled}
+                aria-label="Alternar música de fundo"
+                style={{
+                  position: "relative",
+                  width: 48,
+                  height: 26,
+                  borderRadius: 13,
+                  border: "none",
+                  background: musicEnabled ? "#FF6B35" : "#2D2D44",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                  padding: 0,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: musicEnabled ? 25 : 3,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "white",
+                    transition: "left 0.15s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  }}
+                />
+              </button>
             </div>
           </div>
         )}
