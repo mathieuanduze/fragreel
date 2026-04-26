@@ -45,14 +45,22 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   const gameplaySrc = highlight.gameplayVideoSrc ?? highlight.clip_url ?? null;
 
   // playbackRate: spec produto v0.3.1 (Mathieu confirmou) é real-time
-  // SEMPRE — sem time-lapse/fast cuts. Antes scene clampada a 7s vs source
-  // 32s dava 4.5x acelerado (gunfights ilegíveis). v0.3.1 Round 4c Fase 1.10
-  // bumpou REEL_HIGHLIGHT_BOUNDS.max pra 35s, então scene = source quase
-  // sempre. Aqui ainda calculamos a razão pra defensive: se algum dia source
-  // estourar o max, ainda dá fast cut suave em vez de overflow visual.
-  // No caso comum (source ≤ 35s), gameplayRate = 1.0 (real-time).
+  // SEMPRE — sem time-lapse/fast cuts. Round 4c Fase 1.10 bumpou
+  // REEL_HIGHLIGHT_BOUNDS.max pra 35s, então scene = source - SKIP quase
+  // sempre. Calculamos rate defensive: se algum dia source - SKIP estourar
+  // o max, dá leve fast-forward em vez de overflow visual.
+  //
+  // Round 4c Fase 1.18 BUG FIX (Mathieu reportou "cena trava antes de
+  // passar pra próxima"): o cálculo antigo usava `sourceDurSec / sceneDur`,
+  // mas com OffthreadVideo startFrom = SKIP, o vídeo só tem
+  // `(sourceDurSec - SKIP)` segundos PLAYABLES. Quando rate < 1.0 (ou
+  // = 1.0 mas scene > availableVideo), OffthreadVideo termina antes da
+  // Sequence acabar → último frame congela = "cena trava". Fix: usar
+  // availableVideoSec no numerator. Caso comum (sourceDur=30s SKIP=2):
+  // available=28s, scene=28s, rate=1.0. SEM freeze.
   const sourceDurSec = Math.max(0.1, highlight.end - highlight.start);
-  const gameplayRate = sourceDurSec / sceneDurationSec;
+  const availableVideoSec = Math.max(0.1, sourceDurSec - HIGHLIGHT_VIDEO_SKIP_SEC);
+  const gameplayRate = availableVideoSec / sceneDurationSec;
 
   // Flash branco no frame 0 (impacto)
   const flash = interpolate(frame, [0, 4, 8], [1, 0.3, 0], {
@@ -73,14 +81,15 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
     config: { damping: 14, mass: 0.8 },
   });
 
-  // Round 4c Fase 1.12 — fadeOut bumped 6 → 12 frames (0.4s) pra transição
-  // perceptivelmente mais suave entre rounds. Antes 6 frames era "blink"
-  // (Mathieu reportou cortes abruptos). Combinado com fadeIn no início via
-  // o flash overlay (já existente) o usuário tem ~0.6s de "respiração"
-  // visual entre highlights sem perder ritmo.
+  // Round 4c Fase 1.18 (revertido 12 → 6 frames). Fase 1.12 bumpou pra 12
+  // frames buscando "respiração" mais suave, mas Mathieu reportou que
+  // transições "continuam muito demoradas". Ritmo > suavidade pra reel
+  // mobile. SKIP_SEC=4.5 (Fase 1.18) já corta dead time pesado, então o
+  // fadeOut volta pra 6 frames (0.2s) — "blink" que mantém leitura sem
+  // adicionar mais 0.4s de fade no fim de cada cena.
   const fadeOut = interpolate(
     frame,
-    [durationInFrames - 12, durationInFrames],
+    [durationInFrames - 6, durationInFrames],
     [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );

@@ -102,6 +102,14 @@ export const HighlightsReel: React.FC<ReelProps> = ({
           src={staticFile(moodDef.file)}
           volume={0.65}
           startFrom={0}
+          // Round 4c Fase 1.18 (Mathieu reportou "no final do vídeo não tem
+          // mais música"): MP3s das trilhas (heroico/acao/eletronica/chill)
+          // têm duração ~60-90s. Reel hoje pode passar 100s+ (3 highlights
+          // ~28s cada após Fase 1.12). Sem loop, música acaba meio do reel.
+          // `loop` prop reinicia o áudio do início — música cobre 100% do
+          // playback. BPM da trilha mantido (loop é seamless pra tracks
+          // calibrados, descontinuidade aceitável pra material royalty-free).
+          loop
         />
       )}
 
