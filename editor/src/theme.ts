@@ -110,7 +110,12 @@ export const effectiveSkipSec = (sourceDurSec: number): number =>
 //
 // Reel inteiro fica ~9s mais curto pra 3 highlights — aceitável trade
 // vs sumir freeze que parece bug.
-export const HIGHLIGHT_VIDEO_TAIL_SKIP_SEC = 3.0;
+// Round 4c Fase 1.21 (Mathieu pós-Fase 1.20 PASS): "transições ainda
+// estão demorando muito entre plays, não precisa de um pause tão longo
+// entre cada cena". TAIL 3.0 → 4.5s — corta mais 1.5s do tail (era
+// "defuse + 2s reaction"; agora "defuse + 0.5s reaction"). Plus
+// fadeOut 6→3 frames (HighlightScene) acelera o cut em si.
+export const HIGHLIGHT_VIDEO_TAIL_SKIP_SEC = 4.5;
 
 // effectiveTailSkipSec — mesma lógica de clamp pra clusters curtos.
 // Não pode roubar mais que 50% do que sobrou pós-SKIP_FRONT senão

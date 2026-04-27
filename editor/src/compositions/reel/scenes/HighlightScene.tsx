@@ -94,15 +94,15 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
     config: { damping: 14, mass: 0.8 },
   });
 
-  // Round 4c Fase 1.18 (revertido 12 → 6 frames). Fase 1.12 bumpou pra 12
-  // frames buscando "respiração" mais suave, mas Mathieu reportou que
-  // transições "continuam muito demoradas". Ritmo > suavidade pra reel
-  // mobile. SKIP_SEC=4.5 (Fase 1.18) já corta dead time pesado, então o
-  // fadeOut volta pra 6 frames (0.2s) — "blink" que mantém leitura sem
-  // adicionar mais 0.4s de fade no fim de cada cena.
+  // Round 4c Fase 1.21 (Mathieu re-cobrou pós-Fase 1.20): "transições
+  // ainda estão demorando muito entre plays, não precisa de um pause
+  // tão longo entre cada cena". fadeOut 6 → 3 frames (0.1s) — quase um
+  // direct cut, perdendo "respiração" mas ganhando ritmo. Combinado com
+  // TAIL_SKIP 4.5s (Fase 1.21 theme.ts) corta dead time + cut rápido =
+  // sensação de "edição profissional" sem pause perceptível.
   const fadeOut = interpolate(
     frame,
-    [durationInFrames - 6, durationInFrames],
+    [durationInFrames - 3, durationInFrames],
     [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
@@ -351,10 +351,14 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
       />
 
       {/* Rank badge — top left (mesmo lugar nos dois formatos).
-          Round 4c Fase 1.19 (Mathieu: "#1 R8 não é autoexplicativo"):
-          adicionado label "JOGADA" + "ROUND" pra primeira leitura clara
-          em mobile. Mantém badge visual + acrescenta texto contextual
-          em coluna ao lado. */}
+          Round 4c Fase 1.21 (Mathieu re-cobrou pós-Fase 1.19): "Round 8
+          repete embaixo, info que está lá não serve pra nada. Importante
+          seria: quantos players vivos CT vs T, quanta vida o user tem".
+          Redesign: remove "JOGADA + Round N" redundante, mostra info
+          ÚTIL derivada do kills array (sem mudar API/parser): contagem
+          de kills + headshots. Pra alive count CT vs T + HP do user
+          precisaria enrich Highlight type via parser — TODO Fase 1.22+
+          (h.context.alive_ct, h.context.alive_t, h.context.user_hp). */}
       <div
         style={{
           position: "absolute",
@@ -396,33 +400,37 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 2,
+            gap: 4,
           }}
         >
+          {/* Big número de kills — info imediata "quantas frags foi essa play" */}
           <div
             style={{
-              fontSize: isHorizontal ? 13 : 15,
-              fontWeight: 800,
-              color: moodDef.color,
-              letterSpacing: "0.18em",
+              fontSize: isHorizontal ? 28 : 34,
+              fontWeight: 900,
+              color: theme.text,
+              letterSpacing: "-0.02em",
               fontFamily: theme.fontDisplay,
               lineHeight: 1,
             }}
           >
-            JOGADA
+            {highlight.kills.length} KILLS
           </div>
-          <div
-            style={{
-              fontSize: isHorizontal ? 18 : 22,
-              fontWeight: 700,
-              color: theme.text,
-              letterSpacing: "0.05em",
-              fontFamily: theme.fontDisplay,
-              lineHeight: 1.1,
-            }}
-          >
-            Round {highlight.round_num}
-          </div>
+          {/* Detalhe: HS count colorido pro mood. Só mostra se houver. */}
+          {highlight.kills.filter((k) => k.headshot).length > 0 && (
+            <div
+              style={{
+                fontSize: isHorizontal ? 14 : 16,
+                fontWeight: 800,
+                color: moodDef.color,
+                letterSpacing: "0.12em",
+                fontFamily: theme.fontDisplay,
+                lineHeight: 1,
+              }}
+            >
+              {highlight.kills.filter((k) => k.headshot).length} HS
+            </div>
+          )}
         </div>
       </div>
 

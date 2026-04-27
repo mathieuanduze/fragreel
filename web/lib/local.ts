@@ -189,6 +189,7 @@ export interface LocalRenderPlan {
     mood: "eletronica" | "acao" | "heroico" | "chill";
     playerName: string;
     orientation?: "vertical" | "horizontal";
+    musicEnabled?: boolean;
   };
   record_name?: string;
   stream_name?: string;
@@ -196,6 +197,11 @@ export interface LocalRenderPlan {
   force?: boolean;
   /** Optional client-side id the web can use to correlate sessions. */
   render_id?: string;
+  /** Round 4c Fase 1.21 — x-ray opt-in. Quando true, capture.cfg emite
+   *  `spec_show_xray 1` (silhuetas glow players através de paredes em
+   *  spec mode). Default false (cinematicamente x-ray distrai do POV).
+   *  Wired pra capture-side via RenderPlan.show_xray no client. */
+  show_xray?: boolean;
 }
 
 export type LocalRenderState =

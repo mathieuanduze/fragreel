@@ -166,6 +166,11 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
   // anterior). Quando OFF, só game audio (tiros/passos/voice/bomb beep)
   // toca no MP4 final.
   const [musicEnabled, setMusicEnabled] = useState<boolean>(true);
+  // Round 4c Fase 1.21 — toggle x-ray (silhuetas glow dos players através
+  // de paredes em spec mode). Default OFF (cinematicamente x-ray distrai
+  // do gameplay POV). User opt-in via UI. Web envia `show_xray` no payload
+  // pro client converter em cvar `spec_show_xray 1` no capture.cfg.
+  const [xrayEnabled, setXrayEnabled] = useState<boolean>(false);
   // vertical = TikTok/Reels (default); horizontal = YouTube/Twitch.
   // Card é sempre vertical (formato semântico do produto), backend força.
   const [orientation, setOrientation] = useState<Orientation>("vertical");
@@ -362,6 +367,8 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           user_steamid64: user?.steamid || undefined,
           user_player_name: inGameName,
           reel_props: reelProps,
+          // Round 4c Fase 1.21 — x-ray opt-in (capture-side cvar).
+          show_xray: xrayEnabled,
         });
         setLocalRender(true);
         setRenderDuration(
@@ -986,6 +993,68 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                     position: "absolute",
                     top: 3,
                     left: musicEnabled ? 25 : 3,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "white",
+                    transition: "left 0.15s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  }}
+                />
+              </button>
+            </div>
+
+            {/* Round 4c Fase 1.21 — toggle x-ray (silhuetas glow dos
+                players através de paredes em spec mode CS2). Default OFF
+                pq cinematicamente distrai do POV gameplay. User opt-in
+                pra estilo "wallhack reveal" mais espetacular. Mesmo
+                pattern do music toggle pra consistência UX. */}
+            <div
+              style={{
+                marginTop: 12,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#16213E",
+                border: "1px solid #2D2D44",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
+                  {xrayEnabled ? "👁 X-ray ativo" : "👁‍🗨 Sem X-ray"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                  {xrayEnabled
+                    ? "Silhuetas dos players aparecem através das paredes (estilo wallhack reveal)."
+                    : "Sem silhuetas — gameplay POV puro, sem revelar posições inimigas."}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setXrayEnabled((v) => !v)}
+                aria-pressed={xrayEnabled}
+                aria-label="Alternar x-ray"
+                style={{
+                  position: "relative",
+                  width: 48,
+                  height: 26,
+                  borderRadius: 13,
+                  border: "none",
+                  background: xrayEnabled ? "#a78bfa" : "#2D2D44",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                  padding: 0,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: xrayEnabled ? 25 : 3,
                     width: 20,
                     height: 20,
                     borderRadius: "50%",
