@@ -665,26 +665,31 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
       {/* Round 4c Fase 1.29 (revisão Mathieu): WATERMARK
           "Vídeo gerado por fragreel.gg" — bottom-right, sutil mas
           legível. Serve como atribuição/CTA pra growth orgânico via
-          reels postados em redes sociais. */}
+          reels postados em redes sociais.
+          Round 4c Fase 1.36 (Mathieu pós-PASS Round 4c): "watermark
+          fragreel.gg tem que ser maior do que o estado atual".
+          fontSizes bumped ~50%, padding +30%, opacity 0.85→0.92.
+          Mais legível em mobile screens pequenos sem competir com
+          gameplay no centro. */}
       <div
         style={{
           position: "absolute",
           bottom: isHorizontal ? 32 : 56,
           right: isHorizontal ? 32 : 40,
-          opacity: 0.85,
+          opacity: 0.92,
           display: "flex",
           alignItems: "center",
-          gap: 5,
-          padding: isHorizontal ? "5px 11px" : "6px 13px",
-          background: "rgba(0,0,0,0.6)",
-          backdropFilter: "blur(6px)",
-          borderRadius: 5,
-          border: `1px solid ${moodDef.color}30`,
+          gap: 7,
+          padding: isHorizontal ? "7px 14px" : "9px 17px",
+          background: "rgba(0,0,0,0.65)",
+          backdropFilter: "blur(8px)",
+          borderRadius: 7,
+          border: `1px solid ${moodDef.color}40`,
         }}
       >
         <span
           style={{
-            fontSize: isHorizontal ? 10 : 12,
+            fontSize: isHorizontal ? 14 : 17,
             fontWeight: 700,
             color: theme.textMuted,
             letterSpacing: "0.05em",
@@ -695,7 +700,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
         </span>
         <span
           style={{
-            fontSize: isHorizontal ? 12 : 14,
+            fontSize: isHorizontal ? 17 : 20,
             fontWeight: 900,
             color: moodDef.color,
             letterSpacing: "-0.01em",
