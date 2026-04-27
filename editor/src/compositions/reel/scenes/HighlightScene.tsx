@@ -16,6 +16,9 @@ import {
   effectiveSkipSec,
   effectiveTailSkipSec,
   effectiveSceneEndSec,
+  refStartSec,
+  refSourceDurSec,
+  resolveAliveAt,
 } from "../../../theme";
 import { Highlight } from "../../../types";
 
@@ -23,6 +26,9 @@ type Props = {
   highlight: Highlight;
   mood: keyof typeof MOODS;
   index: number; // 0, 1, 2... para variação de estilo
+  // Round 4c Fase 1.27 — toggle scoreboard (default true). User opt-out
+  // via UI no match-page. Quando false, badge só mostra `#N` rank.
+  showScoreboard?: boolean;
 };
 
 /**
@@ -34,7 +40,7 @@ type Props = {
  *   2. Scanlines, flash de impacto, gradient overlays (linguagem visual).
  *   3. Rank badge, label, kill feed (HUD overlays).
  */
-export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
+export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showScoreboard = true }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames, width, height } = useVideoConfig();
   const moodDef = MOODS[mood];
@@ -61,25 +67,34 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   // Sequence acabar → último frame congela = "cena trava". Fix: usar
   // availableVideoSec no numerator. Caso comum (sourceDur=30s SKIP=2):
   // available=28s, scene=28s, rate=1.0. SEM freeze.
-  const sourceDurSec = Math.max(0.1, highlight.end - highlight.start);
-  // Round 4c Fase 1.22 (Mathieu reportou pós-Fase 1.21: "vídeo fica
-  // pausado por 1 segundo antes da transição, parece que trava"). TAIL
-  // fixo cortava do FIM do source — quando última kill era cedo no
-  // cluster, sobrava dead time pós-action visível. Fix: kill-aware
-  // sceneEndSec via theme helper (last_kill + REACTION_PAD), capped
-  // pelo TAIL fallback. Available video = sceneEndSec - frontSkip,
-  // mesma fórmula da scene duration em HighlightsReel — DEVEM bater
-  // pra evitar freeze edge no fim.
+  // Round 4c Fase 1.28 — sourceDur mov-aware (refSourceDurSec) consistente
+  // com HighlightsReel.highlightDurationSec. Quando hlae_runner popula
+  // gameplayStartSec (cluster window start), refStart = mov first frame,
+  // sourceDur = mov approx duration. Senão fallback round-based.
+  const sourceDurSec = refSourceDurSec(highlight);
   const sceneSkipSec = effectiveSkipSec(sourceDurSec);
   const sceneEndInSourceSec = effectiveSceneEndSec(highlight);
   const availableVideoSec = Math.max(0.1, sceneEndInSourceSec - sceneSkipSec);
   const gameplayRate = availableVideoSec / sceneDurationSec;
 
-  // Round 4c Fase 1.23 — título dinâmico HP + alive count.
-  // Calcula última kill já completada em sceneTime atual e mostra estado
-  // pós-kill: "5v3 · 87HP". Updates em real-time enquanto frame avança.
-  // Fallback pro "{N} KILLS" quando highlight é legado (sem fields).
+  // Round 4c Fase 1.27 — scoreboard ao vivo via alive_timeline.
+  // sceneTime → demoTime (highlight.start + sceneTime - sceneSkip já passou)
+  // Wait: gameplay no Remotion roda real-time, mas startFrom pula sceneSkipSec
+  // do .mov. Então sceneTime no Remotion = (sceneTime + sceneSkip) no source
+  // de gameplay = (highlight.start + sceneSkip + sceneTime) em demo time.
+  // Pra timeline events (que estão em demo time), demoTimeSec é essa soma.
   const sceneTimeSec = frame / fps;
+  // Fase 1.28 — demoTime calc usa refStart (gameplayStartSec quando
+  // available, senão highlight.start) consistente com killTimeInSceneSec.
+  const demoTimeSec = refStartSec(highlight) + sceneSkipSec + sceneTimeSec;
+
+  // Round 4c Fase 1.27 — alive count via timeline completa (todas deaths).
+  // Fallback pro Fase 1.23 (kill-only) quando timeline não disponível.
+  const aliveResolved = resolveAliveAt(highlight, demoTimeSec);
+
+  // HP do user — ainda baseado em última kill completada (não temos
+  // timeline de HP per tick no parser). Mostra HP do último kill.attacker_health
+  // disponível em sceneTime atual.
   const killTimings = highlight.kills.map((k, i) => ({
     kill: k,
     sceneTime: killTimeInSceneSec(
@@ -88,20 +103,18 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
       highlight.kills.length,
       highlight.start,
       sceneDurationSec,
-      sceneSkipSec
+      sceneSkipSec,
+      highlight.gameplayStartSec
     ),
   }));
   const completedKills = killTimings.filter((e) => e.sceneTime <= sceneTimeSec);
   const lastKill = completedKills.length > 0
     ? completedKills[completedKills.length - 1].kill
     : null;
-  // Detect if ANY kill has narrative context (Fase 1.23 fields). Se não,
-  // highlight é legado pré-Fase 1.23 → fallback pro "{N} KILLS".
-  const hasNarrativeContext = highlight.kills.some(
-    (k) => k.alive_ct_after !== undefined || k.attacker_health !== undefined
-  );
-  const dynamicAliveCt = lastKill?.alive_ct_after ?? 5;
-  const dynamicAliveT = lastKill?.alive_t_after ?? 5;
+
+  const hasScoreboardContext = aliveResolved.hasTimeline;
+  const dynamicAliveCt = aliveResolved.alive_ct;
+  const dynamicAliveT = aliveResolved.alive_t;
   const dynamicHp = lastKill?.attacker_health ?? null;
 
   // Flash branco no frame 0 (impacto)
@@ -430,42 +443,174 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
             gap: 4,
           }}
         >
-          {hasNarrativeContext ? (
-            <>
-              {/* Round 4c Fase 1.23 — alive count CT vs T. Atualiza
-                  dinamicamente após cada kill que o user faz. */}
+          {showScoreboard && hasScoreboardContext ? (
+            // Round 4c Fase 1.27 — SCOREBOARD esteticamente similar a
+            // placar HLTV/CS HUD. Mathieu spec: "se parecesse com um
+            // placar mesmo, e agora, só tá um textinho". Card preto
+            // semi-transparent + 2 cells "CT | T" colored backgrounds
+            // + número grande monoespaçado no centro de cada cell + HP
+            // bar embaixo. Atualiza ao vivo via alive_timeline.
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
               <div
                 style={{
-                  fontSize: isHorizontal ? 26 : 32,
-                  fontWeight: 900,
-                  color: theme.text,
-                  letterSpacing: "-0.02em",
-                  fontFamily: theme.fontMono,
-                  lineHeight: 1,
+                  display: "flex",
+                  alignItems: "stretch",
+                  background: "rgba(0,0,0,0.78)",
+                  backdropFilter: "blur(8px)",
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  border: "1px solid rgba(255,255,255,0.08)",
                 }}
               >
-                {dynamicAliveCt}<span style={{ color: moodDef.color }}>v</span>{dynamicAliveT}
+                {/* CT cell */}
+                <div
+                  style={{
+                    background: "rgba(96, 165, 250, 0.15)",
+                    padding: isHorizontal ? "6px 14px" : "8px 18px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                    minWidth: isHorizontal ? 50 : 64,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: isHorizontal ? 9 : 11,
+                      fontWeight: 800,
+                      color: "#60a5fa",
+                      letterSpacing: "0.18em",
+                      fontFamily: theme.fontDisplay,
+                      lineHeight: 1,
+                    }}
+                  >
+                    CT
+                  </div>
+                  <div
+                    style={{
+                      fontSize: isHorizontal ? 26 : 32,
+                      fontWeight: 900,
+                      color: theme.text,
+                      fontFamily: theme.fontMono,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {dynamicAliveCt}
+                  </div>
+                </div>
+                {/* Separator */}
+                <div
+                  style={{
+                    width: 1,
+                    background: "rgba(255,255,255,0.15)",
+                  }}
+                />
+                {/* T cell */}
+                <div
+                  style={{
+                    background: "rgba(255, 159, 64, 0.15)",
+                    padding: isHorizontal ? "6px 14px" : "8px 18px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                    minWidth: isHorizontal ? 50 : 64,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: isHorizontal ? 9 : 11,
+                      fontWeight: 800,
+                      color: "#ff9f40",
+                      letterSpacing: "0.18em",
+                      fontFamily: theme.fontDisplay,
+                      lineHeight: 1,
+                    }}
+                  >
+                    T
+                  </div>
+                  <div
+                    style={{
+                      fontSize: isHorizontal ? 26 : 32,
+                      fontWeight: 900,
+                      color: theme.text,
+                      fontFamily: theme.fontMono,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {dynamicAliveT}
+                  </div>
+                </div>
               </div>
-              {/* HP do user — mood color, fontMono pra "imitar HUD CS". */}
+
+              {/* HP bar — só mostra se temos último HP. Vermelho urgente <30. */}
               {dynamicHp !== null && (
                 <div
                   style={{
-                    fontSize: isHorizontal ? 18 : 22,
-                    fontWeight: 800,
-                    color: dynamicHp < 30 ? "#ff4444" : moodDef.color,
-                    letterSpacing: "0.05em",
-                    fontFamily: theme.fontMono,
-                    lineHeight: 1,
+                    background: "rgba(0,0,0,0.78)",
+                    backdropFilter: "blur(8px)",
+                    borderRadius: 4,
+                    padding: isHorizontal ? "3px 10px" : "4px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    border: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
-                  {dynamicHp}HP
+                  <span
+                    style={{
+                      fontSize: isHorizontal ? 9 : 11,
+                      fontWeight: 800,
+                      color: dynamicHp < 30 ? "#ff4444" : "#4CAF82",
+                      letterSpacing: "0.15em",
+                      fontFamily: theme.fontDisplay,
+                    }}
+                  >
+                    HP
+                  </span>
+                  <span
+                    style={{
+                      fontSize: isHorizontal ? 16 : 19,
+                      fontWeight: 900,
+                      color: dynamicHp < 30 ? "#ff4444" : theme.text,
+                      fontFamily: theme.fontMono,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {dynamicHp}
+                  </span>
+                  {/* Mini HP bar visual */}
+                  <div
+                    style={{
+                      width: isHorizontal ? 50 : 70,
+                      height: 4,
+                      background: "rgba(255,255,255,0.15)",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(0, Math.min(100, dynamicHp))}%`,
+                        height: "100%",
+                        background: dynamicHp < 30 ? "#ff4444" : "#4CAF82",
+                        transition: "width 0.3s",
+                      }}
+                    />
+                  </div>
                 </div>
               )}
-            </>
+            </div>
           ) : (
+            // Fallback pra highlights legados (sem alive_timeline) ou
+            // quando user opta por OFF do scoreboard via UI toggle.
             <>
-              {/* Fallback pro highlights legados (pré-Fase 1.23 sem fields):
-                  "{N} KILLS" da Fase 1.21+1.22.1. */}
               <div
                 style={{
                   fontSize: isHorizontal ? 28 : 34,
@@ -562,7 +707,8 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
             highlight.kills.length,
             highlight.start,
             sceneDurationSec,
-            sceneSkipSec
+            sceneSkipSec,
+            highlight.gameplayStartSec
           );
           const killFrame = s2f(killTimeSec);
 

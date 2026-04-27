@@ -171,6 +171,10 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
   // do gameplay POV). User opt-in via UI. Web envia `show_xray` no payload
   // pro client converter em cvar `spec_show_xray 1` no capture.cfg.
   const [xrayEnabled, setXrayEnabled] = useState<boolean>(false);
+  // Round 4c Fase 1.27 — toggle scoreboard top-left. Default ON (mostra
+  // CT/T alive count + HP em tempo real, estilo placar HLTV). User opt-out
+  // pra estilo "puro POV sem HUD overlays".
+  const [scoreboardEnabled, setScoreboardEnabled] = useState<boolean>(true);
   // vertical = TikTok/Reels (default); horizontal = YouTube/Twitch.
   // Card é sempre vertical (formato semântico do produto), backend força.
   const [orientation, setOrientation] = useState<Orientation>("vertical");
@@ -359,6 +363,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         playerName: inGameName ?? "Player",                 // in-game name (preferred over Steam display)
         orientation: orientation as "vertical" | "horizontal",
         musicEnabled,                                       // Fase 1.17 toggle
+        scoreboardEnabled,                                  // Fase 1.27 toggle
       };
       try {
         await startLocalRender({
@@ -1055,6 +1060,67 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                     position: "absolute",
                     top: 3,
                     left: xrayEnabled ? 25 : 3,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "white",
+                    transition: "left 0.15s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                  }}
+                />
+              </button>
+            </div>
+
+            {/* Round 4c Fase 1.27 — toggle scoreboard top-left (CT/T alive
+                count + HP em tempo real, estilo placar HLTV/CS HUD). Default
+                ON pq ajuda viewer entender contexto tático. User pode opt-out
+                pra estilo "puro POV sem HUD overlays". Mesmo pattern UX. */}
+            <div
+              style={{
+                marginTop: 12,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#16213E",
+                border: "1px solid #2D2D44",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
+                  {scoreboardEnabled ? "🎯 Placar tático visível" : "🚫 Sem placar"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                  {scoreboardEnabled
+                    ? "Mostra CT/T vivos + HP do player no canto superior esquerdo, atualizando em tempo real."
+                    : "Sem placar — gameplay POV puro. Mostra apenas contagem total de kills do highlight."}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setScoreboardEnabled((v) => !v)}
+                aria-pressed={scoreboardEnabled}
+                aria-label="Alternar placar tático"
+                style={{
+                  position: "relative",
+                  width: 48,
+                  height: 26,
+                  borderRadius: 13,
+                  border: "none",
+                  background: scoreboardEnabled ? "#4CAF82" : "#2D2D44",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                  padding: 0,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: scoreboardEnabled ? 25 : 3,
                     width: 20,
                     height: 20,
                     borderRadius: "50%",

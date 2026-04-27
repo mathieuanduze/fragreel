@@ -190,6 +190,10 @@ export interface LocalRenderPlan {
     playerName: string;
     orientation?: "vertical" | "horizontal";
     musicEnabled?: boolean;
+    /** Round 4c Fase 1.27 — toggle scoreboard top-left (CT/T alive
+     *  count + HP). Default true. Quando false, badge mostra fallback
+     *  "{N} KILLS" estático. */
+    scoreboardEnabled?: boolean;
   };
   record_name?: string;
   stream_name?: string;

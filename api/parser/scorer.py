@@ -107,6 +107,19 @@ class KillInfo:
 
 
 @dataclass
+class AliveEvent:
+    """v0.3.2 (Round 4c Fase 1.27) — single death event no round.
+
+    Usado pra renderizar counter alive AO VIVO no Remotion. Diferente de
+    Highlight.kills (só user kills), aqui inclui deaths de teammates +
+    enemies pra contagem precisa em qualquer momento do gameplay.
+    """
+    time: float       # tick em segundos (mesma base de highlight.start/end)
+    alive_ct: int     # CT alive count APÓS essa morte
+    alive_t: int      # T alive count APÓS essa morte
+
+
+@dataclass
 class Highlight:
     """
     A round-level highlight. One Highlight = one round of play by the user.
@@ -123,6 +136,13 @@ class Highlight:
     start: float                  # round capture window start (seconds from demo start)
     end: float                    # round capture window end
     kills: list[KillInfo] = field(default_factory=list)
+    # v0.3.2 (Round 4c Fase 1.27) — Mathieu reportou que counter alive
+    # "pula 5v5 → 1v1 do nada". Root cause: Fase 1.23 só atualizava
+    # alive_X_after em USER kills, não em deaths de teammates/enemies.
+    # alive_timeline tem TODAS deaths do round (CT + T) pra timeline
+    # completa "ao vivo". Editor encontra evento mais recente em
+    # sceneTime e mostra alive_ct/alive_t corretos.
+    alive_timeline: list[AliveEvent] = field(default_factory=list)
     # v0.3.1 (Sprint A4) — Resumo PT-BR ao lado das tags. Tags continuam
     # em inglês pra internacionalização; narrative descreve em prosa o que
     # aconteceu pra usuários casuais entenderem sem decorar jargão.
@@ -201,6 +221,27 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
         key=lambda k: k.tick,
     )
     tickrate = parsed.tickrate if parsed.tickrate > 0 else 64.0
+
+    # v0.3.2 Fase 1.27 — alive_timeline com TODAS deaths do round (não só
+    # user kills). Editor renderiza counter "ao vivo" navegando essa
+    # timeline. Cada entry: (time, alive_ct_após, alive_t_após).
+    alive_timeline_events: list[AliveEvent] = []
+    cum_ct_deaths = 0
+    cum_t_deaths = 0
+    for k in all_kills_in_round:
+        if k.victim_team == 3:
+            cum_ct_deaths += 1
+        elif k.victim_team == 2:
+            cum_t_deaths += 1
+        # Se victim_team is None (raro em demos antigas), skip — não temos
+        # info pra atualizar alive count corretamente.
+        else:
+            continue
+        alive_timeline_events.append(AliveEvent(
+            time=k.tick / tickrate,
+            alive_ct=max(0, 5 - cum_ct_deaths),
+            alive_t=max(0, 5 - cum_t_deaths),
+        ))
 
     for kill in round_kills:
         wep_lower    = kill.weapon.lower()
@@ -288,6 +329,7 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
         kill_timestamps=[k.timestamp for k in round_kills],
         bomb_action_tick=ctx.get("bomb_action_tick"),
         bomb_action_timestamp=ctx.get("bomb_action_timestamp"),
+        alive_timeline=alive_timeline_events,
     )
 
 

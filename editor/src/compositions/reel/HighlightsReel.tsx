@@ -16,6 +16,7 @@ import {
   effectiveSkipSec,
   effectiveTailSkipSec,
   effectiveSceneEndSec,
+  refSourceDurSec,
   s2f,
 } from "../../theme";
 import { Intro } from "./scenes/Intro";
@@ -48,7 +49,10 @@ export const OUTRO_SEC = 3.0;
 // Helper effectiveSceneEndSec vive em theme.ts (canonical) — DEVE bater
 // com HighlightScene.availableVideoSec senão freeze edge.
 const highlightDurationSec = (h: Highlight) => {
-  const sourceDur = h.end - h.start;
+  // Round 4c Fase 1.28 — sourceDur baseado em mov-aware refStart (não
+  // round_start). Garante consistency com effectiveSceneEndSec +
+  // HighlightScene.availableVideoSec.
+  const sourceDur = refSourceDurSec(h);
   const front = effectiveSkipSec(sourceDur);
   const sceneEnd = effectiveSceneEndSec(h);
   const rawSec = sceneEnd - front;
@@ -73,6 +77,7 @@ export const HighlightsReel: React.FC<ReelProps> = ({
   mood,
   playerName,
   musicEnabled,
+  scoreboardEnabled,
 }) => {
   const moodDef = MOODS[mood];
 
@@ -101,7 +106,12 @@ export const HighlightsReel: React.FC<ReelProps> = ({
         from={cursor}
         durationInFrames={dur}
       >
-        <HighlightScene highlight={h} mood={mood} index={i} />
+        <HighlightScene
+          highlight={h}
+          mood={mood}
+          index={i}
+          showScoreboard={scoreboardEnabled !== false}
+        />
       </Sequence>
     );
     cursor += dur;

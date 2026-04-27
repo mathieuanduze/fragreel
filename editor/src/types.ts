@@ -43,6 +43,14 @@ export type Highlight = {
   // começando no frame 0 do highlight (sem offset).
   // Quando definido, sobrepõe placeholder e clip_url.
   gameplayVideoSrc?: string | null;
+  // Round 4c Fase 1.28 — demo time (segundos) do PRIMEIRO frame do .mov
+  // gameplay (= cluster_window[0].start_tick / tickrate). Necessário pra
+  // alinhar killfeed/timeline corretamente: sem isso, killTimeInSceneSec
+  // assumia gameplay começa em highlight.start + frontSkip, mas cluster
+  // pode começar MUCH LATER (PAD_PRE 7s do FIRST kill). Quando ausente
+  // (highlights legados ou placeholder), editor fallback pro behavior
+  // antigo (highlight.start + frontSkip).
+  gameplayStartSec?: number;
   // Round 4c Fase 1.25 — bomb action timestamp (segundos relativos ao demo
   // start, mesma base de Kill.time/highlight.start). Permite scene_end
   // dinâmico (effectiveSceneEndSec em theme.ts) usar max(kill.time,
@@ -52,6 +60,19 @@ export type Highlight = {
   // cortava cena antes do bomb event quando plant ocorria após última kill.
   bomb_action_timestamp?: number;
   bomb_action?: "defuse" | "plant_won";
+  // Round 4c Fase 1.27 — alive timeline pra counter ao vivo. Inclui TODAS
+  // deaths do round (não só user kills da Fase 1.23). Editor renderiza
+  // counter navegando essa timeline em tempo real (sceneTime → encontra
+  // event mais recente → mostra alive_ct/alive_t). Empty pra highlights
+  // legados (pré-Fase 1.27) → editor fallback pro behavior da Fase 1.23
+  // (kill-only updates).
+  alive_timeline?: AliveEvent[];
+};
+
+export type AliveEvent = {
+  time: number;     // tick em segundos (mesma base de highlight.start/end)
+  alive_ct: number; // CT alive count APÓS essa morte
+  alive_t: number;  // T alive count APÓS essa morte
 };
 
 export type MatchStats = {
@@ -86,6 +107,11 @@ export type ReelProps = {
   // só a trilha mood que pode ser muted. Default true. Quando false, o
   // <Audio> da trilha não é renderizado — só o áudio do <OffthreadVideo>.
   musicEnabled?: boolean;
+  // Round 4c Fase 1.27 — toggle scoreboard top-left (CT/T alive count +
+  // HP). Default true. Quando false, badge top-left mostra só "{N} KILLS"
+  // (fallback Fase 1.21 estático). User opt-out pra estilo "puro POV
+  // sem HUD overlays" via UI toggle.
+  scoreboardEnabled?: boolean;
 };
 
 export type CardProps = {

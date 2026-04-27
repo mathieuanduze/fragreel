@@ -16,6 +16,18 @@ class JobStatus(str, Enum):
     error = "error"
 
 
+class AliveEventOut(BaseModel):
+    """v0.3.2 Round 4c Fase 1.27 — single death event no round pra counter ao vivo.
+
+    Inclui TODAS deaths (CT + T), não só user kills. Editor renderiza alive
+    count navegando a timeline em tempo real (sceneTime → encontra event mais
+    recente → mostra alive_ct/alive_t).
+    """
+    time: float       # tick em segundos (mesma base de HighlightOut.start/end)
+    alive_ct: int     # CT alive count APÓS essa morte (5 - cum_ct_deaths)
+    alive_t: int      # T alive count APÓS essa morte (5 - cum_t_deaths)
+
+
 class KillOut(BaseModel):
     label: str
     weapon: str
@@ -75,6 +87,13 @@ class HighlightOut(BaseModel):
     # set E foi pelo user. None pra highlights legados.
     bomb_action_tick: Optional[int] = None
     bomb_action_timestamp: Optional[float] = None
+    # ── v0.3.2 Round 4c Fase 1.27 — alive timeline pra counter ao vivo ────────
+    # Lista de events `{time, alive_ct, alive_t}` ordenados por tick.
+    # Inclui TODAS deaths do round (CT + T), não só user kills (Fase 1.23 só
+    # tinha user kills → counter pulava 5v5→1v1 sem updates intermediários
+    # quando deaths ocorriam entre user kills). Editor renderiza counter
+    # navegando essa timeline em tempo real. Empty pra highlights legados.
+    alive_timeline: list[AliveEventOut] = []
 
 
 class MatchStats(BaseModel):

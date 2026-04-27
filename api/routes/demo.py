@@ -152,6 +152,11 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
                     # v0.3.0-alpha — payload pro capture_script clusterizar
                     "kill_ticks":            h.kill_ticks,
                     "kill_timestamps":       h.kill_timestamps,
+                    # v0.3.2 Round 4c Fase 1.27 — alive timeline pra counter ao vivo
+                    "alive_timeline": [
+                        {"time": ev.time, "alive_ct": ev.alive_ct, "alive_t": ev.alive_t}
+                        for ev in (h.alive_timeline or [])
+                    ],
                     # v0.3.0-beta-2 — bomb event tick (None se não tem bomb action)
                     # 3º elo dropping da cadeia que escapou no commit 6334960:
                     # scorer popula → Highlight tem (após c1ca4c6) → demo.py

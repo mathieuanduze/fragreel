@@ -142,12 +142,46 @@ export const REACTION_PAD_SEC = 1.0;
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
 // Orientation deste arquivo).
 type _KillTimeInput = { time?: number };
+type _AliveEventInput = { time: number; alive_ct: number; alive_t: number };
 type _HighlightInput = {
   start: number;
   end: number;
   kills: _KillTimeInput[];
   bomb_action_timestamp?: number;
   bomb_action?: string;
+  alive_timeline?: _AliveEventInput[];
+  gameplayStartSec?: number;
+};
+
+// Round 4c Fase 1.27 — resolveAliveAt: encontra alive count NO MOMENTO X
+// do gameplay (sceneTimeSec mapped to demo time via highlight.start +
+// effectiveSkipSec offset). Navega alive_timeline (TODAS deaths, não só
+// user kills) e retorna estado APÓS o último event que aconteceu até
+// `demoTimeSec`. Antes da primeira morte: 5v5.
+//
+// Mathieu reportou pós-Fase 1.23: counter "pula 5v5 → 1v1 do nada" — root
+// cause: Fase 1.23 só atualizava em user kills, ignorava deaths intermédios.
+// Agora com timeline completa, counter atualiza a CADA morte (qualquer team).
+export const resolveAliveAt = (
+  highlight: _HighlightInput,
+  demoTimeSec: number,
+): { alive_ct: number; alive_t: number; hasTimeline: boolean } => {
+  const tl = highlight.alive_timeline;
+  if (!tl || tl.length === 0) {
+    return { alive_ct: 5, alive_t: 5, hasTimeline: false };
+  }
+  // Find latest event with event.time <= demoTimeSec
+  let latest: _AliveEventInput | null = null;
+  for (const ev of tl) {
+    if (ev.time <= demoTimeSec) {
+      if (!latest || ev.time > latest.time) latest = ev;
+    }
+  }
+  if (latest === null) {
+    // Antes da primeira morte do round = 5v5
+    return { alive_ct: 5, alive_t: 5, hasTimeline: true };
+  }
+  return { alive_ct: latest.alive_ct, alive_t: latest.alive_t, hasTimeline: true };
 };
 
 // effectiveSceneEndSec — calcula em que segundo do source a cena DEVE
@@ -162,22 +196,38 @@ type _HighlightInput = {
 // Compartilhado entre HighlightsReel.highlightDurationSec (define
 // scene duration na composition) e HighlightScene.availableVideoSec
 // (define playback rate). DEVEM bater, senão freeze edge.
+// Round 4c Fase 1.28 — gameplay reference start (mov first frame demo time).
+// Compartilhado entre effectiveSceneEndSec, highlightDurationSec, killTime.
+// gameplayStartSec é populado pelo hlae_runner quando cluster v2 é ativo.
+// Senão, fallback pro highlight.start (round start, behavior antigo).
+export const refStartSec = (highlight: _HighlightInput): number =>
+  typeof highlight.gameplayStartSec === "number" && isFinite(highlight.gameplayStartSec)
+    ? highlight.gameplayStartSec
+    : highlight.start;
+
+// Source duration ALINHADO com mov real (end - refStart) quando gameplay
+// start disponível. Fallback pra round duration. Garante effective*Sec
+// helpers todos usam o mesmo source durations.
+export const refSourceDurSec = (highlight: _HighlightInput): number =>
+  Math.max(0.1, highlight.end - refStartSec(highlight));
+
 export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
-  const sourceDur = Math.max(0.1, highlight.end - highlight.start);
+  const refStart = refStartSec(highlight);
+  const sourceDur = refSourceDurSec(highlight);
   const tailFallbackEnd = sourceDur - effectiveTailSkipSec(sourceDur);
 
   // Eventos closing candidatos: kills + bomb event (plant/defuse). Pick max.
   const eventTimes: number[] = [];
   for (const k of highlight.kills) {
     if (typeof k.time === "number" && isFinite(k.time)) {
-      eventTimes.push(k.time - highlight.start);
+      eventTimes.push(k.time - refStart);
     }
   }
   if (
     typeof highlight.bomb_action_timestamp === "number" &&
     isFinite(highlight.bomb_action_timestamp)
   ) {
-    eventTimes.push(highlight.bomb_action_timestamp - highlight.start);
+    eventTimes.push(highlight.bomb_action_timestamp - refStart);
   }
 
   if (eventTimes.length === 0) {
@@ -269,13 +319,14 @@ export const SPRING = {
 // Caso contrário, distribuímos uniformemente entre 0.5s e (sceneDuration - 0.5s).
 // O 0.5s de margem evita kill colando na borda da cena (parece bug visual).
 //
-// Round 4c Fase 1.20 BUG FIX (Mathieu reportou "kills não aparecem em cima
-// à direita junto com o momento que elas acontecem"): a função antes não
-// considerava o SKIP/TAIL offset do gameplay. Com OffthreadVideo startFrom
-// pulando frontSkip segundos, kill em source_t=10s aparece visualmente em
-// scene_t=(10 - frontSkip). Antes calculava `kill.time - highlightStart`
-// dando scene_t=10s — killfeed aparecia ~4s ATRASADO do momento real.
-// Agora aceita frontSkipSec opcional pra alinhar killfeed com gameplay.
+// Round 4c Fase 1.28 BUG FIX REAL (Mathieu reportou pós-Fase 1.20: "kills
+// aparecem todas atrasadas, não está acontecendo no momento do tick certo"):
+// killTimeInSceneSec antes assumia gameplay começa em (highlight.start +
+// frontSkip). Mas cluster v2 PAD_PRE = 7s do FIRST kill (não do round_start)
+// — gameplay no .mov começa MUCH LATER que round_start. hlae_runner.py
+// agora popula `gameplayStartSec` (= cluster_window[0].start_tick / tickrate).
+// Editor passa esse field pra cá → offset CORRETO.
+// Fallback pro Fase 1.20 behavior se gameplayStartSec ausente.
 export const KILL_FEED_EDGE_PAD_SEC = 0.5;
 export function killTimeInSceneSec(
   kill: { time?: number },
@@ -283,15 +334,21 @@ export function killTimeInSceneSec(
   totalKills: number,
   highlightStart: number,
   sceneDurationSec: number,
-  frontSkipSec: number = 0
+  frontSkipSec: number = 0,
+  gameplayStartSec?: number,
 ): number {
   if (typeof kill.time === "number" && isFinite(kill.time)) {
-    // Posição absoluta no source: kill.time - highlightStart
-    // Posição visível na CENA (com SKIP aplicado): subtrair frontSkipSec
-    const rel = kill.time - highlightStart - frontSkipSec;
+    // Round 4c Fase 1.28 — usa gameplayStartSec REAL (cluster window
+    // start) quando disponível. Fallback pro highlight.start + frontSkip
+    // (Fase 1.20 behavior, quando hlae_runner não populou o field).
+    const movStartSec =
+      typeof gameplayStartSec === "number" && isFinite(gameplayStartSec)
+        ? gameplayStartSec + frontSkipSec
+        : highlightStart + frontSkipSec;
+    const rel = kill.time - movStartSec;
     return Math.max(0, Math.min(sceneDurationSec, rel));
   }
-  // Fallback uniforme.
+  // Fallback uniforme (sem timing info).
   if (totalKills <= 0) return 0;
   const usable = Math.max(0, sceneDurationSec - 2 * KILL_FEED_EDGE_PAD_SEC);
   if (totalKills === 1) return KILL_FEED_EDGE_PAD_SEC + usable / 2;
