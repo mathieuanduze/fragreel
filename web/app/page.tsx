@@ -14,23 +14,27 @@ const MAPS = [
 ];
 
 const STATS = [
-  { label: "ACE",        sub: "5 kills · 1 round",    color: "#FF6B35" },
-  { label: "CLUTCH 1v4", sub: "AWP · Dust2 · R22",    color: "#a78bfa" },
-  { label: "KNIFE KILL", sub: "Pistol Round",          color: "#34d399" },
-  { label: "4K HS",      sub: "AK-47 · 4 headshots",  color: "#60a5fa" },
+  { label: "1v3 CLUTCH",     sub: "AK-47 · 2 HS",          color: "#FF6B35" },
+  { label: "DEFUSE",         sub: "+2K · win",             color: "#34d399" },
+  { label: "PLANT WON",      sub: "Galil · 40s",           color: "#fbbf24" },
+  { label: "ACE",            sub: "5 kills · 1 round",     color: "#a78bfa" },
 ];
 
 const steps = [
-  { num: "01", title: "Baixe o client",      desc: "FragReel.exe para Windows. Instalação em 30 segundos, login com Steam uma vez só." },
-  { num: "02", title: "Abra a Biblioteca",   desc: "O client lê as demos que o CS2 já gera no seu PC e mostra a lista no site. Sem upload manual, sem OBS." },
-  { num: "03", title: "Escolha a partida",   desc: "Clique numa partida pra virar FragReel. A IA lê a demo, escolhe os melhores frags e monta o vídeo." },
-  { num: "04", title: "1 ad, vídeo pronto",  desc: "Enquanto renderiza, você assiste 1 anúncio de 30s. Reel 9:16, Recap 16:9 ou Story Card. Grátis." },
+  { num: "01", title: "Baixe o client",      desc: "FragReel.exe para Windows. Tudo incluído (Node + editor + ffmpeg). Login com Steam uma vez só." },
+  { num: "02", title: "Abra a Biblioteca",   desc: "O client detecta as demos que o CS2 já salva no seu PC. Sem upload manual, sem OBS." },
+  { num: "03", title: "Escolha a partida",   desc: "Clique numa partida — o scoring identifica clutches, defuses, plants e ACEs automaticamente." },
+  { num: "04", title: "1 ad, vídeo pronto",  desc: "Você assiste 1 anúncio de 30s enquanto o reel renderiza no seu PC. MP4 final salvo no Desktop." },
 ];
 
 const outputs = [
-  { icon: "🎬", label: "Highlights Reel", format: "9:16 vertical · 30–60s",   desc: "2 câmeras por frag: POV do atirador + POV da vítima em câmera lenta. Música, cortes e efeitos automáticos.", dest: "TikTok · Reels · WhatsApp Status" },
-  { icon: "📺", label: "Recap Completo",  format: "16:9 horizontal · 2–3 min", desc: "Narrativa completa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",       dest: "YouTube · Discord · Twitter" },
-  { icon: "🖼️", label: "Story Card",      format: "9:16 imagem · estático",    desc: "Card com nick, mapa, K/D, rating e top play do jogo. Gerado em segundos, sem renderização.",              dest: "Instagram Stories · WhatsApp" },
+  {
+    icon: "🎬",
+    label: "Highlights Reel",
+    format: "9:16 vertical · 60-80s",
+    desc: "3 melhores momentos da partida em sequência. Scoreboard ao vivo (CT vs T + HP), killfeed sincronizado, plant/defuse com notificações nativas do CS2, transições cinematográficas.",
+    dest: "TikTok · Reels · Shorts · WhatsApp",
+  },
 ];
 
 // Server Component async: pega a última versão publicada no GitHub pra
@@ -66,10 +70,10 @@ export default async function Home() {
             <span style={{ color: "rgba(255,255,255,0.3)" }}>De graça.</span>
           </h1>
 
-          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 560, margin: "0 auto 16px" }}>
-            O client lê as demos que o CS2 já gera no seu PC. Você escolhe a partida,
-            a IA escolhe os melhores <b style={{ color: "rgba(255,255,255,0.8)" }}>ACEs, clutches e frags</b> e
-            entrega o vídeo editado pronto pra TikTok, Reels e WhatsApp.
+          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 580, margin: "0 auto 16px" }}>
+            O client lê as demos que o CS2 já salva no seu PC. Você escolhe a partida,
+            o scoring identifica os <b style={{ color: "rgba(255,255,255,0.8)" }}>melhores clutches, plants e defuses</b> e
+            renderiza um reel vertical pronto pra postar — direto no seu PC, sem upload.
           </p>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 36 }}>
@@ -91,7 +95,7 @@ export default async function Home() {
           </div>
 
           <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            Windows 10/11 · ~120 MB · Login com Steam · Sem assinatura{versionLabel}
+            Windows 10/11 · ~450 MB (tudo incluído) · Login com Steam · Sem assinatura{versionLabel}
           </p>
         </div>
       </section>
@@ -113,16 +117,16 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Outputs ────────────────────────────────────────────────── */}
+      {/* ── O que você recebe ──────────────────────────────────────── */}
       <section style={{ padding: "72px 24px", maxWidth: 1100, margin: "0 auto" }}>
         <div className="tag" style={{ textAlign: "center", marginBottom: 12 }}>O que você recebe</div>
         <h2 style={{ textAlign: "center", fontSize: 34, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 10 }}>
-          Escolha o formato, a gente gera
+          Reel vertical pronto pra postar
         </h2>
         <p style={{ textAlign: "center", fontSize: 15, color: "rgba(255,255,255,0.4)", marginBottom: 48 }}>
-          3 opções por partida. Cada geração = 1 anúncio de 30s. Sem assinatura, sem taxa.
+          1 reel por partida. 1 anúncio de 30s pra renderizar. Sem assinatura, sem taxa.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: outputs.length === 1 ? "minmax(0, 520px)" : "repeat(auto-fit, minmax(300px, 1fr))", gap: 20, justifyContent: "center" }}>
           {outputs.map((o) => (
             <div key={o.label} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ fontSize: 32 }}>{o.icon}</div>
@@ -134,6 +138,24 @@ export default async function Home() {
               <div style={{ marginTop: "auto", padding: "8px 12px", background: "#1A1A2E", borderRadius: 6, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
                 {o.dest}
               </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Mini features grid — Round 4c polish features */}
+        <div style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+          {[
+            { icon: "🎯", label: "Scoreboard ao vivo",     sub: "CT vs T + HP em tempo real" },
+            { icon: "💀", label: "Killfeed sintético",      sub: "Stack do round todo, top-right" },
+            { icon: "💣", label: "Plant + Defuse",          sub: "Notificações nativas CS2 visíveis" },
+            { icon: "🎵", label: "4 trilhas de mood",       sub: "Ação · Heroico · Eletrônica · Chill" },
+            { icon: "🔇", label: "Sem música? Toggle",      sub: "Pra YouTube agressivo com copyright" },
+            { icon: "👁", label: "X-ray opcional",          sub: "Wallhack visual estilo HLTV" },
+          ].map((feat) => (
+            <div key={feat.label} style={{ padding: "12px 14px", background: "#16213E", border: "1px solid #2D2D44", borderRadius: 8 }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{feat.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#E8E8F0", marginBottom: 2 }}>{feat.label}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{feat.sub}</div>
             </div>
           ))}
         </div>
@@ -149,10 +171,10 @@ export default async function Home() {
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, textAlign: "left" }}>
             {[
-              { label: "Sem upload manual, sem OBS",   sub: "O client lê localmente as demos que o CS2 já salva no seu PC. Você só clica." },
-              { label: "2 câmeras por frag",            sub: "POV do atirador + POV da vítima em slow-mo. Igual transmissão de Major." },
-              { label: "Scoring por IA",                sub: "ACE, clutch 1vN, knife kill, noscope — a IA prioriza os frags mais insanos." },
-              { label: "100% gratuito",                 sub: "Sustentado por anúncios. O tempo do ad = tempo de renderização. Honesto." },
+              { label: "Sem upload manual, sem OBS",        sub: "O client lê localmente as demos que o CS2 já salva no seu PC. Você só clica." },
+              { label: "Render 100% local",                  sub: "HLAE + ffmpeg + Remotion empacotados no .exe. Seu vídeo nunca sai do seu computador." },
+              { label: "Scoring de plays cinematográficas", sub: "Clutches 1vN, defuses, plants, ACEs, multi-kills, low-HP, no-scopes — priorização HLTV-style." },
+              { label: "100% gratuito + open source",        sub: "Sustentado por ads no site. Código MIT auditável. Sem assinatura, sem dark patterns." },
             ].map((f) => (
               <div key={f.label} style={{ padding: "18px 20px", background: "#0D0D1A", border: "1px solid #2D2D44", borderRadius: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "#FF6B35" }}>✓ {f.label}</div>
@@ -189,22 +211,23 @@ export default async function Home() {
         <div className="tag" style={{ marginBottom: 12 }}>Por que é grátis</div>
         <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>O anúncio é o tempo de renderização</h2>
         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, marginBottom: 28 }}>
-          Renderizar 2 câmeras por frag leva alguns minutos de servidor. Enquanto isso acontece,
-          você assiste <b style={{ color: "rgba(255,255,255,0.8)" }}>1 anúncio de 30 segundos</b> — exatamente o tempo que cobre o custo.
-          Sem assinatura. Sem surpresa.
+          Renderizar o reel leva ~15-20 minutos no seu PC (HLAE captura + ffmpeg encode + Remotion edit).
+          Enquanto isso acontece, você assiste <b style={{ color: "rgba(255,255,255,0.8)" }}>1 anúncio de 30 segundos</b> que sustenta os custos do site
+          (servidor, parser, distribuição). Sem assinatura. Sem surpresa.
         </p>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 16, padding: "14px 22px", background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 12, fontSize: 13, color: "rgba(255,255,255,0.45)", flexWrap: "wrap", justifyContent: "center" }}>
           <span>🎮 Jogue</span>
           <span style={{ color: "#2D2D44" }}>→</span>
-          <span>🔴 Client grava</span>
+          <span>📂 Demo salva pelo CS2</span>
           <span style={{ color: "#2D2D44" }}>→</span>
           <span>📺 Assista 30s de ad</span>
           <span style={{ color: "#2D2D44" }}>→</span>
-          <span style={{ color: "#FF6B35", fontWeight: 700 }}>🎬 Vídeo pronto</span>
+          <span style={{ color: "#FF6B35", fontWeight: 700 }}>🎬 MP4 no Desktop</span>
         </div>
 
         <div style={{ marginTop: 22, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
-          🔒 Suas demos nunca saem do seu PC sem você clicar — o client é open source (MIT).
+          🔒 Suas demos e vídeos nunca saem do seu PC. Só metadata anônima da partida (kill ticks, score, mapa) vai pro servidor pra fazer o scoring.{" "}
+          <Link href="/privacy" style={{ color: "#FF6B35", textDecoration: "none", borderBottom: "1px dotted #FF6B35" }}>Política de Privacidade</Link>.
         </div>
       </section>
 
@@ -224,8 +247,14 @@ export default async function Home() {
         </p>
       </section>
 
-      <footer style={{ padding: "24px", borderTop: "1px solid #2D2D44", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-        FragReel · 2026 · Não afiliado à Valve Corporation
+      <footer style={{ padding: "32px 24px", borderTop: "1px solid #2D2D44", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 18, flexWrap: "wrap", marginBottom: 12 }}>
+          <Link href="/privacy" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>Privacidade</Link>
+          <a href="https://github.com/mathieuanduze/fragreel-client" target="_blank" rel="noopener" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>GitHub (client)</a>
+          <a href="https://github.com/mathieuanduze/fragreel" target="_blank" rel="noopener" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>GitHub (site)</a>
+          <a href="https://signpath.org/foundation" target="_blank" rel="noopener" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>Code signing por SignPath</a>
+        </div>
+        <div>FragReel · 2026 · Open source MIT · Não afiliado à Valve Corporation</div>
       </footer>
     </div>
   );
