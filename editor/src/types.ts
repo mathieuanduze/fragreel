@@ -43,6 +43,15 @@ export type Highlight = {
   // começando no frame 0 do highlight (sem offset).
   // Quando definido, sobrepõe placeholder e clip_url.
   gameplayVideoSrc?: string | null;
+  // Round 4c Fase 1.25 — bomb action timestamp (segundos relativos ao demo
+  // start, mesma base de Kill.time/highlight.start). Permite scene_end
+  // dinâmico (effectiveSceneEndSec em theme.ts) usar max(kill.time,
+  // bomb_action_timestamp) + REACTION_PAD pra cobrir highlights cuja
+  // closing event é o plant/defuse (não kill). Mathieu reportou
+  // múltiplas vezes "plant não aparece" — Fase 1.22 (kill-aware end)
+  // cortava cena antes do bomb event quando plant ocorria após última kill.
+  bomb_action_timestamp?: number;
+  bomb_action?: "defuse" | "plant_won";
 };
 
 export type MatchStats = {

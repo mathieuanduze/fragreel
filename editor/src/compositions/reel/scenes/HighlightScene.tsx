@@ -530,10 +530,18 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
       </div>
 
       {/*
-        Kill feed — TOP-RIGHT, convenção CS2 (HUD vanilla). Cada kill aparece
-        no momento real (kill.time relativo a highlight.start) ou estimativa
-        uniforme se o parser ainda não fornece time. Mantém últimas 5 kills
-        visíveis (FIFO) — em ace de 5+ kills, a primeira sai quando a sexta entra.
+        Round 4c Fase 1.24 — KILLFEED ACUMULANDO (Mathieu spec: "killfeed
+        sincronizado com kills do vídeo, com kills ACUMULANDO na tela a
+        cada round, quando elas acontecem, no canto direito, no topo").
+        Diferença vs Fase 1.20 (badges fade-out 3.5s): cada kill aparece
+        quando killTime <= currentTime + PERMANECE até fim da cena.
+        Reset entre highlights (componente é re-mounted per scene).
+        Estilo aproxima killfeed CS2 vanilla — row vertical top-right
+        com WEAPON tipograficamente colorido por categoria (rifle/sniper/
+        smg/pistol/knife). Sprites SVG das armas: TODO Fase 1.24b
+        (precisa source — repo killfeed-icons só referencia SVGs do CS2
+        game, sem distribuição direta. Considerar SVGs free use ou
+        criar próprios pixel-art).
       */}
       <div
         style={{
@@ -542,18 +550,12 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
           right: isHorizontal ? 32 : 40,
           display: "flex",
           flexDirection: "column",
-          gap: 6,
+          gap: 4,
           alignItems: "flex-end",
           maxWidth: isHorizontal ? 520 : 620,
         }}
       >
         {highlight.kills.map((k, i) => {
-          // Round 4c Fase 1.20 BUG FIX (Mathieu: "kills não aparecem em
-          // cima à direita junto com o momento que elas acontecem").
-          // Passar sceneSkipSec pra alinhar killfeed com o playback do
-          // gameplay (que pula sceneSkipSec do início via OffthreadVideo
-          // startFrom). Sem isso, killfeed aparecia ~4s atrasado dos
-          // tiros reais.
           const killTimeSec = killTimeInSceneSec(
             k,
             i,
@@ -564,81 +566,73 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
           );
           const killFrame = s2f(killTimeSec);
 
-          // Janela de visibilidade: aparece no killFrame, fica por ~3.5s,
-          // depois fade out. Cobre o caso de cena longa (10s recap) sem
-          // poluir tela com 5 cards congelados.
-          const showWindow = s2f(3.5);
-          const fadeWindow = s2f(0.4);
-
+          // Fase 1.24 — sem fade-out window. Kill aparece e PERMANECE até
+          // fim da cena. Spring de entrada (translate + opacity in) só.
           const enterProgress = spring({
             frame: frame - killFrame,
             fps,
             config: { damping: 14, mass: 0.5 },
           });
-          const exitFade = interpolate(
-            frame,
-            [
-              killFrame + showWindow,
-              killFrame + showWindow + fadeWindow,
-            ],
-            [1, 0],
-            { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-          );
-          const opacity = enterProgress * exitFade;
 
-          // Pula render quando totalmente invisível — economiza pintura.
-          if (opacity <= 0.001) return null;
+          // Pula render antes do killTime
+          if (enterProgress <= 0.001) return null;
+
+          // Cor por categoria de arma — aproxima fragmovie/HLTV vibe.
+          // Heurística simples por keywords no weapon name.
+          const w = k.weapon.toLowerCase();
+          let weaponColor: string = theme.text; // default branco
+          if (/awp|scar|g3sg|ssg/.test(w)) weaponColor = "#ff6b35"; // sniper
+          else if (/ak|m4|aug|famas|galil/.test(w)) weaponColor = "#fbbf24"; // rifle
+          else if (/mp|mac|p90|bizon|ump/.test(w)) weaponColor = "#60a5fa"; // smg
+          else if (/glock|usp|deagle|p2|five|tec|cz|elite|hkp/.test(w)) weaponColor = "#a78bfa"; // pistol
+          else if (/knife|bayonet|karambit/.test(w)) weaponColor = "#4CAF82"; // knife
+          else if (/grenade|nade|flash|smoke|molotov|incendiary/.test(w)) weaponColor = "#ff4444"; // grenades
 
           return (
             <div
               key={i}
               style={{
                 transform: `translateX(${(1 - enterProgress) * 60}px)`,
-                opacity,
+                opacity: enterProgress,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                padding: "8px 14px",
-                background: "rgba(0,0,0,0.72)",
+                padding: "6px 12px",
+                background: "rgba(0,0,0,0.78)",
                 backdropFilter: "blur(8px)",
-                border: `1px solid ${moodDef.color}40`,
-                borderRadius: 6,
-                fontSize: isHorizontal ? 20 : 22,
+                borderRadius: 4,
+                fontSize: isHorizontal ? 18 : 20,
                 fontWeight: 700,
                 color: theme.text,
                 fontFamily: theme.fontDisplay,
+                borderRight: `3px solid ${weaponColor}`,
               }}
             >
-              {/* Round 4c Fase 1.20 — render simplificado. Antes mostrava
-                  `weapon ▸ label`, mas API _kill_label() retorna só
-                  "WEAPON · HS" (sem victim name) — Mathieu viu "AK47 ▸ AK-47"
-                  redundante. Fix Mac-side: mostra weapon + KILL index (#N de
-                  total) + HS badge. Mais informativo (sequência das kills)
-                  sem precisar mudar API/parser. Pro futuro: API enrich Kill
-                  com victim_name pra render killer ▸ victim canonical. */}
-              <span style={{ color: theme.text, fontSize: isHorizontal ? 20 : 22, fontWeight: 800 }}>
+              {/* WEAPON tipograficamente — placeholder até Fase 1.24b SVG
+                  sprites. Cor por categoria garante leitura rápida. */}
+              <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 19 : 21 }}>
                 {k.weapon.toUpperCase()}
               </span>
               <span
                 style={{
-                  color: moodDef.color,
-                  fontSize: isHorizontal ? 14 : 16,
+                  color: theme.textDim,
+                  fontSize: isHorizontal ? 13 : 15,
                   fontWeight: 700,
                   letterSpacing: "0.1em",
                   fontFamily: theme.fontMono,
                 }}
               >
-                #{i + 1}/{highlight.kills.length}
+                #{i + 1}
               </span>
               {k.headshot && (
                 <span
                   style={{
-                    marginLeft: 4,
-                    padding: "2px 7px",
-                    borderRadius: 4,
+                    marginLeft: 2,
+                    padding: "1px 6px",
+                    borderRadius: 3,
                     background: moodDef.color,
                     color: "white",
-                    fontSize: isHorizontal ? 14 : 16,
+                    fontSize: isHorizontal ? 12 : 14,
                     fontWeight: 800,
                     letterSpacing: "0.05em",
                   }}

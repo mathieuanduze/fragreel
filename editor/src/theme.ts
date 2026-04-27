@@ -142,12 +142,22 @@ export const REACTION_PAD_SEC = 1.0;
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
 // Orientation deste arquivo).
 type _KillTimeInput = { time?: number };
-type _HighlightInput = { start: number; end: number; kills: _KillTimeInput[] };
+type _HighlightInput = {
+  start: number;
+  end: number;
+  kills: _KillTimeInput[];
+  bomb_action_timestamp?: number;
+  bomb_action?: string;
+};
 
 // effectiveSceneEndSec — calcula em que segundo do source a cena DEVE
-// terminar. Kill-aware quando possível (last_kill + REACTION_PAD), senão
-// fallback pro TAIL fixo. Capped pelo TAIL pra não estender além do
-// content disponível no .mov.
+// terminar. EVENT-AWARE: usa max de kill times E bomb_action_timestamp
+// pra cobrir highlights cuja closing event é plant/defuse (não kill).
+// Round 4c Fase 1.25 (Mathieu múltiplas vezes "plant não aparece"): Fase
+// 1.22 só considerava kills, então cena terminava antes do plant que
+// frequentemente ocorre 2-5s após última kill. Agora inclui bomb event
+// como evento closing legítimo. Capped pelo TAIL pra não estender além
+// do .mov disponível.
 //
 // Compartilhado entre HighlightsReel.highlightDurationSec (define
 // scene duration na composition) e HighlightScene.availableVideoSec
@@ -156,21 +166,40 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
   const sourceDur = Math.max(0.1, highlight.end - highlight.start);
   const tailFallbackEnd = sourceDur - effectiveTailSkipSec(sourceDur);
 
-  const killTimes = highlight.kills
-    .map((k) => k.time)
-    .filter((t): t is number => typeof t === "number" && isFinite(t));
+  // Eventos closing candidatos: kills + bomb event (plant/defuse). Pick max.
+  const eventTimes: number[] = [];
+  for (const k of highlight.kills) {
+    if (typeof k.time === "number" && isFinite(k.time)) {
+      eventTimes.push(k.time - highlight.start);
+    }
+  }
+  if (
+    typeof highlight.bomb_action_timestamp === "number" &&
+    isFinite(highlight.bomb_action_timestamp)
+  ) {
+    eventTimes.push(highlight.bomb_action_timestamp - highlight.start);
+  }
 
-  if (killTimes.length === 0) {
-    // Sem kill timing: fallback pro TAIL fixo (mesmo comportamento das
-    // Fases 1.20/1.21).
+  if (eventTimes.length === 0) {
+    // Sem timing de eventos: fallback pro TAIL fixo (mesmo comportamento
+    // das Fases 1.20/1.21).
     return tailFallbackEnd;
   }
 
-  const lastKillRelative = Math.max(...killTimes) - highlight.start;
-  const dynamicSceneEnd = lastKillRelative + REACTION_PAD_SEC;
+  // Round 4c Fase 1.25 — bomb action precisa de PAD maior que kill (animação
+  // de plant 3.2s + reaction; defuse já é 10s capturado pelo cluster). Pra
+  // evitar undershoot, pra plant_won damos REACTION_PAD + 3s extra.
+  const lastEventRelative = Math.max(...eventTimes);
+  const isPlantClosing =
+    highlight.bomb_action === "plant_won" &&
+    typeof highlight.bomb_action_timestamp === "number" &&
+    highlight.bomb_action_timestamp - highlight.start === lastEventRelative;
+  const reactionForThis = isPlantClosing ? REACTION_PAD_SEC + 3.0 : REACTION_PAD_SEC;
+
+  const dynamicSceneEnd = lastEventRelative + reactionForThis;
   // Cap pelo TAIL fallback (cluster pode ter PAD_POST < REACTION_PAD se
   // round_end_tick truncou). Plus floor pra evitar cena negativa em caso
-  // patológico (kill antes do highlight.start, não deveria acontecer).
+  // patológico (event antes do highlight.start, não deveria acontecer).
   return Math.max(0.5, Math.min(dynamicSceneEnd, tailFallbackEnd));
 };
 
