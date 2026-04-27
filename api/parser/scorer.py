@@ -95,6 +95,15 @@ class KillInfo:
     weapon: str
     headshot: bool
     hp: int = 0
+    # v0.3.2 (Round 4c Fase 1.23) — narrative context pra título dinâmico
+    # do Remotion (Mathieu spec 27/04: "imita CS HUD, atualiza com vida do
+    # player, ajuda narrativa do vídeo").
+    # Todos opcionais — populados em score_one_round quando ParsedDemo tem
+    # all_kills + tickrate. Highlights legados (pré-Fase 1.23) retornam None.
+    attacker_health: Optional[int] = None  # HP do user nesta kill (low-HP heroico)
+    alive_ct_after: Optional[int] = None   # CT-side alive count APÓS essa kill
+    alive_t_after: Optional[int] = None    # T-side alive count APÓS essa kill
+    time: Optional[float] = None           # tick em segundos (sync no editor)
 
 
 @dataclass
@@ -183,16 +192,44 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
     bonus      = 0
     kill_infos: list[KillInfo] = []
 
+    # v0.3.2 Fase 1.23 — pra calcular alive count após cada kill do user,
+    # precisamos de TODAS as kills do round (não só do user, pq teammates
+    # também afetam o alive count). Filtra all_kills do mesmo round e
+    # ordena por tick.
+    all_kills_in_round = sorted(
+        [k for k in parsed.all_kills if k.round_num == round_num],
+        key=lambda k: k.tick,
+    )
+    tickrate = parsed.tickrate if parsed.tickrate > 0 else 64.0
+
     for kill in round_kills:
         wep_lower    = kill.weapon.lower()
         wep_bonus    = next((pts for key, pts in WEAPON_BONUS.items() if key in wep_lower), 0)
         hs_bonus_pts = HS_BONUS if kill.headshot else 0
         bonus       += wep_bonus + hs_bonus_pts
 
+        # Alive count APÓS essa kill: contar todos os deaths até e incluindo
+        # esse tick agrupados por victim_team. demoparser2 convenção:
+        #   victim_team == 2 → T (Terrorist)
+        #   victim_team == 3 → CT (Counter-Terrorist)
+        # 5v5 teams. Quando victim_team é None (raro, demos antigas), skip.
+        deaths_until = [
+            k for k in all_kills_in_round
+            if k.tick <= kill.tick and k.victim_team is not None
+        ]
+        ct_deaths = sum(1 for k in deaths_until if k.victim_team == 3)
+        t_deaths = sum(1 for k in deaths_until if k.victim_team == 2)
+        alive_ct_after = max(0, 5 - ct_deaths)
+        alive_t_after = max(0, 5 - t_deaths)
+
         kill_infos.append(KillInfo(
             label=_kill_label(kill),
             weapon=kill.weapon,
             headshot=kill.headshot,
+            attacker_health=kill.attacker_health,
+            alive_ct_after=alive_ct_after,
+            alive_t_after=alive_t_after,
+            time=kill.tick / tickrate,
         ))
 
     # ── Round-level context bonuses (each fires AT MOST ONCE per round) ───────

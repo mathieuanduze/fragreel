@@ -16,6 +16,14 @@ export type Kill = {
   // Opcional: quando o parser não fornece, o editor estima distribuindo
   // uniformemente as N kills entre highlight.start e highlight.end.
   time?: number;
+  // Round 4c Fase 1.23 — narrative context pro título dinâmico
+  // (Mathieu spec: "imita CS HUD"). Editor mostra
+  // "{alive_ct_after}v{alive_t_after} · {attacker_health}HP" evoluindo
+  // dinamicamente com cada kill. Todos opcionais — fallback pro
+  // "{N} KILLS" da Fase 1.21 quando undefined (highlights legados).
+  attacker_health?: number;
+  alive_ct_after?: number;
+  alive_t_after?: number;
 };
 
 export type Highlight = {

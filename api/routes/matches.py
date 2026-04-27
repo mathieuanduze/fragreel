@@ -287,6 +287,13 @@ def _to_match_out(doc: dict) -> MatchOut:
                 weapon=k.get("weapon", ""),
                 headshot=k.get("headshot", False),
                 hp=k.get("hp", 0),
+                # v0.3.2 Fase 1.23 — narrative context propagation. Pydantic
+                # serializa None → null se field não estava no doc legacy
+                # (highlights pré-v0.3.2). Editor faz fallback.
+                time=k.get("time"),
+                attacker_health=k.get("attacker_health"),
+                alive_ct_after=k.get("alive_ct_after"),
+                alive_t_after=k.get("alive_t_after"),
             )
             for k in h.get("kills", [])
         ]

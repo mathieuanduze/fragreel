@@ -135,6 +135,12 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
                             "weapon":   k.weapon,
                             "headshot": k.headshot,
                             "hp":       k.hp,
+                            # v0.3.2 Fase 1.23 — narrative context (nullable
+                            # pra highlights legados que não tinham os fields).
+                            "time":            k.time,
+                            "attacker_health": k.attacker_health,
+                            "alive_ct_after":  k.alive_ct_after,
+                            "alive_t_after":   k.alive_t_after,
                         }
                         for k in h.kills
                     ],

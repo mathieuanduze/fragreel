@@ -25,6 +25,15 @@ class KillOut(BaseModel):
     # Quando o parser CS2 não fornece, o editor estima distribuindo
     # uniformemente as kills entre highlight.start e highlight.end.
     time: Optional[float] = None
+    # ── v0.3.2 (Round 4c Fase 1.23) — narrative context pro título dinâmico ──
+    # Mathieu spec 27/04: "imita CS HUD, atualiza com vida do player, ajuda
+    # narrativa do vídeo". Editor mostra "{alive_ct_after}v{alive_t_after} ·
+    # {attacker_health}HP" evoluindo dinamicamente a cada kill. Todos
+    # opcionais — None pra highlights legados (pré-Fase 1.23) → editor
+    # fallback pro "{N} KILLS" da Fase 1.21.
+    attacker_health: Optional[int] = None  # HP do user nesta kill
+    alive_ct_after: Optional[int] = None   # CT-side alive count APÓS essa kill
+    alive_t_after: Optional[int] = None    # T-side alive count APÓS essa kill
 
 
 class HighlightOut(BaseModel):

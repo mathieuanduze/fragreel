@@ -75,6 +75,35 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   const availableVideoSec = Math.max(0.1, sceneEndInSourceSec - sceneSkipSec);
   const gameplayRate = availableVideoSec / sceneDurationSec;
 
+  // Round 4c Fase 1.23 — título dinâmico HP + alive count.
+  // Calcula última kill já completada em sceneTime atual e mostra estado
+  // pós-kill: "5v3 · 87HP". Updates em real-time enquanto frame avança.
+  // Fallback pro "{N} KILLS" quando highlight é legado (sem fields).
+  const sceneTimeSec = frame / fps;
+  const killTimings = highlight.kills.map((k, i) => ({
+    kill: k,
+    sceneTime: killTimeInSceneSec(
+      k,
+      i,
+      highlight.kills.length,
+      highlight.start,
+      sceneDurationSec,
+      sceneSkipSec
+    ),
+  }));
+  const completedKills = killTimings.filter((e) => e.sceneTime <= sceneTimeSec);
+  const lastKill = completedKills.length > 0
+    ? completedKills[completedKills.length - 1].kill
+    : null;
+  // Detect if ANY kill has narrative context (Fase 1.23 fields). Se não,
+  // highlight é legado pré-Fase 1.23 → fallback pro "{N} KILLS".
+  const hasNarrativeContext = highlight.kills.some(
+    (k) => k.alive_ct_after !== undefined || k.attacker_health !== undefined
+  );
+  const dynamicAliveCt = lastKill?.alive_ct_after ?? 5;
+  const dynamicAliveT = lastKill?.alive_t_after ?? 5;
+  const dynamicHp = lastKill?.attacker_health ?? null;
+
   // Flash branco no frame 0 (impacto)
   const flash = interpolate(frame, [0, 4, 8], [1, 0.3, 0], {
     extrapolateRight: "clamp",
@@ -350,15 +379,13 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         }}
       />
 
-      {/* Rank badge — top left (mesmo lugar nos dois formatos).
-          Round 4c Fase 1.21 (Mathieu re-cobrou pós-Fase 1.19): "Round 8
-          repete embaixo, info que está lá não serve pra nada. Importante
-          seria: quantos players vivos CT vs T, quanta vida o user tem".
-          Redesign: remove "JOGADA + Round N" redundante, mostra info
-          ÚTIL derivada do kills array (sem mudar API/parser): contagem
-          de kills + headshots. Pra alive count CT vs T + HP do user
-          precisaria enrich Highlight type via parser — TODO Fase 1.22+
-          (h.context.alive_ct, h.context.alive_t, h.context.user_hp). */}
+      {/* Rank badge — top left.
+          Round 4c Fase 1.23 (Mathieu spec: "imita CS HUD, atualiza com
+          vida do player, ajuda narrativa"). Título DINÂMICO: encontra a
+          última kill já completada em sceneTime e mostra estado APÓS:
+          "{aliveCt}v{aliveT} · {hp}HP" evoluindo a cada kill. Fallback
+          pro "{N} KILLS" da Fase 1.21 se highlight é legado (sem fields
+          alive_ct_after/attacker_health). */}
       <div
         style={{
           position: "absolute",
@@ -403,35 +430,69 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
             gap: 4,
           }}
         >
-          {/* Big número de kills — info imediata "quantas frags foi essa play".
-              Round 4c Fase 1.22.1 (PC test cosmético): pluralização correta
-              singular vs plural ("1 KILL" vs "2 KILLS"). */}
-          <div
-            style={{
-              fontSize: isHorizontal ? 28 : 34,
-              fontWeight: 900,
-              color: theme.text,
-              letterSpacing: "-0.02em",
-              fontFamily: theme.fontDisplay,
-              lineHeight: 1,
-            }}
-          >
-            {highlight.kills.length} {highlight.kills.length === 1 ? "KILL" : "KILLS"}
-          </div>
-          {/* Detalhe: HS count colorido pro mood. Só mostra se houver. */}
-          {highlight.kills.filter((k) => k.headshot).length > 0 && (
-            <div
-              style={{
-                fontSize: isHorizontal ? 14 : 16,
-                fontWeight: 800,
-                color: moodDef.color,
-                letterSpacing: "0.12em",
-                fontFamily: theme.fontDisplay,
-                lineHeight: 1,
-              }}
-            >
-              {highlight.kills.filter((k) => k.headshot).length} HS
-            </div>
+          {hasNarrativeContext ? (
+            <>
+              {/* Round 4c Fase 1.23 — alive count CT vs T. Atualiza
+                  dinamicamente após cada kill que o user faz. */}
+              <div
+                style={{
+                  fontSize: isHorizontal ? 26 : 32,
+                  fontWeight: 900,
+                  color: theme.text,
+                  letterSpacing: "-0.02em",
+                  fontFamily: theme.fontMono,
+                  lineHeight: 1,
+                }}
+              >
+                {dynamicAliveCt}<span style={{ color: moodDef.color }}>v</span>{dynamicAliveT}
+              </div>
+              {/* HP do user — mood color, fontMono pra "imitar HUD CS". */}
+              {dynamicHp !== null && (
+                <div
+                  style={{
+                    fontSize: isHorizontal ? 18 : 22,
+                    fontWeight: 800,
+                    color: dynamicHp < 30 ? "#ff4444" : moodDef.color,
+                    letterSpacing: "0.05em",
+                    fontFamily: theme.fontMono,
+                    lineHeight: 1,
+                  }}
+                >
+                  {dynamicHp}HP
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Fallback pro highlights legados (pré-Fase 1.23 sem fields):
+                  "{N} KILLS" da Fase 1.21+1.22.1. */}
+              <div
+                style={{
+                  fontSize: isHorizontal ? 28 : 34,
+                  fontWeight: 900,
+                  color: theme.text,
+                  letterSpacing: "-0.02em",
+                  fontFamily: theme.fontDisplay,
+                  lineHeight: 1,
+                }}
+              >
+                {highlight.kills.length} {highlight.kills.length === 1 ? "KILL" : "KILLS"}
+              </div>
+              {highlight.kills.filter((k) => k.headshot).length > 0 && (
+                <div
+                  style={{
+                    fontSize: isHorizontal ? 14 : 16,
+                    fontWeight: 800,
+                    color: moodDef.color,
+                    letterSpacing: "0.12em",
+                    fontFamily: theme.fontDisplay,
+                    lineHeight: 1,
+                  }}
+                >
+                  {highlight.kills.filter((k) => k.headshot).length} HS
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
