@@ -111,6 +111,32 @@ export default function LoginPage() {
           Entrar com Steam
         </a>
 
+        {/* Consent — privacy policy acknowledgment */}
+        <p
+          style={{
+            marginTop: 14,
+            marginBottom: 0,
+            fontSize: 12,
+            color: "rgba(255,255,255,0.5)",
+            textAlign: "center",
+            lineHeight: 1.5,
+            maxWidth: 320,
+          }}
+        >
+          Ao entrar, você aceita a{" "}
+          <Link
+            href="/privacy"
+            style={{
+              color: "#FF6B35",
+              textDecoration: "none",
+              borderBottom: "1px dotted #FF6B35",
+            }}
+          >
+            Política de Privacidade
+          </Link>{" "}
+          da FragReel.
+        </p>
+
         {/* Divider */}
         <div
           style={{
