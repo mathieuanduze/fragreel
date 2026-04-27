@@ -15,6 +15,7 @@ import {
   clampHighlightSec,
   effectiveSkipSec,
   effectiveTailSkipSec,
+  effectiveSceneEndSec,
   s2f,
 } from "../../theme";
 import { Intro } from "./scenes/Intro";
@@ -38,17 +39,19 @@ export const OUTRO_SEC = 3.0;
 // HIGHLIGHT_VIDEO_SKIP_SEC vive em theme.ts (canonical) pra evitar circular
 // import HighlightScene → HighlightsReel.
 
-// Round 4c Fase 1.20 — duração efetiva = source - frontSkip - tailSkip.
-// FRONT skip corta buy phase + warmup walk (pre-action).
-// TAIL skip corta post-event standing still (Fase 1.20: Mathieu reportou
-// FREEZE 1.2s pixel-frozen no fim do highlight = real footage de defuse
-// post-action). Ambos vivem em theme.ts (canonical) pra evitar circular
-// import HighlightScene → HighlightsReel.
+// Round 4c Fase 1.22 — duração efetiva = sceneEndSec - frontSkip.
+// sceneEndSec é KILL-AWARE: termina em last_kill+1s reaction quando temos
+// timing das kills, fallback pra TAIL fixo. Resolve "1s freeze antes da
+// transição" reportado pelo Mathieu pós-Fase 1.21 — TAIL_SKIP fixo cortava
+// do FIM do source, não do fim da AÇÃO. Quando última kill era cedo no
+// cluster, sobrava 1-3s standing still antes do TAIL cortar.
+// Helper effectiveSceneEndSec vive em theme.ts (canonical) — DEVE bater
+// com HighlightScene.availableVideoSec senão freeze edge.
 const highlightDurationSec = (h: Highlight) => {
   const sourceDur = h.end - h.start;
   const front = effectiveSkipSec(sourceDur);
-  const tail = effectiveTailSkipSec(sourceDur);
-  const rawSec = sourceDur - front - tail;
+  const sceneEnd = effectiveSceneEndSec(h);
+  const rawSec = sceneEnd - front;
   return clampHighlightSec(rawSec, REEL_HIGHLIGHT_BOUNDS);
 };
 

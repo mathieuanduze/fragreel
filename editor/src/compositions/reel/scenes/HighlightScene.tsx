@@ -15,6 +15,7 @@ import {
   FPS,
   effectiveSkipSec,
   effectiveTailSkipSec,
+  effectiveSceneEndSec,
 } from "../../../theme";
 import { Highlight } from "../../../types";
 
@@ -61,18 +62,17 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   // availableVideoSec no numerator. Caso comum (sourceDur=30s SKIP=2):
   // available=28s, scene=28s, rate=1.0. SEM freeze.
   const sourceDurSec = Math.max(0.1, highlight.end - highlight.start);
-  // Round 4c Fase 1.19+1.20 — usa effectiveSkipSec (front) + effective
-  // TailSkipSec (Fase 1.20: corta PAD_POST standing still). Consistente
-  // com HighlightsReel.highlightDurationSec. Available video = source -
-  // front - tail. Caso comum (source 30s, front 4s, tail 3s): available
-  // 23s, scene 23s, rate 1.0. SEM freeze no início (Fase 1.18 fix) NEM
-  // no fim (Fase 1.20 fix).
+  // Round 4c Fase 1.22 (Mathieu reportou pós-Fase 1.21: "vídeo fica
+  // pausado por 1 segundo antes da transição, parece que trava"). TAIL
+  // fixo cortava do FIM do source — quando última kill era cedo no
+  // cluster, sobrava dead time pós-action visível. Fix: kill-aware
+  // sceneEndSec via theme helper (last_kill + REACTION_PAD), capped
+  // pelo TAIL fallback. Available video = sceneEndSec - frontSkip,
+  // mesma fórmula da scene duration em HighlightsReel — DEVEM bater
+  // pra evitar freeze edge no fim.
   const sceneSkipSec = effectiveSkipSec(sourceDurSec);
-  const sceneTailSkipSec = effectiveTailSkipSec(sourceDurSec);
-  const availableVideoSec = Math.max(
-    0.1,
-    sourceDurSec - sceneSkipSec - sceneTailSkipSec
-  );
+  const sceneEndInSourceSec = effectiveSceneEndSec(highlight);
+  const availableVideoSec = Math.max(0.1, sceneEndInSourceSec - sceneSkipSec);
   const gameplayRate = availableVideoSec / sceneDurationSec;
 
   // Flash branco no frame 0 (impacto)

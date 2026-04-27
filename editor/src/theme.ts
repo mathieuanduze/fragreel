@@ -119,12 +119,59 @@ export const HIGHLIGHT_VIDEO_TAIL_SKIP_SEC = 4.5;
 
 // effectiveTailSkipSec — mesma lógica de clamp pra clusters curtos.
 // Não pode roubar mais que 50% do que sobrou pós-SKIP_FRONT senão
-// some a action. Caso comum (cluster 25s, SKIP 4, TAIL 3): cena 18s.
+// some a action. Caso comum (cluster 25s, SKIP 4, TAIL 4.5): cena 16.5s.
 // Edge (cluster 8s, SKIP 4): pós-front sobra 4s, TAIL clampa em 2s
 // (50% do remaining), cena = 2s — clamp REEL_BOUNDS sobe pra min 3s.
 export const effectiveTailSkipSec = (sourceDurSec: number): number => {
   const remainingAfterFront = Math.max(0, sourceDurSec - effectiveSkipSec(sourceDurSec));
   return Math.min(HIGHLIGHT_VIDEO_TAIL_SKIP_SEC, remainingAfterFront * 0.5);
+};
+
+// Round 4c Fase 1.22 — REACTION_PAD: tempo após a última kill antes da
+// cena cortar. Mathieu reportou pós-Fase 1.21: "vídeo fica pausado por
+// 1 segundo antes da transição, parece que trava". Diagnóstico: TAIL_SKIP
+// fixo cortava do FIM do source, não do fim da AÇÃO. Quando última kill
+// acontecia cedo no cluster (e PAD_POST + bomb extension davam ainda mais
+// tail), sobrava 1-3s pós-action standing still antes da TAIL cortar.
+// Fix: scene termina dinamicamente em `last_kill_time + REACTION_PAD_SEC`
+// quando temos kill timing, capped pelo TAIL fallback (não estender além
+// do que cluster captou). 1s é suficiente pra ver body drop / kill react
+// sem dead time.
+export const REACTION_PAD_SEC = 1.0;
+
+// Tipo duck-typed pra evitar circular import com types.ts (que importa
+// Orientation deste arquivo).
+type _KillTimeInput = { time?: number };
+type _HighlightInput = { start: number; end: number; kills: _KillTimeInput[] };
+
+// effectiveSceneEndSec — calcula em que segundo do source a cena DEVE
+// terminar. Kill-aware quando possível (last_kill + REACTION_PAD), senão
+// fallback pro TAIL fixo. Capped pelo TAIL pra não estender além do
+// content disponível no .mov.
+//
+// Compartilhado entre HighlightsReel.highlightDurationSec (define
+// scene duration na composition) e HighlightScene.availableVideoSec
+// (define playback rate). DEVEM bater, senão freeze edge.
+export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
+  const sourceDur = Math.max(0.1, highlight.end - highlight.start);
+  const tailFallbackEnd = sourceDur - effectiveTailSkipSec(sourceDur);
+
+  const killTimes = highlight.kills
+    .map((k) => k.time)
+    .filter((t): t is number => typeof t === "number" && isFinite(t));
+
+  if (killTimes.length === 0) {
+    // Sem kill timing: fallback pro TAIL fixo (mesmo comportamento das
+    // Fases 1.20/1.21).
+    return tailFallbackEnd;
+  }
+
+  const lastKillRelative = Math.max(...killTimes) - highlight.start;
+  const dynamicSceneEnd = lastKillRelative + REACTION_PAD_SEC;
+  // Cap pelo TAIL fallback (cluster pode ter PAD_POST < REACTION_PAD se
+  // round_end_tick truncou). Plus floor pra evitar cena negativa em caso
+  // patológico (kill antes do highlight.start, não deveria acontecer).
+  return Math.max(0.5, Math.min(dynamicSceneEnd, tailFallbackEnd));
 };
 
 // Dimensões por orientação. Vertical = TikTok/Reels/Shorts; Horizontal = YouTube/Twitch.
