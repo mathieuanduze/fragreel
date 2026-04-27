@@ -48,6 +48,21 @@ export const Outro: React.FC<Props> = ({ match, playerName, mood }) => {
     config: { damping: 16, mass: 1 },
   });
 
+  // Round 4c Fase 1.32 (Mathieu reportou pós-Fase 1.31 PASS plant: "última
+  // cena travada como se tivesse dado erro"). Análise frames Mathieu mostrou
+  // outro entra ~78s, animações terminam ~80s (cascata 34 + ctaSpring 75),
+  // mas outro dura até 80.93s. Sobravam ~1s de tudo static (CTA + stats já
+  // entraram, nada mais mudando) → perception "freeze de erro" no fim.
+  // Fix: fadeOut últimos 15 frames do outro (~0.5s). Tela fade-to-bg
+  // suavemente em vez de cortar abrupto com static. Marca claramente
+  // "fim do reel" sem parecer travamento.
+  const outroFadeOut = interpolate(
+    frame,
+    [durationInFrames - 15, durationInFrames],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+
   const stats = [
     { label: "K/D", value: match.stats.kd, color: theme.text },
     { label: "HS%", value: match.stats.hs, color: moodDef.color },
@@ -59,6 +74,7 @@ export const Outro: React.FC<Props> = ({ match, playerName, mood }) => {
     <AbsoluteFill
       style={{
         background: `radial-gradient(ellipse at center, ${moodDef.color}15 0%, ${theme.bg} 80%)`,
+        opacity: outroFadeOut,
       }}
     >
       {/* Grain */}
