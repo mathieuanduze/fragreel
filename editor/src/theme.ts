@@ -127,17 +127,25 @@ export const effectiveTailSkipSec = (sourceDurSec: number): number => {
   return Math.min(HIGHLIGHT_VIDEO_TAIL_SKIP_SEC, remainingAfterFront * 0.5);
 };
 
-// Round 4c Fase 1.22 — REACTION_PAD: tempo após a última kill antes da
-// cena cortar. Mathieu reportou pós-Fase 1.21: "vídeo fica pausado por
-// 1 segundo antes da transição, parece que trava". Diagnóstico: TAIL_SKIP
-// fixo cortava do FIM do source, não do fim da AÇÃO. Quando última kill
-// acontecia cedo no cluster (e PAD_POST + bomb extension davam ainda mais
-// tail), sobrava 1-3s pós-action standing still antes da TAIL cortar.
-// Fix: scene termina dinamicamente em `last_kill_time + REACTION_PAD_SEC`
-// quando temos kill timing, capped pelo TAIL fallback (não estender além
-// do que cluster captou). 1s é suficiente pra ver body drop / kill react
-// sem dead time.
-export const REACTION_PAD_SEC = 1.0;
+// Round 4c REACTION_PAD evolução por TIPO de event closing:
+//   Fase 1.22 — generic 1.0s
+//   Fase 1.31 — plant_won 1.5s (cobrir CS2 native "Bomba foi armada"
+//     red bar). Default kill mantido 1.0s.
+//   Fase 1.34 — Mathieu reportou 3 issues pós-Fase 1.33 PASS plant
+//     mas content cortado:
+//     #1 R8 defuse: "defuse animation começa mas NÃO termina"
+//     #2 R7: "segunda kill mal aparece — corta no momento exato do
+//            impacto, sem padding pós-kill"
+//     #3 R14 plant: "NÃO mostra plant completion + 'Bomba foi armada'"
+//   Bumpado por categoria pra cobrir notification readable + body fall:
+//     Normal kill: 1.0 → 2.0s (body fall + viewmodel idle + breathing)
+//     plant_won: 1.5 → 3.0s (CS2 red bar "Bomba foi armada" 2s + buffer)
+//     defuse: NEW 4.0s (CS2 red→green "Bomba defusada" 3s + buffer)
+//   Source-side complementar: V2_PLANT_POST_BUFFER_S 2→5s + V2_DEFUSE_
+//   POST_BUFFER_S 2.5→5s (capture mais frames pós-action).
+export const REACTION_PAD_SEC = 2.0;
+export const REACTION_PAD_PLANT_SEC = 3.0;
+export const REACTION_PAD_DEFUSE_SEC = 4.0;
 
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
 // Orientation deste arquivo).
@@ -285,12 +293,24 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
   //     pequeno safety. Cuts logo após bomb planted = no freeze residual.
   // Defuse mantém REACTION_PAD_SEC normal (closing event geralmente é
   // kill final ou reaction kill, não plant).
+  // Round 4c Fase 1.34 — REACTION_PAD por TIPO de event closing.
+  // Mathieu reportou pós-Fase 1.33 que defuse + plant cortavam SEM
+  // cobrir notification "Bomba defusada" / "Bomba foi armada". Plus
+  // normal kills tinham 0 padding pós-impacto (body fall mal visível).
+  // Detectar bomb_action é o closing event (last event time matches
+  // bomb_action_timestamp) e usar REACTION específico por tipo.
   const lastEventRelative = Math.max(...eventTimes);
-  const isPlantClosing =
-    highlight.bomb_action === "plant_won" &&
+  const bombIsClosing =
     typeof highlight.bomb_action_timestamp === "number" &&
     Math.abs((highlight.bomb_action_timestamp - refStart) - lastEventRelative) < 0.01;
-  const reactionForThis = isPlantClosing ? 1.5 : REACTION_PAD_SEC;
+  let reactionForThis = REACTION_PAD_SEC; // 2.0s default (kill aftermath)
+  if (bombIsClosing) {
+    if (highlight.bomb_action === "plant_won") {
+      reactionForThis = REACTION_PAD_PLANT_SEC; // 3.0s — "Bomba foi armada" notif
+    } else if (highlight.bomb_action === "defuse") {
+      reactionForThis = REACTION_PAD_DEFUSE_SEC; // 4.0s — "Bomba defusada" notif
+    }
+  }
 
   const dynamicSceneEnd = lastEventRelative + reactionForThis;
   // Cap pelo TAIL fallback (cluster pode ter PAD_POST < REACTION_PAD se
