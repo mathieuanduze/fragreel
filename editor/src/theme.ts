@@ -91,6 +91,37 @@ export const HIGHLIGHT_VIDEO_SKIP_SEC = 4.0;
 export const effectiveSkipSec = (sourceDurSec: number): number =>
   Math.min(HIGHLIGHT_VIDEO_SKIP_SEC, Math.max(0, sourceDurSec * 0.5));
 
+// Round 4c Fase 1.20 — pula últimos N segundos de cada .mov de gameplay.
+// Cluster v0.3.0-beta-2 usa V2_PAD_POST_S = 5.0 (captura pós-último-event
+// pra body drop, reaction, reload). Mas pra defuse rounds isso vira
+// "player parado com knife olhando o nada" 3-5s = perceivable como
+// FREEZE pelo viewer (Mathieu reportou: "vídeo pausa, fica travado,
+// parece que bugou. Mas aí volta pro próximo round").
+//
+// Análise visual de frames PC (extraídos t=29.8/30.0/30.2/.../31.4s)
+// confirmou GAMEPLAY pixel-frozen por 1.2s no fim do highlight #1
+// (defuse) — viewmodel sem breathing animation = não é "player parado",
+// é footage real de "post-defuse standing still" indistinguível de bug.
+//
+// TAIL_SKIP = 3.0s deixa 2s pós-event (suficiente pra ver body drop /
+// defuse complete) sem o "standing still" longo. Cluster mantém
+// PAD_POST 5s na CAPTURA (HLAE precisa pra mirv_streams record stop
+// graceful), mas no PLAYBACK do reel cortamos 3s do fim.
+//
+// Reel inteiro fica ~9s mais curto pra 3 highlights — aceitável trade
+// vs sumir freeze que parece bug.
+export const HIGHLIGHT_VIDEO_TAIL_SKIP_SEC = 3.0;
+
+// effectiveTailSkipSec — mesma lógica de clamp pra clusters curtos.
+// Não pode roubar mais que 50% do que sobrou pós-SKIP_FRONT senão
+// some a action. Caso comum (cluster 25s, SKIP 4, TAIL 3): cena 18s.
+// Edge (cluster 8s, SKIP 4): pós-front sobra 4s, TAIL clampa em 2s
+// (50% do remaining), cena = 2s — clamp REEL_BOUNDS sobe pra min 3s.
+export const effectiveTailSkipSec = (sourceDurSec: number): number => {
+  const remainingAfterFront = Math.max(0, sourceDurSec - effectiveSkipSec(sourceDurSec));
+  return Math.min(HIGHLIGHT_VIDEO_TAIL_SKIP_SEC, remainingAfterFront * 0.5);
+};
+
 // Dimensões por orientação. Vertical = TikTok/Reels/Shorts; Horizontal = YouTube/Twitch.
 // Helper único pra evitar 1080/1920 mágicos espalhados pelo código.
 export const DIMENSIONS = {
@@ -156,16 +187,27 @@ export const SPRING = {
 // Se o parser nos deu kill.time absoluto, reaproveitamos relativo ao start.
 // Caso contrário, distribuímos uniformemente entre 0.5s e (sceneDuration - 0.5s).
 // O 0.5s de margem evita kill colando na borda da cena (parece bug visual).
+//
+// Round 4c Fase 1.20 BUG FIX (Mathieu reportou "kills não aparecem em cima
+// à direita junto com o momento que elas acontecem"): a função antes não
+// considerava o SKIP/TAIL offset do gameplay. Com OffthreadVideo startFrom
+// pulando frontSkip segundos, kill em source_t=10s aparece visualmente em
+// scene_t=(10 - frontSkip). Antes calculava `kill.time - highlightStart`
+// dando scene_t=10s — killfeed aparecia ~4s ATRASADO do momento real.
+// Agora aceita frontSkipSec opcional pra alinhar killfeed com gameplay.
 export const KILL_FEED_EDGE_PAD_SEC = 0.5;
 export function killTimeInSceneSec(
   kill: { time?: number },
   killIndex: number,
   totalKills: number,
   highlightStart: number,
-  sceneDurationSec: number
+  sceneDurationSec: number,
+  frontSkipSec: number = 0
 ): number {
   if (typeof kill.time === "number" && isFinite(kill.time)) {
-    const rel = kill.time - highlightStart;
+    // Posição absoluta no source: kill.time - highlightStart
+    // Posição visível na CENA (com SKIP aplicado): subtrair frontSkipSec
+    const rel = kill.time - highlightStart - frontSkipSec;
     return Math.max(0, Math.min(sceneDurationSec, rel));
   }
   // Fallback uniforme.

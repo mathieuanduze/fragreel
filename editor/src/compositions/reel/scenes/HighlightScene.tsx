@@ -14,6 +14,7 @@ import {
   HIGHLIGHT_VIDEO_SKIP_SEC,
   FPS,
   effectiveSkipSec,
+  effectiveTailSkipSec,
 } from "../../../theme";
 import { Highlight } from "../../../types";
 
@@ -60,12 +61,18 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   // availableVideoSec no numerator. Caso comum (sourceDur=30s SKIP=2):
   // available=28s, scene=28s, rate=1.0. SEM freeze.
   const sourceDurSec = Math.max(0.1, highlight.end - highlight.start);
-  // Round 4c Fase 1.19 — usa effectiveSkipSec (clamp 50% pra clusters
-  // curtos) consistente com HighlightsReel.highlightDurationSec. Sem
-  // isso, scene duration usa effectiveSkip mas rate calc usa SKIP raw
-  // → desincronia → freeze edge.
+  // Round 4c Fase 1.19+1.20 — usa effectiveSkipSec (front) + effective
+  // TailSkipSec (Fase 1.20: corta PAD_POST standing still). Consistente
+  // com HighlightsReel.highlightDurationSec. Available video = source -
+  // front - tail. Caso comum (source 30s, front 4s, tail 3s): available
+  // 23s, scene 23s, rate 1.0. SEM freeze no início (Fase 1.18 fix) NEM
+  // no fim (Fase 1.20 fix).
   const sceneSkipSec = effectiveSkipSec(sourceDurSec);
-  const availableVideoSec = Math.max(0.1, sourceDurSec - sceneSkipSec);
+  const sceneTailSkipSec = effectiveTailSkipSec(sourceDurSec);
+  const availableVideoSec = Math.max(
+    0.1,
+    sourceDurSec - sceneSkipSec - sceneTailSkipSec
+  );
   const gameplayRate = availableVideoSec / sceneDurationSec;
 
   // Flash branco no frame 0 (impacto)
@@ -231,6 +238,101 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         }}
       />
 
+      {/* Round 4c Fase 1.20 — crosshair sintético sempre on (Mathieu pediu
+          "se der, seria legal manter o crosshair no vídeo"). Necessário pq
+          (a) cl_drawhud 0 + crosshair 1 desliga crosshair quando arma é
+          knife (CS2 design — knife é melee sem aim indicator); (b) viewer
+          mobile perde indicador de aim center em frames com knife/granade.
+          Overlay vive AQUI (depois do gameplay/placeholder, antes do flash
+          e overlays HUD) — sempre visível sobre qualquer footage. Tamanho
+          + opacidade tunados pra ser indicador discreto, não competir
+          visualmente com o crosshair real do CS2 quando ele aparece. */}
+      {gameplaySrc && (
+        <AbsoluteFill
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: isHorizontal ? 18 : 22,
+              height: isHorizontal ? 18 : 22,
+              opacity: 0.55,
+            }}
+          >
+            {/* Vertical bar (top) */}
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: 0,
+                width: 2,
+                height: 7,
+                background: "white",
+                transform: "translateX(-50%)",
+                boxShadow: "0 0 4px rgba(0,0,0,0.6)",
+              }}
+            />
+            {/* Vertical bar (bottom) */}
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                bottom: 0,
+                width: 2,
+                height: 7,
+                background: "white",
+                transform: "translateX(-50%)",
+                boxShadow: "0 0 4px rgba(0,0,0,0.6)",
+              }}
+            />
+            {/* Horizontal bar (left) */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: 0,
+                width: 7,
+                height: 2,
+                background: "white",
+                transform: "translateY(-50%)",
+                boxShadow: "0 0 4px rgba(0,0,0,0.6)",
+              }}
+            />
+            {/* Horizontal bar (right) */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                right: 0,
+                width: 7,
+                height: 2,
+                background: "white",
+                transform: "translateY(-50%)",
+                boxShadow: "0 0 4px rgba(0,0,0,0.6)",
+              }}
+            />
+            {/* Center dot */}
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                width: 2,
+                height: 2,
+                background: "white",
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 4px rgba(0,0,0,0.6)",
+              }}
+            />
+          </div>
+        </AbsoluteFill>
+      )}
+
       {/* Flash de impacto */}
       <AbsoluteFill
         style={{
@@ -375,12 +477,19 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         }}
       >
         {highlight.kills.map((k, i) => {
+          // Round 4c Fase 1.20 BUG FIX (Mathieu: "kills não aparecem em
+          // cima à direita junto com o momento que elas acontecem").
+          // Passar sceneSkipSec pra alinhar killfeed com o playback do
+          // gameplay (que pula sceneSkipSec do início via OffthreadVideo
+          // startFrom). Sem isso, killfeed aparecia ~4s atrasado dos
+          // tiros reais.
           const killTimeSec = killTimeInSceneSec(
             k,
             i,
             highlight.kills.length,
             highlight.start,
-            sceneDurationSec
+            sceneDurationSec,
+            sceneSkipSec
           );
           const killFrame = s2f(killTimeSec);
 
@@ -429,11 +538,27 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
                 fontFamily: theme.fontDisplay,
               }}
             >
-              <span style={{ color: theme.textDim, fontSize: isHorizontal ? 16 : 18 }}>
+              {/* Round 4c Fase 1.20 — render simplificado. Antes mostrava
+                  `weapon ▸ label`, mas API _kill_label() retorna só
+                  "WEAPON · HS" (sem victim name) — Mathieu viu "AK47 ▸ AK-47"
+                  redundante. Fix Mac-side: mostra weapon + KILL index (#N de
+                  total) + HS badge. Mais informativo (sequência das kills)
+                  sem precisar mudar API/parser. Pro futuro: API enrich Kill
+                  com victim_name pra render killer ▸ victim canonical. */}
+              <span style={{ color: theme.text, fontSize: isHorizontal ? 20 : 22, fontWeight: 800 }}>
                 {k.weapon.toUpperCase()}
               </span>
-              <span style={{ color: moodDef.color }}>▸</span>
-              <span>{k.label}</span>
+              <span
+                style={{
+                  color: moodDef.color,
+                  fontSize: isHorizontal ? 14 : 16,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  fontFamily: theme.fontMono,
+                }}
+              >
+                #{i + 1}/{highlight.kills.length}
+              </span>
               {k.headshot && (
                 <span
                   style={{

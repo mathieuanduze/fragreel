@@ -8,11 +8,13 @@ import { Highlight, ReelProps } from "../../types";
 import {
   FPS,
   HIGHLIGHT_VIDEO_SKIP_SEC,
+  HIGHLIGHT_VIDEO_TAIL_SKIP_SEC,
   MOODS,
   MUSIC_ENABLED,
   REEL_HIGHLIGHT_BOUNDS,
   clampHighlightSec,
   effectiveSkipSec,
+  effectiveTailSkipSec,
   s2f,
 } from "../../theme";
 import { Intro } from "./scenes/Intro";
@@ -36,12 +38,17 @@ export const OUTRO_SEC = 3.0;
 // HIGHLIGHT_VIDEO_SKIP_SEC vive em theme.ts (canonical) pra evitar circular
 // import HighlightScene → HighlightsReel.
 
-// Fase 1.19 — duração efetiva = source duration - effectiveSkipSec.
-// effectiveSkipSec vive em theme.ts (canonical) pra evitar circular
+// Round 4c Fase 1.20 — duração efetiva = source - frontSkip - tailSkip.
+// FRONT skip corta buy phase + warmup walk (pre-action).
+// TAIL skip corta post-event standing still (Fase 1.20: Mathieu reportou
+// FREEZE 1.2s pixel-frozen no fim do highlight = real footage de defuse
+// post-action). Ambos vivem em theme.ts (canonical) pra evitar circular
 // import HighlightScene → HighlightsReel.
 const highlightDurationSec = (h: Highlight) => {
   const sourceDur = h.end - h.start;
-  const rawSec = sourceDur - effectiveSkipSec(sourceDur);
+  const front = effectiveSkipSec(sourceDur);
+  const tail = effectiveTailSkipSec(sourceDur);
+  const rawSec = sourceDur - front - tail;
   return clampHighlightSec(rawSec, REEL_HIGHLIGHT_BOUNDS);
 };
 
