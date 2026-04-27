@@ -28,13 +28,12 @@ When you pick which highlights to render, your selection (highlight ranks, mood 
 
 ---
 
-## What we DO NOT do
+## Desktop client (.exe) — zero tracking
 
-### No analytics
-There is **zero** third-party analytics on the website or in the desktop client. No Google Analytics, no Mixpanel, no Amplitude, no Sentry, no Hotjar, no Facebook Pixel. You can verify this in our public source code.
+The FragReel desktop client you install on your PC **does not collect or send personal data**. You can audit this in the open source code.
 
-### No tracking cookies
-The website uses a single session cookie for Steam authentication. No advertising cookies, no fingerprinting, no cross-site tracking.
+### No analytics in the client
+**Zero** third-party analytics in the .exe. No Google Analytics, Mixpanel, Amplitude, Sentry, Hotjar, Facebook Pixel — nothing. Verifiable in the open source code.
 
 ### No video upload
 Your gameplay video — the MP4 your computer renders — is **never uploaded** to our servers or anywhere else. It stays on your local disk. You decide if and where to share it.
@@ -42,8 +41,27 @@ Your gameplay video — the MP4 your computer renders — is **never uploaded** 
 ### No demo upload (raw `.dem` files)
 The raw demo files you store in your CS2 demos folder are parsed **locally on your machine**. Only the numeric match metadata described above leaves your computer. The `.dem` file itself never travels to our servers.
 
-### No selling or sharing of data
-We do not sell your data. We do not share your data with advertisers, brokers, or third parties. We do not use your data to train any AI model.
+### No selling or sharing of YOUR data
+We do not sell your Steam ID or match metadata. We do not share with data brokers. We do not use your data to train any AI model.
+
+---
+
+## Website fragreel.gg — ad-supported, with transparency
+
+FragReel is free to use. Server + maintenance costs are funded by **ads displayed on the website** (not in the desktop client). To serve and measure these ads, the site uses ad-platform tags — this is industry standard but worth declaring honestly.
+
+### What ad platforms do
+- May set **third-party cookies** in your browser to measure impressions, clicks, and ad relevance
+- May collect anonymous browsing data (page visited, referrer, session time) per the platform's own policies
+- **Do NOT receive** your Steam ID, in-game name, match metadata, or anything you've generated in FragReel — only what any ad-supported website would collect
+
+### Your controls
+- You can use **adblock** — the product still works 100%. We do not block the site for adblock users, we do not ask you to disable it
+- You can opt out of personalized ads in the ad platforms' own panels (e.g. [Google Ad Settings](https://adssettings.google.com))
+- If you want an ad-free experience in the future, we plan a paid Premium tier (opt-in)
+
+### Authentication cookie
+Besides ad tags, the site uses **1 first-party cookie** (signed JWT, short expiry) to keep you logged in via Steam. This cookie is not shared with third parties.
 
 ---
 

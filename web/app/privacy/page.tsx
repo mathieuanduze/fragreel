@@ -174,15 +174,16 @@ export default function PrivacyPage() {
           </SubSection>
         </Section>
 
-        {/* O que NÃO fazemos */}
-        <Section title="O que nós NÃO fazemos">
+        {/* O que NÃO fazemos — split client vs website */}
+        <Section title="Cliente desktop (.exe) — zero tracking">
+          <p style={{ marginTop: 0, marginBottom: 16, color: colors.textMuted }}>
+            O cliente desktop FragReel que você instala no seu PC{" "}
+            <strong>não coleta nem envia dados pessoais</strong>. Você
+            pode auditar no código aberto.
+          </p>
           <DontItem
-            title="Sem analytics"
-            body="Zero analytics third-party no site ou no cliente desktop. Sem Google Analytics, Mixpanel, Amplitude, Sentry, Hotjar, Facebook Pixel. Você pode verificar no nosso código aberto."
-          />
-          <DontItem
-            title="Sem cookies de rastreamento"
-            body="O site usa um único cookie de sessão pra autenticação Steam. Sem cookies de publicidade, sem fingerprinting, sem rastreamento cross-site."
+            title="Sem analytics no cliente"
+            body="Zero analytics third-party no .exe. Sem Google Analytics, Mixpanel, Amplitude, Sentry, Hotjar, Facebook Pixel — nada. Verificável no código fonte aberto."
           />
           <DontItem
             title="Sem upload de vídeo"
@@ -193,9 +194,81 @@ export default function PrivacyPage() {
             body="Os arquivos de demo na sua pasta CS2 são parseados localmente na sua máquina. Apenas o metadata numérico descrito acima sai do seu computador. O .dem em si nunca viaja pros nossos servidores."
           />
           <DontItem
-            title="Sem venda ou compartilhamento de dados"
-            body="Não vendemos seus dados. Não compartilhamos com anunciantes, brokers, terceiros. Não usamos seus dados pra treinar nenhum modelo de IA."
+            title="Sem venda ou compartilhamento dos seus dados"
+            body="Não vendemos seu Steam ID nem metadata de partida. Não compartilhamos com brokers de dados. Não usamos seus dados pra treinar nenhum modelo de IA."
           />
+        </Section>
+
+        {/* Site ad-supported — transparência */}
+        <Section title="Website fragreel.gg — ad-supported, com transparência">
+          <Callout
+            icon="📢"
+            title="O site é gratuito porque é sustentado por anúncios"
+            color={colors.accent}
+            body={
+              <>
+                FragReel é grátis pra usar. O custo de servidor + manutenção
+                vem de <strong>anúncios exibidos no website</strong>{" "}
+                (não no cliente desktop). Pra servir e medir esses anúncios,
+                o site usa tags de plataformas de publicidade — isso é
+                padrão da indústria mas é honesto declarar.
+              </>
+            }
+          />
+
+          <SubSection title="O que as plataformas de ads fazem">
+            <ul style={listStyle}>
+              <li>
+                Podem definir <strong>cookies de terceiros</strong> no seu
+                browser pra medir impressões, cliques e relevância dos anúncios
+              </li>
+              <li>
+                Podem coletar dados anônimos de navegação (página visitada,
+                referrer, tempo de sessão) seguindo políticas próprias da
+                plataforma
+              </li>
+              <li>
+                <strong>Não recebem</strong> seu Steam ID, seu nome in-game,
+                seu metadata de partida nem qualquer info que você gerou no
+                FragReel — apenas o que qualquer site com ads coletaria
+              </li>
+            </ul>
+          </SubSection>
+
+          <SubSection title="Seus controles">
+            <ul style={listStyle}>
+              <li>
+                Você pode usar <strong>adblock</strong> — o produto continua
+                funcionando 100%. Não bloqueamos o site pra quem usa adblock,
+                não pedimos pra desabilitar
+              </li>
+              <li>
+                Pode opt-out de ads personalizados nos painéis das próprias
+                plataformas (ex:{" "}
+                <a
+                  href="https://adssettings.google.com"
+                  target="_blank"
+                  rel="noopener"
+                  style={linkStyle}
+                >
+                  Google Ad Settings
+                </a>
+                )
+              </li>
+              <li>
+                Se quiser experiência sem ads externas no futuro, planejamos
+                tier Premium pago (sem ads) — opt-in
+              </li>
+            </ul>
+          </SubSection>
+
+          <SubSection title="Cookie de autenticação">
+            <p style={{ margin: 0 }}>
+              Além das tags de ads, o site usa <strong>1 cookie próprio</strong>{" "}
+              (JWT assinado, expiração curta) pra manter você logado via
+              Steam. Esse cookie não é compartilhado com terceiros.
+            </p>
+          </SubSection>
         </Section>
 
         {/* Onde os dados ficam */}
