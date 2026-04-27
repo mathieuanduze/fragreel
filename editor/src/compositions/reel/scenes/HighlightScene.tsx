@@ -136,15 +136,15 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
     config: { damping: 14, mass: 0.8 },
   });
 
-  // Round 4c Fase 1.21 (Mathieu re-cobrou pós-Fase 1.20): "transições
-  // ainda estão demorando muito entre plays, não precisa de um pause
-  // tão longo entre cada cena". fadeOut 6 → 3 frames (0.1s) — quase um
-  // direct cut, perdendo "respiração" mas ganhando ritmo. Combinado com
-  // TAIL_SKIP 4.5s (Fase 1.21 theme.ts) corta dead time + cut rápido =
-  // sensação de "edição profissional" sem pause perceptível.
+  // Round 4c Fase 1.29 (Mathieu revisão pós-Fase 1.27 PASS): "fades
+  // entre rounds podem ser um pouco mais visíveis, pra entender que tem
+  // uma mudança de round/fragreel". fadeOut 3 → 12 frames (0.4s) marca
+  // CLARAMENTE a mudança visual entre highlights. Combinado com #N badge
+  // restaurado (separador visual também), viewer entende cleanly "aqui
+  // mudou de round".
   const fadeOut = interpolate(
     frame,
-    [durationInFrames - 3, durationInFrames],
+    [durationInFrames - 12, durationInFrames],
     [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
@@ -392,13 +392,234 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
         }}
       />
 
-      {/* Rank badge — top left.
-          Round 4c Fase 1.23 (Mathieu spec: "imita CS HUD, atualiza com
-          vida do player, ajuda narrativa"). Título DINÂMICO: encontra a
-          última kill já completada em sceneTime e mostra estado APÓS:
-          "{aliveCt}v{aliveT} · {hp}HP" evoluindo a cada kill. Fallback
-          pro "{N} KILLS" da Fase 1.21 se highlight é legado (sem fields
-          alive_ct_after/attacker_health). */}
+      {/* Round 4c Fase 1.29 (Mathieu spec): SCOREBOARD agora MAIOR +
+          CENTRALIZADO no topo. Lado esquerdo do topo é onde rede social
+          coloca foto/nome do perfil que postou — não competir com isso.
+          Top-center é canvas livre, scoreboard ganha protagonismo.
+          Plus #N rank badge removido (sem utilidade pro user) — espaço
+          reaproveitado pra watermark fragreel.gg no top-left (atrai
+          outros users a saber como foi gerado). */}
+      {showScoreboard && hasScoreboardContext && (
+        <div
+          style={{
+            position: "absolute",
+            top: isHorizontal ? 32 : 60,
+            left: "50%",
+            transform: `translateX(-50%) scale(${rankSpring})`,
+            opacity: rankSpring,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            alignItems: "center",
+          }}
+        >
+          {/* Card scoreboard — MAIOR (Fase 1.29). Mathieu pediu "ficar
+              maior". Padding + fontSize bumped. CT/T cells now 90+px. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "stretch",
+              background: "rgba(0,0,0,0.82)",
+              backdropFilter: "blur(10px)",
+              borderRadius: 10,
+              overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 6px 24px rgba(0,0,0,0.5)",
+            }}
+          >
+            {/* CT cell */}
+            <div
+              style={{
+                background: "rgba(96, 165, 250, 0.18)",
+                padding: isHorizontal ? "10px 24px" : "14px 30px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+                minWidth: isHorizontal ? 80 : 100,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: isHorizontal ? 14 : 17,
+                  fontWeight: 800,
+                  color: "#60a5fa",
+                  letterSpacing: "0.2em",
+                  fontFamily: theme.fontDisplay,
+                  lineHeight: 1,
+                }}
+              >
+                CT
+              </div>
+              <div
+                style={{
+                  fontSize: isHorizontal ? 44 : 56,
+                  fontWeight: 900,
+                  color: theme.text,
+                  fontFamily: theme.fontMono,
+                  lineHeight: 1,
+                }}
+              >
+                {dynamicAliveCt}
+              </div>
+            </div>
+            {/* Separator */}
+            <div
+              style={{
+                width: 2,
+                background: "rgba(255,255,255,0.18)",
+              }}
+            />
+            {/* T cell */}
+            <div
+              style={{
+                background: "rgba(255, 159, 64, 0.18)",
+                padding: isHorizontal ? "10px 24px" : "14px 30px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+                minWidth: isHorizontal ? 80 : 100,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: isHorizontal ? 14 : 17,
+                  fontWeight: 800,
+                  color: "#ff9f40",
+                  letterSpacing: "0.2em",
+                  fontFamily: theme.fontDisplay,
+                  lineHeight: 1,
+                }}
+              >
+                T
+              </div>
+              <div
+                style={{
+                  fontSize: isHorizontal ? 44 : 56,
+                  fontWeight: 900,
+                  color: theme.text,
+                  fontFamily: theme.fontMono,
+                  lineHeight: 1,
+                }}
+              >
+                {dynamicAliveT}
+              </div>
+            </div>
+          </div>
+
+          {/* HP bar — só mostra se temos último HP. MAIOR pra match scoreboard. */}
+          {dynamicHp !== null && (
+            <div
+              style={{
+                background: "rgba(0,0,0,0.82)",
+                backdropFilter: "blur(10px)",
+                borderRadius: 6,
+                padding: isHorizontal ? "5px 14px" : "7px 18px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: isHorizontal ? 13 : 16,
+                  fontWeight: 800,
+                  color: dynamicHp < 30 ? "#ff4444" : "#4CAF82",
+                  letterSpacing: "0.15em",
+                  fontFamily: theme.fontDisplay,
+                }}
+              >
+                HP
+              </span>
+              <span
+                style={{
+                  fontSize: isHorizontal ? 22 : 28,
+                  fontWeight: 900,
+                  color: dynamicHp < 30 ? "#ff4444" : theme.text,
+                  fontFamily: theme.fontMono,
+                  lineHeight: 1,
+                }}
+              >
+                {dynamicHp}
+              </span>
+              {/* Mini HP bar visual */}
+              <div
+                style={{
+                  width: isHorizontal ? 70 : 90,
+                  height: 6,
+                  background: "rgba(255,255,255,0.18)",
+                  borderRadius: 3,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.max(0, Math.min(100, dynamicHp))}%`,
+                    height: "100%",
+                    background: dynamicHp < 30 ? "#ff4444" : "#4CAF82",
+                    transition: "width 0.3s",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Round 4c Fase 1.29 — fallback "{N} KILLS" quando scoreboard
+          OFF (toggle user) ou highlight legado (sem alive_timeline).
+          Mantém top-left position pra não conflitar com scoreboard
+          centralizado. */}
+      {(!showScoreboard || !hasScoreboardContext) && (
+        <div
+          style={{
+            position: "absolute",
+            top: isHorizontal ? 40 : 80,
+            left: isHorizontal ? 40 : 50,
+            transform: `scale(${rankSpring})`,
+            opacity: rankSpring,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <div
+            style={{
+              fontSize: isHorizontal ? 28 : 34,
+              fontWeight: 900,
+              color: theme.text,
+              letterSpacing: "-0.02em",
+              fontFamily: theme.fontDisplay,
+              lineHeight: 1,
+            }}
+          >
+            {highlight.kills.length} {highlight.kills.length === 1 ? "KILL" : "KILLS"}
+          </div>
+          {highlight.kills.filter((k) => k.headshot).length > 0 && (
+            <div
+              style={{
+                fontSize: isHorizontal ? 14 : 16,
+                fontWeight: 800,
+                color: moodDef.color,
+                letterSpacing: "0.12em",
+                fontFamily: theme.fontDisplay,
+                lineHeight: 1,
+              }}
+            >
+              {highlight.kills.filter((k) => k.headshot).length} HS
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Round 4c Fase 1.29 (revisão Mathieu): #N badge VOLTA top-left
+          como separador visual entre rounds. Combinado com fadeOut
+          maior (12 frames, mais visível) marca clearly mudança de
+          highlight. Posicionado no canto pra não conflitar com
+          scoreboard centralizado top-center. */}
       <div
         style={{
           position: "absolute",
@@ -406,240 +627,72 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
           left: isHorizontal ? 40 : 50,
           transform: `scale(${rankSpring})`,
           opacity: rankSpring,
+          width: isHorizontal ? 72 : 84,
+          height: isHorizontal ? 72 : 84,
+          borderRadius: 18,
+          background: highlight.rank === 1 ? moodDef.color : "#16213E",
+          border:
+            highlight.rank === 1
+              ? "none"
+              : `2px solid ${moodDef.color}60`,
           display: "flex",
           alignItems: "center",
-          gap: 14,
+          justifyContent: "center",
+          fontWeight: 900,
+          fontSize: isHorizontal ? 36 : 42,
+          color: highlight.rank === 1 ? "white" : moodDef.color,
+          fontFamily: theme.fontDisplay,
+          boxShadow:
+            highlight.rank === 1
+              ? `0 0 40px ${moodDef.color}80`
+              : "none",
         }}
       >
-        <div
-          style={{
-            width: isHorizontal ? 72 : 84,
-            height: isHorizontal ? 72 : 84,
-            borderRadius: 18,
-            background: highlight.rank === 1 ? moodDef.color : "#16213E",
-            border:
-              highlight.rank === 1
-                ? "none"
-                : `2px solid ${moodDef.color}60`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 900,
-            fontSize: isHorizontal ? 36 : 42,
-            color: highlight.rank === 1 ? "white" : moodDef.color,
-            fontFamily: theme.fontDisplay,
-            boxShadow:
-              highlight.rank === 1
-                ? `0 0 40px ${moodDef.color}80`
-                : "none",
-          }}
-        >
-          #{highlight.rank}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          {showScoreboard && hasScoreboardContext ? (
-            // Round 4c Fase 1.27 — SCOREBOARD esteticamente similar a
-            // placar HLTV/CS HUD. Mathieu spec: "se parecesse com um
-            // placar mesmo, e agora, só tá um textinho". Card preto
-            // semi-transparent + 2 cells "CT | T" colored backgrounds
-            // + número grande monoespaçado no centro de cada cell + HP
-            // bar embaixo. Atualiza ao vivo via alive_timeline.
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "stretch",
-                  background: "rgba(0,0,0,0.78)",
-                  backdropFilter: "blur(8px)",
-                  borderRadius: 6,
-                  overflow: "hidden",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                {/* CT cell */}
-                <div
-                  style={{
-                    background: "rgba(96, 165, 250, 0.15)",
-                    padding: isHorizontal ? "6px 14px" : "8px 18px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 2,
-                    minWidth: isHorizontal ? 50 : 64,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: isHorizontal ? 9 : 11,
-                      fontWeight: 800,
-                      color: "#60a5fa",
-                      letterSpacing: "0.18em",
-                      fontFamily: theme.fontDisplay,
-                      lineHeight: 1,
-                    }}
-                  >
-                    CT
-                  </div>
-                  <div
-                    style={{
-                      fontSize: isHorizontal ? 26 : 32,
-                      fontWeight: 900,
-                      color: theme.text,
-                      fontFamily: theme.fontMono,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {dynamicAliveCt}
-                  </div>
-                </div>
-                {/* Separator */}
-                <div
-                  style={{
-                    width: 1,
-                    background: "rgba(255,255,255,0.15)",
-                  }}
-                />
-                {/* T cell */}
-                <div
-                  style={{
-                    background: "rgba(255, 159, 64, 0.15)",
-                    padding: isHorizontal ? "6px 14px" : "8px 18px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 2,
-                    minWidth: isHorizontal ? 50 : 64,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: isHorizontal ? 9 : 11,
-                      fontWeight: 800,
-                      color: "#ff9f40",
-                      letterSpacing: "0.18em",
-                      fontFamily: theme.fontDisplay,
-                      lineHeight: 1,
-                    }}
-                  >
-                    T
-                  </div>
-                  <div
-                    style={{
-                      fontSize: isHorizontal ? 26 : 32,
-                      fontWeight: 900,
-                      color: theme.text,
-                      fontFamily: theme.fontMono,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {dynamicAliveT}
-                  </div>
-                </div>
-              </div>
+        #{highlight.rank}
+      </div>
 
-              {/* HP bar — só mostra se temos último HP. Vermelho urgente <30. */}
-              {dynamicHp !== null && (
-                <div
-                  style={{
-                    background: "rgba(0,0,0,0.78)",
-                    backdropFilter: "blur(8px)",
-                    borderRadius: 4,
-                    padding: isHorizontal ? "3px 10px" : "4px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    border: "1px solid rgba(255,255,255,0.08)",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: isHorizontal ? 9 : 11,
-                      fontWeight: 800,
-                      color: dynamicHp < 30 ? "#ff4444" : "#4CAF82",
-                      letterSpacing: "0.15em",
-                      fontFamily: theme.fontDisplay,
-                    }}
-                  >
-                    HP
-                  </span>
-                  <span
-                    style={{
-                      fontSize: isHorizontal ? 16 : 19,
-                      fontWeight: 900,
-                      color: dynamicHp < 30 ? "#ff4444" : theme.text,
-                      fontFamily: theme.fontMono,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {dynamicHp}
-                  </span>
-                  {/* Mini HP bar visual */}
-                  <div
-                    style={{
-                      width: isHorizontal ? 50 : 70,
-                      height: 4,
-                      background: "rgba(255,255,255,0.15)",
-                      borderRadius: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${Math.max(0, Math.min(100, dynamicHp))}%`,
-                        height: "100%",
-                        background: dynamicHp < 30 ? "#ff4444" : "#4CAF82",
-                        transition: "width 0.3s",
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            // Fallback pra highlights legados (sem alive_timeline) ou
-            // quando user opta por OFF do scoreboard via UI toggle.
-            <>
-              <div
-                style={{
-                  fontSize: isHorizontal ? 28 : 34,
-                  fontWeight: 900,
-                  color: theme.text,
-                  letterSpacing: "-0.02em",
-                  fontFamily: theme.fontDisplay,
-                  lineHeight: 1,
-                }}
-              >
-                {highlight.kills.length} {highlight.kills.length === 1 ? "KILL" : "KILLS"}
-              </div>
-              {highlight.kills.filter((k) => k.headshot).length > 0 && (
-                <div
-                  style={{
-                    fontSize: isHorizontal ? 14 : 16,
-                    fontWeight: 800,
-                    color: moodDef.color,
-                    letterSpacing: "0.12em",
-                    fontFamily: theme.fontDisplay,
-                    lineHeight: 1,
-                  }}
-                >
-                  {highlight.kills.filter((k) => k.headshot).length} HS
-                </div>
-              )}
-            </>
-          )}
-        </div>
+      {/* Round 4c Fase 1.29 (revisão Mathieu): WATERMARK
+          "Vídeo gerado por fragreel.gg" — bottom-right, sutil mas
+          legível. Serve como atribuição/CTA pra growth orgânico via
+          reels postados em redes sociais. */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: isHorizontal ? 32 : 56,
+          right: isHorizontal ? 32 : 40,
+          opacity: 0.85,
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          padding: isHorizontal ? "5px 11px" : "6px 13px",
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(6px)",
+          borderRadius: 5,
+          border: `1px solid ${moodDef.color}30`,
+        }}
+      >
+        <span
+          style={{
+            fontSize: isHorizontal ? 10 : 12,
+            fontWeight: 700,
+            color: theme.textMuted,
+            letterSpacing: "0.05em",
+            fontFamily: theme.fontDisplay,
+          }}
+        >
+          Vídeo gerado por
+        </span>
+        <span
+          style={{
+            fontSize: isHorizontal ? 12 : 14,
+            fontWeight: 900,
+            color: moodDef.color,
+            letterSpacing: "-0.01em",
+            fontFamily: theme.fontDisplay,
+          }}
+        >
+          fragreel.gg
+        </span>
       </div>
 
       {/* Label — bottom (proporcional pra ficar bem em vertical e horizontal) */}
@@ -742,27 +795,30 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
                 opacity: enterProgress,
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
-                padding: "6px 12px",
-                background: "rgba(0,0,0,0.78)",
-                backdropFilter: "blur(8px)",
-                borderRadius: 4,
-                fontSize: isHorizontal ? 18 : 20,
+                gap: 14,
+                // Round 4c Fase 1.29 (Mathieu spec: "killfeed pode estar
+                // maior só"). Padding + font sizes bumped ~50%.
+                padding: isHorizontal ? "9px 18px" : "11px 22px",
+                background: "rgba(0,0,0,0.82)",
+                backdropFilter: "blur(10px)",
+                borderRadius: 6,
+                fontSize: isHorizontal ? 26 : 30,
                 fontWeight: 700,
                 color: theme.text,
                 fontFamily: theme.fontDisplay,
-                borderRight: `3px solid ${weaponColor}`,
+                borderRight: `4px solid ${weaponColor}`,
+                boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
               }}
             >
               {/* WEAPON tipograficamente — placeholder até Fase 1.24b SVG
                   sprites. Cor por categoria garante leitura rápida. */}
-              <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 19 : 21 }}>
+              <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 28 : 32 }}>
                 {k.weapon.toUpperCase()}
               </span>
               <span
                 style={{
                   color: theme.textDim,
-                  fontSize: isHorizontal ? 13 : 15,
+                  fontSize: isHorizontal ? 18 : 22,
                   fontWeight: 700,
                   letterSpacing: "0.1em",
                   fontFamily: theme.fontMono,
@@ -773,12 +829,12 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
               {k.headshot && (
                 <span
                   style={{
-                    marginLeft: 2,
-                    padding: "1px 6px",
-                    borderRadius: 3,
+                    marginLeft: 4,
+                    padding: isHorizontal ? "3px 9px" : "4px 10px",
+                    borderRadius: 4,
                     background: moodDef.color,
                     color: "white",
-                    fontSize: isHorizontal ? 12 : 14,
+                    fontSize: isHorizontal ? 17 : 20,
                     fontWeight: 800,
                     letterSpacing: "0.05em",
                   }}

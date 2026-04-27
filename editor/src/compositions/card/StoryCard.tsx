@@ -275,7 +275,7 @@ export const StoryCard: React.FC<CardProps> = ({
               letterSpacing: "-0.01em",
             }}
           >
-            fragreel.app
+            fragreel.gg
           </div>
         </div>
       </AbsoluteFill>

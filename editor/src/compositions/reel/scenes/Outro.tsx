@@ -17,7 +17,7 @@ type Props = {
 /**
  * Outro — 3.0s (Round 4c Fase 1.19, era 2.5s → 1.5s → 3.0s).
  * Mathieu: "título e stats no final, não ficam tempo o suficiente para ler".
- * Stats finais + CTA "fragreel.app".
+ * Stats finais + CTA "fragreel.gg".
  *
  * Timing dos 90 frames (3.0s @ 30fps):
  *   0-15    (0.5s)  → playerName + mapa+score entram (titleSpring)
@@ -204,7 +204,7 @@ export const Outro: React.FC<Props> = ({ match, playerName, mood }) => {
               boxShadow: `0 0 60px ${moodDef.color}60`,
             }}
           >
-            fragreel.app
+            fragreel.gg
           </div>
         </div>
       </AbsoluteFill>
