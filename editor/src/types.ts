@@ -51,6 +51,17 @@ export type Highlight = {
   // (highlights legados ou placeholder), editor fallback pro behavior
   // antigo (highlight.start + frontSkip).
   gameplayStartSec?: number;
+  // Round 4c Fase 1.33 — duração REAL do .mov gameplay pós-concat (probed
+  // via ffprobe pelo client). Pra clusters que geram múltiplas windows
+  // (ex: R14 W3 kills + W4 plant separados por gap > MERGE_GAP), a soma
+  // dos .movs é MENOR que (highlight.end - gameplayStartSec) — gap entre
+  // windows NÃO foi capturado. Sem esse cap, editor calc available
+  // baseado em source-time → roda mov até acabar, depois HOLD LAST FRAME
+  // por ~12s. effectiveSceneEndSec usa esse valor (quando disponível)
+  // pra cap scene_end no mov real, prevenindo freeze residual.
+  // Quando ausente (single take, sem concat OU highlight legado), editor
+  // fallback pro behavior anterior (source-time-based).
+  actualMovDurationSec?: number;
   // Round 4c Fase 1.25 — bomb action timestamp (segundos relativos ao demo
   // start, mesma base de Kill.time/highlight.start). Permite scene_end
   // dinâmico (effectiveSceneEndSec em theme.ts) usar max(kill.time,

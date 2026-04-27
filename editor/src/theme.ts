@@ -151,6 +151,7 @@ type _HighlightInput = {
   bomb_action?: string;
   alive_timeline?: _AliveEventInput[];
   gameplayStartSec?: number;
+  actualMovDurationSec?: number;
 };
 
 // Round 4c Fase 1.27 — resolveAliveAt: encontra alive count NO MOMENTO X
@@ -218,19 +219,28 @@ export const refStartSec = (highlight: _HighlightInput): number =>
 // Resultado: scene duration acomoda plant que ocorre 24s+ após round_end
 // (R14 example: bomb_tick em round_end + 24s).
 export const refSourceDurSec = (highlight: _HighlightInput): number => {
+  // Round 4c Fase 1.33 — quando temos `actualMovDurationSec` (probed
+  // pelo client pós-concat ffmpeg), USA esse valor como source truth.
+  // Pra clusters multi-window (R14 W3 kills + W4 plant separados por
+  // gap > MERGE_GAP), source-time estimate INCLUI o gap (que não foi
+  // capturado), causando HOLD LAST FRAME no playback. actualMov reflete
+  // bytes reais do .mov concatenado. ALWAYS preferred quando disponível.
+  if (
+    typeof highlight.actualMovDurationSec === "number" &&
+    isFinite(highlight.actualMovDurationSec) &&
+    highlight.actualMovDurationSec > 0
+  ) {
+    return highlight.actualMovDurationSec;
+  }
+
+  // Fallback (Fase 1.30 — bomb_action_timestamp pode estar APÓS
+  // highlight.end pra plants pós-round_end).
   const refStart = refStartSec(highlight);
   const roundBased = highlight.end - refStart;
   if (
     typeof highlight.bomb_action_timestamp === "number" &&
     isFinite(highlight.bomb_action_timestamp)
   ) {
-    // Plant 3.2s + reaction. Defuse 10s + reaction. Usar 6s extra
-    // cobre ambos com folga (effectiveTailSkipSec corta o que sobrar).
-    // Round 4c Fase 1.30 — 8s extra cobre plant 3.2s + reaction +
-    // tail buffer pro effectiveTailSkipSec não cortar plant frames.
-    // Calibrated em R14 case (PC test 27/04 night): plant tick em
-    // round_end + 24s, scene precisava 8s margin pra mostrar full
-    // animation + bomb planted notification.
     const bombBased =
       highlight.bomb_action_timestamp - refStart + REACTION_PAD_SEC + 8.0;
     return Math.max(0.1, roundBased, bombBased);
