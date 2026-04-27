@@ -403,7 +403,9 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
             gap: 4,
           }}
         >
-          {/* Big número de kills — info imediata "quantas frags foi essa play" */}
+          {/* Big número de kills — info imediata "quantas frags foi essa play".
+              Round 4c Fase 1.22.1 (PC test cosmético): pluralização correta
+              singular vs plural ("1 KILL" vs "2 KILLS"). */}
           <div
             style={{
               fontSize: isHorizontal ? 28 : 34,
@@ -414,7 +416,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
               lineHeight: 1,
             }}
           >
-            {highlight.kills.length} KILLS
+            {highlight.kills.length} {highlight.kills.length === 1 ? "KILL" : "KILLS"}
           </div>
           {/* Detalhe: HS count colorido pro mood. Só mostra se houver. */}
           {highlight.kills.filter((k) => k.headshot).length > 0 && (
