@@ -66,13 +66,30 @@ export const MOODS: Record<string, MoodDef> = {
 // Frames por segundo do projeto — 30fps para render rápido no Railway
 export const FPS = 30;
 
-// Round 4c Fase 1.12 — pula primeiros N segundos de cada .mov de gameplay
-// (warmup walk pré-peek do cluster PAD_PRE 7s). Mantém SKIP em 2.0s
-// conservador. Fase 1.18 tentou bumpar pra 4.5s, mas misdiagnostiquei o
-// problema do Mathieu — não era "início lento", era "cena trava antes
-// da próxima" (playbackRate bug em HighlightScene). Fix real é no rate
-// calc, não em mais SKIP. Ver HighlightScene.tsx pra a math correta.
-export const HIGHLIGHT_VIDEO_SKIP_SEC = 2.0;
+// Round 4c Fase 1.19 (Mathieu re-cobrou pós-Fase 1.18 PASS): "ainda tá
+// muito travadas as transições, principalmente DEPOIS do primeiro round".
+// Análise dos frames PC: t=30s (fim #1 R8) player com faca, t=32s (início
+// #2 R7) ainda player com faca andando na rua — ~5s de buy phase + walk
+// pré-engagement por cluster. SKIP 2.0s da Fase 1.12 cobria só os
+// primeiros 2s do cluster PAD_PRE 7s, deixando 5s "vazios" no início de
+// cada highlight.
+//
+// SKIP 2.0 → 4.0s deixa só 3s pré-kill (peek + posicionamento + tiro).
+// Com rate fix da Fase 1.18b (`availableVideoSec = sourceDur - SKIP` no
+// numerator), scene clamp ajusta automaticamente sem freeze.
+//
+// Edge case (Fase 1.19): pra clusters MUITO curtos (single kill < 8s
+// total source), SKIP=4 deixaria <4s playable. HighlightsReel.tsx
+// aplica `effectiveSkip = min(SKIP, sourceDur * 0.5)` defensive.
+export const HIGHLIGHT_VIDEO_SKIP_SEC = 4.0;
+
+// effectiveSkipSec — clampa SKIP a 50% do source pra não roubar metade
+// de clusters muito curtos (single kill < 8s). Caso comum (cluster
+// 20-30s, SKIP 4): retorna 4. Edge (cluster 6s, SKIP 4): retorna 3.
+// Vive em theme.ts (não em HighlightsReel) pra evitar circular import
+// com HighlightScene.
+export const effectiveSkipSec = (sourceDurSec: number): number =>
+  Math.min(HIGHLIGHT_VIDEO_SKIP_SEC, Math.max(0, sourceDurSec * 0.5));
 
 // Dimensões por orientação. Vertical = TikTok/Reels/Shorts; Horizontal = YouTube/Twitch.
 // Helper único pra evitar 1080/1920 mágicos espalhados pelo código.

@@ -13,6 +13,7 @@ import {
   s2f,
   HIGHLIGHT_VIDEO_SKIP_SEC,
   FPS,
+  effectiveSkipSec,
 } from "../../../theme";
 import { Highlight } from "../../../types";
 
@@ -59,7 +60,12 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
   // availableVideoSec no numerator. Caso comum (sourceDur=30s SKIP=2):
   // available=28s, scene=28s, rate=1.0. SEM freeze.
   const sourceDurSec = Math.max(0.1, highlight.end - highlight.start);
-  const availableVideoSec = Math.max(0.1, sourceDurSec - HIGHLIGHT_VIDEO_SKIP_SEC);
+  // Round 4c Fase 1.19 — usa effectiveSkipSec (clamp 50% pra clusters
+  // curtos) consistente com HighlightsReel.highlightDurationSec. Sem
+  // isso, scene duration usa effectiveSkip mas rate calc usa SKIP raw
+  // → desincronia → freeze edge.
+  const sceneSkipSec = effectiveSkipSec(sourceDurSec);
+  const availableVideoSec = Math.max(0.1, sourceDurSec - sceneSkipSec);
   const gameplayRate = availableVideoSec / sceneDurationSec;
 
   // Flash branco no frame 0 (impacto)
@@ -112,13 +118,16 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
           <OffthreadVideo
             src={gameplaySrc}
             playbackRate={gameplayRate}
-            // Round 4c Fase 1.12 (Mathieu reportou "vídeo parado por segundos
-            // entre rounds"). startFrom pula HIGHLIGHT_VIDEO_SKIP_SEC × FPS
-            // frames do início do .mov. Pra .movs do HLAE com PAD_PRE = 7s,
-            // pular 2s remove o "comprando arma" e começa em "saindo do spawn /
-            // peek inicial" — muito mais leitura imediata. HighlightsReel
-            // reduz scene duration em SKIP_SEC pra evitar freeze no fim.
-            startFrom={HIGHLIGHT_VIDEO_SKIP_SEC * FPS}
+            // Round 4c Fase 1.19 — startFrom usa effectiveSkipSec (não a
+            // constante raw) pra ser consistente com scene duration calc
+            // em HighlightsReel. Pra clusters muito curtos, skip diminui
+            // automaticamente. Pra cluster comum (PAD_PRE 7s), pula 4s
+            // de buy phase + walk pré-engagement → highlight começa em
+            // "peek/posicionamento já no engagement". Mathieu Fase 1.19
+            // re-cobrou: "transições travadas, principalmente depois do
+            // primeiro round" — análise frames PC mostrou ~5s de player
+            // com knife andando entre #1→#2. SKIP=4 corta isso.
+            startFrom={Math.round(sceneSkipSec * FPS)}
             // v0.3.1 Round 4c Fase 1.10 (Mathieu spec): som do jogo SEMPRE
             // presente (tiros, footsteps, voice, defuse beep, plant beep).
             // Antes muted=true descartava todo audio do .mov ProRes capturado
@@ -239,7 +248,11 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         }}
       />
 
-      {/* Rank badge — top left (mesmo lugar nos dois formatos) */}
+      {/* Rank badge — top left (mesmo lugar nos dois formatos).
+          Round 4c Fase 1.19 (Mathieu: "#1 R8 não é autoexplicativo"):
+          adicionado label "JOGADA" + "ROUND" pra primeira leitura clara
+          em mobile. Mantém badge visual + acrescenta texto contextual
+          em coluna ao lado. */}
       <div
         style={{
           position: "absolute",
@@ -249,7 +262,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
           opacity: rankSpring,
           display: "flex",
           alignItems: "center",
-          gap: 16,
+          gap: 14,
         }}
       >
         <div
@@ -279,14 +292,35 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index }) => {
         </div>
         <div
           style={{
-            fontSize: isHorizontal ? 22 : 26,
-            fontWeight: 700,
-            color: theme.textMuted,
-            letterSpacing: "0.15em",
-            fontFamily: theme.fontDisplay,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
           }}
         >
-          R{highlight.round_num}
+          <div
+            style={{
+              fontSize: isHorizontal ? 13 : 15,
+              fontWeight: 800,
+              color: moodDef.color,
+              letterSpacing: "0.18em",
+              fontFamily: theme.fontDisplay,
+              lineHeight: 1,
+            }}
+          >
+            JOGADA
+          </div>
+          <div
+            style={{
+              fontSize: isHorizontal ? 18 : 22,
+              fontWeight: 700,
+              color: theme.text,
+              letterSpacing: "0.05em",
+              fontFamily: theme.fontDisplay,
+              lineHeight: 1.1,
+            }}
+          >
+            Round {highlight.round_num}
+          </div>
         </div>
       </div>
 

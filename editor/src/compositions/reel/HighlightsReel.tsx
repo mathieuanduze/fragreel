@@ -12,6 +12,7 @@ import {
   MUSIC_ENABLED,
   REEL_HIGHLIGHT_BOUNDS,
   clampHighlightSec,
+  effectiveSkipSec,
   s2f,
 } from "../../theme";
 import { Intro } from "./scenes/Intro";
@@ -22,23 +23,25 @@ import { Outro } from "./scenes/Outro";
 // A duração de cada highlight vem do dado real (h.end - h.start),
 // com clamp em REEL_HIGHLIGHT_BOUNDS pra evitar flash ou tédio.
 //
-// Round 4c Fase 1.12 (Mathieu reportou "transições MUITO lentas, vídeo
-// parado por segundos entre rounds"). INTRO 2 → 1.2s e OUTRO 2.5 → 1.5s
-// cortam 1.8s de "branding dead time" sem comprometer leitura de
-// player_name/mapa/score (springs no Intro estabilizam em ~25 frames =
-// 0.83s; resto era margem demais).
+// Round 4c Fase 1.12 → 1.19 evolução:
+// - INTRO 2s (Fase 0) → 1.2s (Fase 1.12, Mathieu pediu rápido) — mantido
+// - OUTRO 2.5s (Fase 0) → 1.5s (Fase 1.12) → 3.0s (Fase 1.19, Mathieu:
+//   "título e stats no final não ficam tempo suficiente para ler"). 1.5s
+//   era curto demais pra ler 4 stats novos (K/D + HS% + ADR). 3.0s dá
+//   ~1.5s pra cada par de stats antes do fade. Trade aceito vs reel
+//   total ficar 1.5s mais longo.
 export const INTRO_SEC = 1.2;
-export const OUTRO_SEC = 1.5;
+export const OUTRO_SEC = 3.0;
 
 // HIGHLIGHT_VIDEO_SKIP_SEC vive em theme.ts (canonical) pra evitar circular
 // import HighlightScene → HighlightsReel.
 
-// Fase 1.12 — duração efetiva = source duration - SKIP. Como pulamos 2s do
-// início via OffthreadVideo startFrom, a scene precisa ficar 2s mais curta
-// pra não rodar pro fim do .mov e dar freeze/black no end. Mantém
-// playbackRate ≈ 1.0 (real-time spec) e clamp REEL_BOUNDS aplica depois.
+// Fase 1.19 — duração efetiva = source duration - effectiveSkipSec.
+// effectiveSkipSec vive em theme.ts (canonical) pra evitar circular
+// import HighlightScene → HighlightsReel.
 const highlightDurationSec = (h: Highlight) => {
-  const rawSec = h.end - h.start - HIGHLIGHT_VIDEO_SKIP_SEC;
+  const sourceDur = h.end - h.start;
+  const rawSec = sourceDur - effectiveSkipSec(sourceDur);
   return clampHighlightSec(rawSec, REEL_HIGHLIGHT_BOUNDS);
 };
 
@@ -100,15 +103,16 @@ export const HighlightsReel: React.FC<ReelProps> = ({
       {playMusic && (
         <Audio
           src={staticFile(moodDef.file)}
-          volume={0.65}
+          // Round 4c Fase 1.19 (Mathieu: "música tá muito alta vs som do
+          // jogo"). Era 0.65 → 0.35. Game audio segue 0.85 (não baixa).
+          // Mix novo: música tá presente como atmosfera, game audio
+          // (tiros/passos/voz) domina foreground — relação ~2.4:1 favor
+          // game (vs ~1.3:1 anterior). Spec produto: game audio é
+          // protagonista, música é wallpaper.
+          volume={0.35}
           startFrom={0}
-          // Round 4c Fase 1.18 (Mathieu reportou "no final do vídeo não tem
-          // mais música"): MP3s das trilhas (heroico/acao/eletronica/chill)
-          // têm duração ~60-90s. Reel hoje pode passar 100s+ (3 highlights
-          // ~28s cada após Fase 1.12). Sem loop, música acaba meio do reel.
-          // `loop` prop reinicia o áudio do início — música cobre 100% do
-          // playback. BPM da trilha mantido (loop é seamless pra tracks
-          // calibrados, descontinuidade aceitável pra material royalty-free).
+          // Fase 1.18 — `loop` cobre reel longo (MP3 trilhas ~60-90s vs
+          // reel 100s+). Sem loop, música cortava meio do vídeo.
           loop
         />
       )}

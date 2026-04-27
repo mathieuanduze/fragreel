@@ -15,8 +15,15 @@ type Props = {
 };
 
 /**
- * Outro — 2.5s
- * Stats finais + CTA "fragreel.vercel.app"
+ * Outro — 3.0s (Round 4c Fase 1.19, era 2.5s → 1.5s → 3.0s).
+ * Mathieu: "título e stats no final, não ficam tempo o suficiente para ler".
+ * Stats finais + CTA "fragreel.app".
+ *
+ * Timing dos 90 frames (3.0s @ 30fps):
+ *   0-15    (0.5s)  → playerName + mapa+score entram (titleSpring)
+ *   10-34   (0.8s)  → 4 stats em cascata (8 frames gap entre cada)
+ *   55-90   (1.2s)  → CTA visível + reading time
+ *   34-55   (0.7s)  → todos stats settled, antes do CTA disputar atenção
  */
 export const Outro: React.FC<Props> = ({ match, playerName, mood }) => {
   const frame = useCurrentFrame();
@@ -29,10 +36,12 @@ export const Outro: React.FC<Props> = ({ match, playerName, mood }) => {
     config: { damping: 14 },
   });
 
-  // Stats entram em cascata (4 stats)
+  // Stats entram em cascata (4 stats), gap 8 frames pra leitura sequencial
+  // mais deliberada (era 5 frames, muito apressado pra ler).
   const statsStart = 10;
+  const statsGap = 8;
 
-  const ctaStart = 45;
+  const ctaStart = 55;
   const ctaSpring = spring({
     frame: frame - ctaStart,
     fps,
@@ -112,7 +121,7 @@ export const Outro: React.FC<Props> = ({ match, playerName, mood }) => {
         >
           {stats.map((s, i) => {
             const statProgress = spring({
-              frame: frame - (statsStart + i * 5),
+              frame: frame - (statsStart + i * statsGap),
               fps,
               config: { damping: 14 },
             });
