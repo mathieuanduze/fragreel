@@ -136,18 +136,29 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
     config: { damping: 14, mass: 0.8 },
   });
 
-  // Round 4c Fase 1.29 (Mathieu revisão pós-Fase 1.27 PASS): "fades
-  // entre rounds podem ser um pouco mais visíveis, pra entender que tem
-  // uma mudança de round/fragreel". fadeOut 3 → 12 frames (0.4s) marca
-  // CLARAMENTE a mudança visual entre highlights. Combinado com #N badge
-  // restaurado (separador visual também), viewer entende cleanly "aqui
-  // mudou de round".
+  // Round 4c Fase 1.29 (fadeOut 0.4s pra mudança clara entre rounds).
+  // Round 4c Fase 1.31 (Mathieu reportou "transições entre cortes não
+  // estão implantadas em todos os cortes"): adicionado fadeIn simétrico
+  // nos primeiros 12 frames. Antes só fadeOut da cena anterior — cena
+  // nova entrava com opacity=1 abrupto. Quando cena anterior tinha
+  // fadeOut visível, perception era "fadeOut → CUT abrupto". Agora
+  // fadeIn(0→1) na nova cena complementa fadeOut(1→0) da anterior:
+  // transição smooth em CADA corte (no SCENE boundary, não só no fim).
+  const fadeIn = interpolate(
+    frame,
+    [0, 12],
+    [0, 1],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
   const fadeOut = interpolate(
     frame,
     [durationInFrames - 12, durationInFrames],
     [1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
+  // Composto — opacity = fadeIn * fadeOut. No início: 0→1. No meio: 1.
+  // No fim: 1→0. Transição visualmente simétrica.
+  const sceneOpacity = fadeIn * fadeOut;
 
   // Parallax zoom no fundo (efeito dolly in)
   const zoom = interpolate(
@@ -157,7 +168,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
   );
 
   return (
-    <AbsoluteFill style={{ opacity: fadeOut, background: theme.bg }}>
+    <AbsoluteFill style={{ opacity: sceneOpacity, background: theme.bg }}>
       {/* Camada 1 — Gameplay backdrop.
           Quando tem .mov do HLAE, OffthreadVideo (cobre frame inteiro,
           object-fit cover pra horizontal/vertical não quebrarem). Sem footage,

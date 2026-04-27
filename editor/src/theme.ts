@@ -263,20 +263,24 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
     return tailFallbackEnd;
   }
 
-  // Round 4c Fase 1.25 — bomb action precisa de PAD maior que kill (animação
-  // de plant 3.2s + reaction; defuse já é 10s capturado pelo cluster). Pra
-  // evitar undershoot, pra plant_won damos REACTION_PAD + 4s extra
-  // (Fase 1.30 bumped 3→4s pra cobrir plant complete + bomb planted notif).
-  // Round 4c Fase 1.30 BUG FIX (PC catched 27/04): comparison antes usava
-  // `highlight.start` mas eventTimes computa relative a `refStart`.
-  // Inconsistência fazia isPlantClosing detection sempre false em highlights
-  // com gameplayStartSec definido. Agora consistente.
+  // Round 4c REACTION_PAD pra plant_won — evolução:
+  //   Fase 1.25: REACTION + 3s = 4s pós bomb_action_timestamp
+  //   Fase 1.30: bumped pra REACTION + 4s = 5s (cobertura conservadora)
+  //   Fase 1.31 (Mathieu pós-Fase 1.30 PASS): "tela fica freezada no último
+  //     frame por muito tempo, parece que o vídeo travou". 5s era demais —
+  //     bomb_action_timestamp marca o tick de COMPLETION do plant. CS2
+  //     native mostra "Bomba foi armada" red bar por ~1.5s, depois player
+  //     fica idle (standing still). Sobravam ~2-3s de freeze visual.
+  //     Reduzido pra 1.5s total fixed: cobre notification readable +
+  //     pequeno safety. Cuts logo após bomb planted = no freeze residual.
+  // Defuse mantém REACTION_PAD_SEC normal (closing event geralmente é
+  // kill final ou reaction kill, não plant).
   const lastEventRelative = Math.max(...eventTimes);
   const isPlantClosing =
     highlight.bomb_action === "plant_won" &&
     typeof highlight.bomb_action_timestamp === "number" &&
     Math.abs((highlight.bomb_action_timestamp - refStart) - lastEventRelative) < 0.01;
-  const reactionForThis = isPlantClosing ? REACTION_PAD_SEC + 4.0 : REACTION_PAD_SEC;
+  const reactionForThis = isPlantClosing ? 1.5 : REACTION_PAD_SEC;
 
   const dynamicSceneEnd = lastEventRelative + reactionForThis;
   // Cap pelo TAIL fallback (cluster pode ter PAD_POST < REACTION_PAD se
@@ -323,14 +327,15 @@ export const s2f = (sec: number) => Math.round(sec * FPS);
 // Cluster v0.3.0-beta-2 já garante max ~30s/highlight (PAD + clamps).
 // Round 4c Fase 1.30 (Mathieu plant escalation editor): max bumped 35 → 50s
 // pra acomodar highlights cuja closing event é plant_won — cluster captura
-// W3 kills (~15s) + W4 plant (~6s) + gap entre eles, com reaction. Total
-// pode chegar 25-30s pra rounds com plant 24s+ após round_end. Sem bump,
-// clampHighlightSec(rawSec, BOUNDS) cortava sceneEnd em 35s mesmo com
-// effectiveSceneEndSec corretamente computado em ~41s.
-// Trade: highlights normais (kills only) ainda ficam <35s, então max 50s
-// só ativa quando NECESSÁRIO. Reels com plant ficam ligeiramente mais
-// longos mas plant garantido.
-export const REEL_HIGHLIGHT_BOUNDS = { min: 3, max: 50 } as const;
+// W3 kills (~15s) + W4 plant (~6s) + gap entre eles, com reaction.
+// Round 4c Fase 1.31 (PC suggestion + Mathieu PASS plant): max ajustado
+// 50 → 45s pra Shorts compat. PC reportou MP4 final 83.93s na Fase 1.30
+// — Reels/TikTok cap 90s OK, mas YouTube Shorts cap 60s NÃO cabe. Com
+// plant fix da Fase 1.31 (REACTION 5s→1.5s), scene #3 com plant fica
+// ~33s vs 38s anterior. 3 highlights × ~25s média + intro 1.2s + outro
+// 3s = ~80s — ainda over 60s pra worst case, mas perto. Reduzir BOUNDS
+// 50→45 ajuda casos extremos sem prejudicar narrativa.
+export const REEL_HIGHLIGHT_BOUNDS = { min: 3, max: 45 } as const;
 export const RECAP_HIGHLIGHT_BOUNDS = { min: 4, max: 45 } as const;
 
 export function clampHighlightSec(
