@@ -144,7 +144,14 @@ export const effectiveTailSkipSec = (sourceDurSec: number): number => {
 //   Source-side complementar: V2_PLANT_POST_BUFFER_S 2→5s + V2_DEFUSE_
 //   POST_BUFFER_S 2.5→5s (capture mais frames pós-action).
 export const REACTION_PAD_SEC = 2.0;
-export const REACTION_PAD_PLANT_SEC = 3.0;
+// Round 4c Fase 1.35 — REACTION_PAD_PLANT_SEC bumped 3.0 → 4.5s.
+// PC catched pós-Fase 1.34: plant action + bomb on ground visíveis MAS
+// "Bomba foi armada" red bar notification ainda cortada. CS2 native
+// popup aparece ~1.5s pós-plant_complete e dura ~2s readable. 3s
+// REACTION cortava no meio. 4.5s = 1.5s popup delay + 2s readable +
+// 1s breathing buffer. Capture-side complementar: V2_PLANT_POST_BUFFER
+// bumped 5→7s pra mov ter frames suficientes.
+export const REACTION_PAD_PLANT_SEC = 4.5;
 export const REACTION_PAD_DEFUSE_SEC = 4.0;
 
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
