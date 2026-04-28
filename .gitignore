@@ -38,6 +38,20 @@ demos/
 .vscode/
 .idea/
 
-# Referências locais (notas, guias, etc)
+# Referências locais (notas, guias, estratégia → Obsidian)
 Edição_FragReel_Best_Practices.txt
 *.local.md
+HANDOVER_*.md
+*Projeto Técnico*.md
+ROADMAP.md
+NOTES.md
+PLANNING.md
+STRATEGY.md
+DECISIONS.md
+*.private.md
+demos/
+data/renders/
+
+# PDFs antigos do projeto
+*.pdf
+
