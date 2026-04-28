@@ -1,36 +1,42 @@
 import Nav from "@/components/Nav";
 import { getMatch } from "@/lib/api";
 import MatchClient from "./MatchClient";
-import AutoReanalyze from "./AutoReanalyze";
+import LocalMatchFetcher from "./LocalMatchFetcher";
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
+  // Estratégia hibrida (Sprint I.5 + Bug #10 V2):
+  //
+  // 1. Server Component tenta Railway primeiro
+  //    → preserva SSR pra users com matches já uploadados pro Railway
+  //    → response rápida em CDN cache hit
+  //
+  // 2. Se Railway 200: renderiza MatchClient direto (caminho atual)
+  //
+  // 3. Se Railway 404: renderiza <LocalMatchFetcher /> Client Component que:
+  //    a. Tenta getLocalMatch(id) no cliente FragReel local (127.0.0.1:5775)
+  //       → Sprint I.5: cliente salva match em ~/.fragreel/matches/ pós parse_and_score_locally
+  //    b. Se cliente local TEM match: renderiza MatchClient com dados locais
+  //    c. Se cliente local NÃO tem (404 ou offline): cai pro AutoReanalyze
+  //       (Bug #10 V2 — força re-upload com cliente local)
+  //
+  // Server Component não pode falar com 127.0.0.1 (servidor Vercel ≠ user PC).
+  // Por isso a etapa 3 vai pro Client Component.
   let match;
   try {
     match = await getMatch(id);
   } catch (e) {
     match = null;
-    // Heurística pra distinguir:
-    //   - getMatch throws "Render status not available" (genérico) → tratamos
-    //     todos como "not_found" porque na prática 99% dos casos é Railway
-    //     ephemeral storage que esqueceu o match após redeploy (Bug #10).
-    //   - Network error real (server fora do ar) seria raro — Vercel/Railway
-    //     têm uptime alto. AutoReanalyze trata ambos com mesmo flow.
-    console.error(`getMatch(${id}) failed:`, e);
+    console.error(`getMatch(${id}) Railway falhou:`, e);
   }
 
   if (!match) {
-    // Bug #10 fix V2 (28/04 — Mathieu pediu): em vez de mostrar tela
-    // estática "precisa re-analisar + voltar à biblioteca" (fricção
-    // de 3 cliques), AutoReanalyze faz tudo automático: invalida cache
-    // local stale + re-upload pro server + redirect pro novo match_id.
-    // Se algo falhar (client offline, demo deletada), AutoReanalyze
-    // mostra o estado específico com botão "Voltar à biblioteca".
+    // Sprint I.5: Client Component vai checar cliente local + fallback AutoReanalyze
     return (
       <>
         <Nav />
-        <AutoReanalyze staleMatchId={id} />
+        <LocalMatchFetcher matchId={id} />
       </>
     );
   }

@@ -145,6 +145,82 @@ export async function triggerLocalUpload(
   return fetchLocal<LocalJob>(`/demos/${sha}/upload${qs}`, { method: "POST" });
 }
 
+// ── Sprint I.5 — Local match endpoints (cliente vira fonte de matches) ──────
+
+/**
+ * Sprint I.5 (28/04 noite): busca match_doc do cliente local.
+ *
+ * Cliente parseia .dem local + chama Vercel /api/score + salva match em
+ * `~/.fragreel/matches/<id>.json` (local_matches_store.py). Esse endpoint
+ * (`GET /matches/{id}`) serve esses match_docs pra web — bypass Railway.
+ *
+ * Returns:
+ *   - match_doc se encontrado localmente
+ *   - null se 404 (cliente local não tem esse match — fallback Railway)
+ *
+ * Throws:
+ *   - LocalClientOffline se cliente FragReel não tá rodando
+ */
+export async function getLocalMatch(matchId: string): Promise<MatchOut | null> {
+  if (!matchId) return null;
+  try {
+    return await fetchLocal<MatchOut>(`/matches/${encodeURIComponent(matchId)}`);
+  } catch (e) {
+    if (e instanceof LocalClientOffline) throw e;
+    // Other errors (404, parse fail) → null = fallback Railway
+    return null;
+  }
+}
+
+/**
+ * Sprint I.5: lista summary de matches locais.
+ * Usado por library page quando user tem matches gerados local-first.
+ */
+export interface LocalMatchSummary {
+  id: string;
+  map: string;
+  date: string;
+  score: string;
+  side: string;
+  status: string;
+  highlights_count: number;
+  top_play: string;
+  rating: string;
+  kd: string;
+  scoring_source?: string;
+  _local_saved_at?: number;
+}
+
+export async function listLocalMatches(): Promise<LocalMatchSummary[]> {
+  try {
+    const res = await fetchLocal<{ matches: LocalMatchSummary[]; count: number }>(
+      "/matches",
+    );
+    return res.matches ?? [];
+  } catch (e) {
+    if (e instanceof LocalClientOffline) throw e;
+    return [];
+  }
+}
+
+/**
+ * Sprint I.5: deleta match_doc local. User pode usar pra "re-mapear"
+ * sem trigger automático do AutoReanalyze.
+ */
+export async function deleteLocalMatch(matchId: string): Promise<boolean> {
+  if (!matchId) return false;
+  try {
+    const res = await fetchLocal<{ deleted: boolean; match_id: string }>(
+      `/matches/${encodeURIComponent(matchId)}`,
+      { method: "DELETE" },
+    );
+    return res.deleted ?? false;
+  } catch (e) {
+    if (e instanceof LocalClientOffline) throw e;
+    return false;
+  }
+}
+
 export async function getLocalJob(sha: string): Promise<LocalJob | null> {
   try {
     return await fetchLocal<LocalJob>(`/jobs/${sha}`);
