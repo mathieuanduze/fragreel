@@ -1,6 +1,6 @@
 # FragReel — Privacy Policy
 
-_Last updated: 2026-04-27_
+_Last updated: 2026-04-28_
 
 FragReel ([fragreel.gg](https://fragreel.gg)) is a free, open-source tool that turns Counter-Strike 2 demo files into shareable highlight videos. This document explains exactly what data we touch and what we don't.
 
@@ -22,6 +22,10 @@ After your local FragReel client parses a `.dem` file, it sends to our server a 
 - in-game name extracted from the demo (needed to lock the spectator camera at render time)
 
 This metadata lets the server score the most cinematic rounds and tell the client which segments to capture. It does **not** include video, audio, voice chat, or anything that identifies real-world people other than what Steam IDs already do.
+
+The endpoint that receives this metadata is `https://fragreel.gg/api/score` (a serverless function, source at [`web/app/api/score/route.ts`](https://github.com/mathieuanduze/fragreel/blob/main/web/app/api/score/route.ts)). The request body schema is fully documented in that file and is versioned (`schema_version`) — any change requires a client update, so you can audit exactly what's sent.
+
+**If the scoring API is unreachable** (offline, server outage), the desktop client falls back to a basic local "LITE" scorer that ranks rounds by kill count without any data leaving your computer. You'll see a notice that the scoring is degraded.
 
 ### 3. Render selection
 When you pick which highlights to render, your selection (highlight ranks, mood preset, music toggle, x-ray toggle, scoreboard toggle, output orientation) is sent to your local client to generate the video.
@@ -67,7 +71,8 @@ Besides ad tags, the site uses **1 first-party cookie** (signed JWT, short expir
 
 ## Where data is stored
 
-- **Match metadata**: stored on a [Railway](https://railway.app) backend (PostgreSQL-equivalent storage), encrypted in transit (HTTPS) and at rest. Tied to your Steam ID.
+- **Match metadata** sent to `/api/score`: processed by a stateless [Vercel](https://vercel.com) serverless function. The function does NOT persist your demo events to disk or database — it computes highlights and returns them. Anti-abuse logs (IP + timestamp) are kept by Vercel for up to 7 days per their platform policy.
+- **Match selections + render history** (when you save matches in your account): stored on a [Railway](https://railway.app) backend, encrypted in transit (HTTPS) and at rest. Tied to your Steam ID.
 - **Steam authentication tokens**: stored in a JWT cookie in your browser (signed, with a short expiry). Never sent to any third party.
 - **Your generated videos**: only on your local computer. We never see them.
 

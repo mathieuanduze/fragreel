@@ -108,7 +108,7 @@ export default function PrivacyPage() {
               fontFamily: "monospace",
             }}
           >
-            Última atualização: 2026-04-27
+            Última atualização: 2026-04-28
           </p>
         </div>
       </section>
@@ -164,6 +164,26 @@ export default function PrivacyPage() {
             cinematográficos e dizer ao cliente quais segmentos capturar.{" "}
             <strong>Não inclui</strong> vídeo, áudio, voice chat, ou qualquer
             coisa que identifique pessoas reais além do que Steam IDs já fazem.
+            <br /><br />
+            O endpoint que recebe esse metadata é{" "}
+            <code style={codeInline}>https://fragreel.gg/api/score</code> (uma
+            função serverless cujo código-fonte está em{" "}
+            <a
+              href="https://github.com/mathieuanduze/fragreel/blob/main/web/app/api/score/route.ts"
+              target="_blank"
+              rel="noopener"
+              style={linkStyle}
+            >
+              web/app/api/score/route.ts
+            </a>
+            ). O contrato é versionado (<code style={codeInline}>schema_version</code>)
+            — qualquer mudança requer atualização do cliente, então você pode
+            auditar exatamente o que é enviado.
+            <br /><br />
+            <strong>Se a API de scoring estiver inacessível</strong>{" "}
+            (offline, outage), o cliente desktop cai pra um scorer local{" "}
+            <em>"LITE"</em> que ranqueia rounds por kill count sem nenhum dado
+            sair do seu computador. Você verá um aviso de scoring degradado.
           </SubSection>
 
           <SubSection title="3. Seleção de render">
@@ -275,7 +295,18 @@ export default function PrivacyPage() {
         <Section title="Onde os dados ficam armazenados">
           <ul style={listStyleSpaced}>
             <li>
-              <strong>Metadados de partida</strong>: armazenados em backend{" "}
+              <strong>Eventos enviados pra <code style={codeInline}>/api/score</code></strong>:
+              processados por uma função serverless{" "}
+              <a href="https://vercel.com" target="_blank" rel="noopener" style={linkStyle}>
+                Vercel
+              </a>
+              . A função NÃO persiste seus eventos em disco ou banco — calcula
+              os highlights e retorna. Logs de anti-abuse (IP + timestamp) são
+              mantidos pela Vercel por até 7 dias conforme política da plataforma.
+            </li>
+            <li>
+              <strong>Seleções de partida + histórico de render</strong> (quando
+              você salva matches na sua conta): armazenados em backend{" "}
               <a href="https://railway.app" target="_blank" rel="noopener" style={linkStyle}>
                 Railway
               </a>
