@@ -21,14 +21,21 @@ log.info("FragReel API starting up")
 
 app = FastAPI(title="FragReel API", version="0.1.0")
 
+# CORS: allow_origins não suporta wildcards do tipo "https://*.vercel.app"
+# (Starlette só aceita patterns via allow_origin_regex). Listamos hosts
+# explicitamente: prod (fragreel.gg + www.fragreel.gg), preview deploys
+# Vercel (regex), e dev local. Bug #17 (28/04): adicionado fragreel.gg
+# após compra do domínio.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:3033",
-        "https://fragreel.vercel.app",
-        "https://*.vercel.app",
+        "https://fragreel.gg",
+        "https://www.fragreel.gg",
+        "https://fragreel.vercel.app",  # mantido como fallback do Vercel default
     ],
+    allow_origin_regex=r"https://.*\.vercel\.app",  # cobre preview deploys
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

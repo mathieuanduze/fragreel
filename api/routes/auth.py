@@ -31,8 +31,11 @@ STEAM_OPENID_URL  = "https://steamcommunity.com/openid/login"
 JWT_SECRET        = os.getenv("JWT_SECRET", "dev-secret-CHANGE-ME")
 JWT_EXPIRE_DAYS   = 30
 STEAM_API_KEY     = os.getenv("STEAM_API_KEY", "")          # optional
+# Bug #17 (28/04): default fallback agora é fragreel.gg (domínio próprio).
+# Se Railway tiver FRAGREEL_DASHBOARD_URL setada, usa essa — senão usa o
+# domínio canônico. Steam OAuth callback redireciona pra cá pós-login.
 FRONTEND_URL      = os.getenv("FRAGREEL_DASHBOARD_URL",
-                               "https://fragreel.vercel.app")
+                               "https://fragreel.gg")
 
 
 def _api_base(request: Request) -> str:

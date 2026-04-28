@@ -21,22 +21,19 @@ import UpdateRequiredModal from "@/components/UpdateRequiredModal";
 
 const CS2_TICKRATE = 64;
 
-// Cada formato tem um teto diferente de cenas porque:
-//   • reel (9:16, ~20s): timeline curta — 5 cenas é o sweet spot, mais começa a parecer rápido demais
-//   • card (estático): não usa cenas, é um layout de stats — força 0
-//   • recap (16:9, 2-3min): timeline longa, cabe mais narrativa — até 10
-// O custo de render também escala com cenas (cada cena = re-encode + transição), então
-// teto duro evita o usuário cobrar 5 minutos de render num reel de 20s.
+// Reel-only desde 28/04 (Decisão definitiva #1 do ROADMAP — drop card + recap
+// pra v1.0 launch). Formatos card (estático) e recap (longo) foram removidos
+// — single proposta: Reel pra TikTok/Reels/Shorts/YouTube/Twitch.
+//
+// Reel: 5 cenas é o sweet spot pra timeline curta (~20s). Mais cenas começa
+// a parecer rápido demais, e o custo de render escala (cada cena = re-encode
+// + transição). Teto duro evita user cobrar 5 minutos de render num reel curto.
 const SCENE_CAPS: Record<string, number> = {
   reel: 5,
-  card: 0,
-  recap: 10,
 };
 
 const FORMATS = [
-  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "vídeo curto · ~20s",          desc: "Intro com player/mapa, rank badges, kill feed animado por frag e stats no outro. Música sincronizada com os cortes.", dest: "Vertical → TikTok / Reels · Horizontal → YouTube Shorts", maxScenes: SCENE_CAPS.reel },
-  { id: "card",  icon: "🖼️", label: "Story Card",       format: "9:16 imagem estática",       desc: "Card com nick, mapa, K/D, HS%, ADR, rating e top play. Perfeito para stories.",         dest: "Instagram Stories · WhatsApp", maxScenes: SCENE_CAPS.card },
-  { id: "recap", icon: "📺", label: "Recap Completo",   format: "vídeo longo · ~50-90s",       desc: "Narrativa da partida: frags, clutches, estatísticas sobrepostas e placar round a round.",    dest: "Vertical → Reels longos · Horizontal → YouTube / Twitch", maxScenes: SCENE_CAPS.recap },
+  { id: "reel",  icon: "🎬", label: "Highlights Reel",  format: "vídeo curto · ~20s",          desc: "Intro com player/mapa, rank badges, kill feed animado por frag e stats no outro. Música sincronizada com os cortes.", dest: "Vertical → TikTok / Reels / Shorts · Horizontal → YouTube / Twitch", maxScenes: SCENE_CAPS.reel },
 ];
 
 // Mapeamento de arma/tipo de kill pra ícone visual. A IA já manda `weapon` e
@@ -245,11 +242,9 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
 
   // Quando muda o formato, se a seleção atual ultrapassa o novo cap, trunca
   // mantendo as primeiras (que estão ordenadas por rank — as melhores ficam).
+  // (Reel-only desde 28/04 — só 1 formato, mas useEffect mantido pra futuro
+  // se voltar formatos extras.)
   useEffect(() => {
-    if (maxScenes === 0) {
-      // Card: ignora seleção, não usa cenas
-      return;
-    }
     setSelected((prev) => {
       if (prev.size <= maxScenes) return prev;
       const sortedRanks = Array.from(prev).sort((a, b) => a - b).slice(0, maxScenes);
@@ -653,15 +648,9 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           </div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", textAlign: "right" }}>
             <div>{match.highlights.length} highlights detectados</div>
-            {maxScenes > 0 ? (
-              <div style={{ color: "#FF6B35", fontWeight: 600, marginTop: 2 }}>
-                {selectedCount}/{maxScenes} cena{maxScenes !== 1 ? "s" : ""} selecionada{selectedCount !== 1 ? "s" : ""}
-              </div>
-            ) : (
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 2 }}>
-                Story Card é estático · não usa cenas
-              </div>
-            )}
+            <div style={{ color: "#FF6B35", fontWeight: 600, marginTop: 2 }}>
+              {selectedCount}/{maxScenes} cena{maxScenes !== 1 ? "s" : ""} selecionada{selectedCount !== 1 ? "s" : ""}
+            </div>
           </div>
         </div>
 
@@ -886,19 +875,19 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", padding: "6px 10px", background: "#0D0D1A", borderRadius: 6 }}>{f.dest}</div>
                     <div
-                      title={f.maxScenes === 0 ? "Story Card é estático, não usa cenas" : `Até ${f.maxScenes} cenas — mais cenas = mais tempo de render`}
+                      title={`Até ${f.maxScenes} cenas — mais cenas = mais tempo de render`}
                       style={{
                         fontSize: 11, fontWeight: 600,
-                        color: f.maxScenes === 0 ? "rgba(255,255,255,0.4)" : "rgba(255,107,53,0.85)",
+                        color: "rgba(255,107,53,0.85)",
                         padding: "4px 10px",
-                        background: f.maxScenes === 0 ? "rgba(255,255,255,0.04)" : "rgba(255,107,53,0.08)",
-                        border: `1px solid ${f.maxScenes === 0 ? "rgba(255,255,255,0.08)" : "rgba(255,107,53,0.25)"}`,
+                        background: "rgba(255,107,53,0.08)",
+                        border: "1px solid rgba(255,107,53,0.25)",
                         borderRadius: 6,
                         display: "inline-flex", alignItems: "center", gap: 5,
                         alignSelf: "flex-start",
                       }}
                     >
-                      {f.maxScenes === 0 ? "📌 Sem cenas (estático)" : `🎞 Até ${f.maxScenes} cenas`}
+                      🎞 Até {f.maxScenes} cenas
                     </div>
                   </div>
                 </button>
@@ -907,15 +896,13 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           </div>
         </div>
 
-        {/* Mood selector — formatos que carregam música (reel + recap).
+        {/* Mood selector — só reel agora (recap dropado em Decisão #1).
              Card é só estatística, sem trilha. */}
-        {(format === "reel" || format === "recap") && (
+        {format === "reel" && (
           <div style={{ marginBottom: 32 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Escolha a trilha</h2>
             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>
-              {format === "recap"
-                ? "A trilha rola por baixo da narração e se adapta ao ritmo dos rounds."
-                : "A música sincroniza com os cortes do vídeo. Todas royalty-free."}
+              A música sincroniza com os cortes do vídeo. Todas royalty-free.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
               {MOODS.map((m) => {
@@ -1134,9 +1121,9 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           </div>
         )}
 
-        {/* Orientation selector — só faz sentido pra formatos de vídeo.
-             Card sempre é 9:16 vertical (story de Instagram). */}
-        {(format === "reel" || format === "recap") && (
+        {/* Orientation selector — vertical (mobile) ou horizontal (desktop).
+             Reel-only desde Decisão #1 — card e recap removidos. */}
+        {format === "reel" && (
           <div style={{ marginBottom: 32 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Onde você vai postar?</h2>
             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>
@@ -1189,9 +1176,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Pronto para gerar?</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
-              {maxScenes === 0 ? (
-                <><b style={{ color: "rgba(255,255,255,0.7)" }}>Story Card</b> usa só estatísticas da partida · <b style={{ color: "rgba(255,255,255,0.7)" }}>2 anúncios de 30s</b>. <span style={{ color: "rgba(255,255,255,0.3)" }}>Sem assinatura.</span></>
-              ) : selectedCount > 0 ? (
+              {selectedCount > 0 ? (
                 <><b style={{ color: "rgba(255,255,255,0.7)" }}>{selectedCount} cena{selectedCount !== 1 ? "s" : ""}</b> · formato <b style={{ color: "rgba(255,255,255,0.7)" }}>{formatLabel}</b> · <b style={{ color: "rgba(255,255,255,0.7)" }}>2 anúncios de 30s</b> durante o render. <span style={{ color: "rgba(255,255,255,0.3)" }}>Sem assinatura.</span></>
               ) : (
                 <span style={{ color: "rgba(255,107,53,0.7)" }}>Selecione pelo menos 1 highlight acima.</span>
