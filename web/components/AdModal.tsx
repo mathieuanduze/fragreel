@@ -76,7 +76,9 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   // barra é puramente visual hoje. Quando Remotion entrar de verdade,
   // troca esse contador por sinal real do backend (hook do remotion render).
   // Duração escolhida a olho — Remotion compor uma cena típica leva ~20-25s.
-  const [mockEditElapsed, setMockEditElapsed] = useState(0);
+  // Bug #23 (28/04, PC test v0.4.6): mockEditElapsed removido. Antes era
+  // usado pra edit progress bar com `/ 20s` mas Remotion real demora 1-10min.
+  // Substituído por mapping linear do backend.progress (ver editRaw abaixo).
 
   // Poll render status every 2s. When running locally (on the user's PC)
   // we poll 127.0.0.1:5775/render/status — the real rendering is happening
@@ -181,18 +183,35 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
           // pra mostrar "tá rolando" sem fingir progresso preciso.
           : 0.5
         : 1; // rendering/done → render terminou
-  // Etapa 3 — Edição (Remotion). Mock até Remotion emitir progresso real.
-  // Duração reduzida pra ~20s porque Remotion compor cena curta é rápido;
-  // se demorar mais, a barra fica pegada em 95% até renderDone — o user
-  // já entende "tá quase".
-  const MOCK_EDIT_DURATION = 20;
+  // Etapa 3 — Edição (Remotion).
+  //
+  // Bug #23 (28/04, PC test v0.4.6): substituído MOCK por progress real do
+  // backend. v0.4.5 e anteriores usavam `mockEditElapsed / 20s capped at
+  // 0.95` — chave assumia Remotion levaria ~20s. Realidade no PC test foi
+  // 10min 31s (24× a estimativa). Resultado: barra cravava 95% em 20s e
+  // ficava lá por 10 min enquanto backend evoluía 0.89→0.99. Mathieu
+  // percebeu como "+6pp off" ou "stuck 95%" — confundiu diagnose 2x.
+  //
+  // Fix: mapeia backend.progress (0.89-1.0 durante rendering) → 0-1 da
+  // barra. Backend.progress é REAL (Remotion não emite hook fino mas o
+  // global vai subindo conforme stages). Constantes vêm de
+  // render_coordinator.py: STAGING(.03) + LAUNCHING(.04) + CAPTURING(.70)
+  // + CONVERTING(.12) = 0.89.
+  const RENDERING_BUDGET_START = 0.89;
   const editRaw = !localRenderMode
     ? renderDone ? 1 : 0
     : !localStatus || isCapturePhase || isRenderPhase
       ? 0
       : renderDone
         ? 1
-        : Math.min(0.95, mockEditElapsed / MOCK_EDIT_DURATION);
+        : Math.min(
+            0.99,
+            Math.max(
+              0,
+              (localStatus.progress - RENDERING_BUDGET_START) /
+                (1.0 - RENDERING_BUDGET_START),
+            ),
+          );
   // Monotonic clamp: cada barra só sobe, nunca desce. Pinned em 1 quando
   // renderDone. Evita o ping-pong descrito acima e também o "barra voltou
   // pra 95% depois de ficar em 100%" causado pela troca de label no final.
@@ -252,21 +271,12 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
     return () => clearInterval(id);
   }, [renderDone]);
 
-  // Mock timer da barra 3 (edição/Remotion). Só roda em modo local e
-  // SOMENTE quando o backend está em state=rendering (Remotion plugado).
-  // v0.2.10 também rodava em `converting`, mas v0.2.11 separou render
-  // (ffmpeg ProRes, com sinal real via segments_done) de edição (Remotion,
-  // mock até hook real). Trava se o render virou done.
-  useEffect(() => {
-    if (!localRenderMode) return;
-    if (!localStatus) return;
-    if (isCapturePhase || isRenderPhase) return;
-    if (renderDone) return;
-    const id = setInterval(() => {
-      setMockEditElapsed((e) => e + 1);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [localRenderMode, isCapturePhase, isRenderPhase, localStatus, renderDone]);
+  // Bug #23 (28/04): useEffect do mockEditElapsed timer removido — não é
+  // mais necessário porque editRaw agora vem do backend.progress real.
+  // Histórico: v0.2.10/v0.2.11 usavam mock pq Remotion não emitia progresso
+  // fino. v0.4.6 comprovou que o progress GLOBAL do backend (0.89→0.99
+  // durante rendering stage) já é suficiente pra UI sem precisar emitter
+  // dedicado do Remotion.
 
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
