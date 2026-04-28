@@ -392,6 +392,90 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
 
   const ad = ADS[adIndex];
 
+  // ── Bug #20 (28/04, PC test) — early return UI de erro ─────────────────────
+  // PC reportou: backend retornava state=error/stage=failed após ENOSPC
+  // mas UI continuava mostrando "Edição 95%" estático por 18+ minutos.
+  // Causa: detect de error só fazia clearInterval (linha 92) sem mudar UI.
+  // Fix: quando state===error, abandonar pipeline UI normal e mostrar tela
+  // explícita de falha com mensagem do backend + ações claras.
+  const renderErrored = localRenderMode && localStatus?.state === "error";
+  const renderErrorMsg = renderErrored
+    ? (localStatus?.error ?? localStatus?.stage ?? "render falhou")
+    : null;
+  // Traduzir mensagens técnicas comuns pra português user-friendly.
+  const renderErrorFriendly = (() => {
+    if (!renderErrorMsg) return null;
+    const m = renderErrorMsg.toLowerCase();
+    if (m.includes("enospc") || m.includes("no space left") || m.includes("disco quase cheio")) {
+      return "Disco cheio durante a captura. Libere ~50 GB e tente de novo.";
+    }
+    if (m.includes("cannot find module") || m.includes("module_not_found")) {
+      return "Bundle Remotion incompleto. Reinstale o FragReel da última release.";
+    }
+    if (m.includes("cs2") && m.includes("crash")) {
+      return "CS2 crashou durante a captura. Tente de novo (geralmente é transitório).";
+    }
+    if (m.includes("timeout") || m.includes("hlae")) {
+      return "Timeout durante a captura HLAE. CS2 pode ter ficado travado — feche o CS2 manualmente e tente de novo.";
+    }
+    return null;
+  })();
+
+  if (renderErrored) {
+    return (
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(0,0,0,0.94)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            width: "100%", maxWidth: 540,
+            background: "#131325",
+            border: "1px solid rgba(224,85,85,0.4)",
+            borderRadius: 12,
+            padding: "40px 32px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 56, marginBottom: 16 }}>⚠️</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, color: "#E8E8F0" }}>
+            Render falhou
+          </h2>
+          {renderErrorFriendly && (
+            <p style={{ fontSize: 15, color: "#E8E8F0", lineHeight: 1.6, marginBottom: 12 }}>
+              {renderErrorFriendly}
+            </p>
+          )}
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, marginBottom: 24, fontFamily: "monospace", wordBreak: "break-word" }}>
+            {renderErrorMsg}
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => { setClosing(true); setTimeout(onClose, 300); }}
+              style={{
+                padding: "12px 24px",
+                background: "#FF6B35",
+                color: "white",
+                fontWeight: 700,
+                fontSize: 14,
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              ← Voltar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // ── /Bug #20 ───────────────────────────────────────────────────────────────
+
   return (
     <div
       style={{
