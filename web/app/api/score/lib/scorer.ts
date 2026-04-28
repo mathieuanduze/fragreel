@@ -199,13 +199,27 @@ function _scoreRound(
     bonus += LOW_HP_BONUS;
   }
 
-  const score = Math.round((base + bonus) * 10) / 10;
+  // Banker's rounding pra match Python `round(score, 1)` exatamente
+  // (Sprint I.4 cross-check fix). Score raramente tem .x5 boundary
+  // (base + bonus são geralmente inteiros), mas usamos consistente.
+  const score = roundBankers(base + bonus, 1);
 
-  // Round capture window
-  const start = Math.max(0, round((roundKills[0].timestamp - ROUND_PRE_BUFFER) * 10) / 10);
-  let end = round((roundKills[roundKills.length - 1].timestamp + ROUND_POST_BUFFER) * 10) / 10;
+  // Round capture window.
+  //
+  // Sprint I.4 PC test catched (28/04 noite): primeira impl usava
+  // `Math.round(x * 10) / 10` que diverge de Python `round(x, 1)` em
+  // valores `.x5` boundaries. JavaScript Math.round = round-half-AWAY-from-zero
+  // (730.25 → 730.3); Python round = banker's rounding = round-half-to-EVEN
+  // (730.25 → 730.2 porque 2 é par). Pra Sprint I.4 cross-check produzir 100%
+  // MATCH com scorer.py, usamos `roundBankers` que replica comportamento
+  // Python bit-exact.
+  //
+  // PC test detectou Δ=0.100s em 3 highlights de_dust2 — exatamente o
+  // pattern que esse bug produz quando timestamp + buffer cai em .x5 boundary.
+  const start = Math.max(0, roundBankers(roundKills[0].timestamp - ROUND_PRE_BUFFER, 1));
+  let end = roundBankers(roundKills[roundKills.length - 1].timestamp + ROUND_POST_BUFFER, 1);
   if (end - start < MIN_CLIP_LEN) {
-    end = round((start + MIN_CLIP_LEN) * 10) / 10;
+    end = roundBankers(start + MIN_CLIP_LEN, 1);
   }
 
   return {
@@ -502,4 +516,49 @@ function _roundNarrative(n: number, roundKills: KillEvent[], ctx: RoundContext):
 
 function round(x: number): number {
   return Math.round(x);
+}
+
+/**
+ * Banker's rounding (round half to even) — matches Python's `round(x, n)`
+ * bit-exact. Sprint I.4 (28/04) PC test catched divergência Δ=0.100s entre
+ * scorer Python (Railway) e scorer TS (Vercel) em valores `.x5` boundaries
+ * porque JS `Math.round()` usa round-half-AWAY-from-zero (Math.round(0.5) = 1)
+ * enquanto Python usa round-half-to-EVEN (round(0.5) = 0, round(1.5) = 2,
+ * round(2.5) = 2, round(3.5) = 4).
+ *
+ * Implementação:
+ * 1. scaled = x * 10^decimals
+ * 2. floor = Math.floor(scaled)
+ * 3. diff = scaled - floor
+ * 4. Se diff < 0.5: round down (floor / factor)
+ * 5. Se diff > 0.5: round up ((floor + 1) / factor)
+ * 6. Se diff == 0.5 (within 1e-9 tolerance pra float precision):
+ *    - floor par → round down (mantém par)
+ *    - floor ímpar → round up (vira par)
+ *
+ * Tolerância 1e-9 pra absorver quirks de float precision (ex: 0.1+0.2=0.30000...004).
+ *
+ * Examples (decimals=1):
+ *   roundBankers(730.25, 1) = 730.2  (Python: round(730.25, 1) = 730.2 ✓)
+ *   roundBankers(730.35, 1) = 730.4  (Python: round(730.35, 1) = 730.4 ✓)
+ *   roundBankers(730.15, 1) = 730.2  (Python: round(730.15, 1) = 730.2 ✓)
+ *   roundBankers(730.21, 1) = 730.2  (round down normal)
+ *   roundBankers(730.27, 1) = 730.3  (round up normal)
+ */
+function roundBankers(x: number, decimals: number): number {
+  const factor = Math.pow(10, decimals);
+  const scaled = x * factor;
+  const floorVal = Math.floor(scaled);
+  const diff = scaled - floorVal;
+
+  // Tolerance pra float precision quirks (ex: 0.1+0.2=0.30000...004)
+  const HALF_EPS = 1e-9;
+
+  if (diff < 0.5 - HALF_EPS) return floorVal / factor;
+  if (diff > 0.5 + HALF_EPS) return (floorVal + 1) / factor;
+
+  // diff ≈ 0.5: round to even
+  // floor par → mantém par (round down)
+  // floor ímpar → vira par (round up)
+  return (floorVal % 2 === 0 ? floorVal : floorVal + 1) / factor;
 }
