@@ -192,9 +192,17 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
       ? "Demo não encontrada no PC"
       : "Erro ao re-analisar";
 
+  // Sub-text contextual por fase. Bug #19 (28/04 — Mathieu reportou):
+  // copy "isso leva ~15s" mentia (real ficou em 47-60s). Removida promessa
+  // rígida — agora cada fase explica o que está fazendo, sem ETA falso.
+  // Range honesto: depends on demo size (50-200MB) + connection + server load.
   const sub =
-    phase === "looking_up" || phase === "uploading" || phase === "analyzing"
-      ? `Aguarde — isso leva ~15s. Tempo decorrido: ${elapsedSec}s`
+    phase === "looking_up"
+      ? `Localizando demo no scanner local… (${elapsedSec}s)`
+      : phase === "uploading"
+      ? `Enviando demo pro servidor (50-200MB dependendo da partida)… (${elapsedSec}s)`
+      : phase === "analyzing"
+      ? `Servidor está parseando eventos da partida e calculando highlights. Pode levar 30s a 2min dependendo do tamanho da demo. (${elapsedSec}s)`
       : phase === "done"
       ? "Redirecionando…"
       : phase === "client_offline"
