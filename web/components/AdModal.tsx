@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { getRenderStatus, RenderStatus } from "@/lib/api";
 import {
   getLocalRenderStatus,
@@ -215,21 +215,64 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   // Monotonic clamp: cada barra só sobe, nunca desce. Pinned em 1 quando
   // renderDone. Evita o ping-pong descrito acima e também o "barra voltou
   // pra 95% depois de ficar em 100%" causado pela troca de label no final.
-  const [maxCapturePct, setMaxCapturePct] = useState(0);
-  const [maxRenderPct, setMaxRenderPct] = useState(0);
-  const [maxEditPct, setMaxEditPct] = useState(0);
+  //
+  // Bug #23 V2 (28/04 PC test): UI mostrava "Edição 95%" sustained, depois
+  // CAÍA pra 0% durante phase ativa do Remotion. Backend nunca regrediu
+  // (0.85 → 0.89 → 1.0 monotônico). 3 root causes identificadas:
+  //
+  //   A. useState reset on remount: AdModal é {showAd && <AdModal />}, se
+  //      showAd toggle ou parent re-render causa remount, maxEditPct
+  //      volta pra 0. monotonic protection ANTERIOR só funcionava DENTRO
+  //      do mesmo mount.
+  //
+  //   B. editRaw fórmula retornava 0 quando progress < RENDERING_BUDGET_START.
+  //      Quando state=="rendering" mas progress momentaneamente em 0.85
+  //      (race entre state transition e progress update no backend),
+  //      editRaw=0, e se mount foi novo, maxEditPct=0 também → UI mostra 0%.
+  //
+  //   C. Floor by phase ausente: durante editing phase, capturePct e
+  //      renderPct deveriam ser SEMPRE 1 (passaram), e editPct ≥ algum
+  //      mínimo ("iniciando" 5%) pra UI nunca ficar em 0% em fase ativa.
+  //
+  // Fix combinado:
+  //   1. useRef pra persistir max values (não reseta em re-render)
+  //   2. Initial value calculado de localStatus inicial (não zero)
+  //   3. Phase-aware floor: editPct mínimo 0.02 quando isEditPhase
+  //   4. capturePct/renderPct = 1 quando phase posterior ativa
+  const maxCaptureRef = useRef(0);
+  const maxRenderRef = useRef(0);
+  const maxEditRef = useRef(0);
+  // useState pra trigger re-render quando refs atualizam
+  const [, forceTick] = useState(0);
+
   useEffect(() => {
-    if (captureRaw > maxCapturePct) setMaxCapturePct(captureRaw);
-  }, [captureRaw, maxCapturePct]);
-  useEffect(() => {
-    if (renderRaw > maxRenderPct) setMaxRenderPct(renderRaw);
-  }, [renderRaw, maxRenderPct]);
-  useEffect(() => {
-    if (editRaw > maxEditPct) setMaxEditPct(editRaw);
-  }, [editRaw, maxEditPct]);
-  const capturePct = renderDone ? 1 : maxCapturePct;
-  const renderPct  = renderDone ? 1 : maxRenderPct;
-  const editPct    = renderDone ? 1 : maxEditPct;
+    let changed = false;
+    if (captureRaw > maxCaptureRef.current) {
+      maxCaptureRef.current = captureRaw;
+      changed = true;
+    }
+    if (renderRaw > maxRenderRef.current) {
+      maxRenderRef.current = renderRaw;
+      changed = true;
+    }
+    if (editRaw > maxEditRef.current) {
+      maxEditRef.current = editRaw;
+      changed = true;
+    }
+    if (changed) forceTick((t) => t + 1);
+  }, [captureRaw, renderRaw, editRaw]);
+
+  // Phase-aware floor: garante que UI nunca regride em phase ativa.
+  // Se editPhase ativa MAS editRaw cálculo der 0 (progress ainda em
+  // RENDERING_BUDGET_START boundary), mostra mínimo 2% pra user ver
+  // "começou edição".
+  const captureFloor = (isRenderPhase || isEditPhase) ? 1 : 0;
+  const renderFloor = isEditPhase ? 1 : 0;
+  const editFloor = (isEditPhase && !renderDone) ? 0.02 : 0;
+
+  const capturePct = renderDone ? 1 : Math.max(maxCaptureRef.current, captureFloor);
+  const renderPct  = renderDone ? 1 : Math.max(maxRenderRef.current, renderFloor);
+  const editPct    = renderDone ? 1 : Math.max(maxEditRef.current, editFloor);
   // Modo server: só uma barra faz sentido (não tem split de stages).
   const renderRemaining = Math.max(0, renderDuration - renderElapsed);
   const adCount       = adIndex + 1;
