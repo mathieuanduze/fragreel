@@ -126,8 +126,23 @@ export async function getLocalDemos(refresh = false): Promise<LocalDemosResponse
   return fetchLocal<LocalDemosResponse>(`/demos${refresh ? "?refresh=1" : ""}`);
 }
 
-export async function triggerLocalUpload(sha: string): Promise<LocalJob> {
-  return fetchLocal<LocalJob>(`/demos/${sha}/upload`, { method: "POST" });
+/**
+ * Bug #10 fix V2 (28/04): `force=true` faz o local client invalidar o cache
+ * de processamento ANTES de enviar (apaga match_id + processed_at do scanner
+ * cache em disco). Sem isso, demos com cache hit retornam o match_id antigo
+ * INSTANT mesmo quando o servidor já perdeu o registro (Railway storage
+ * ephemeral) — gerando loop /match/{stale}→404→library.
+ *
+ * Usar `force=true` quando frontend detecta inconsistência (404 no
+ * /match/{id}). Default `false` mantém comportamento rápido pra demos que
+ * ainda funcionam (cache hit benefit preservado).
+ */
+export async function triggerLocalUpload(
+  sha: string,
+  opts: { force?: boolean } = {},
+): Promise<LocalJob> {
+  const qs = opts.force ? "?force=true" : "";
+  return fetchLocal<LocalJob>(`/demos/${sha}/upload${qs}`, { method: "POST" });
 }
 
 export async function getLocalJob(sha: string): Promise<LocalJob | null> {
