@@ -31,9 +31,9 @@ const outputs = [
   {
     icon: "🎬",
     label: "Highlights Reel",
-    format: "9:16 vertical · 60-80s",
-    desc: "3 melhores momentos da partida em sequência. Scoreboard ao vivo (CT vs T + HP), killfeed sincronizado, plant/defuse com notificações nativas do CS2, transições cinematográficas.",
-    dest: "TikTok · Reels · Shorts · WhatsApp",
+    format: "9:16 vertical OU 16:9 horizontal · 60-80s",
+    desc: "3 melhores momentos da partida em sequência. Scoreboard ao vivo (CT vs T + HP), killfeed sincronizado, plant/defuse com notificações nativas do CS2, transições cinematográficas. Você escolhe a orientação por partida.",
+    dest: "Vertical: TikTok · Reels · Shorts · WhatsApp  |  Horizontal: YouTube · Twitch",
   },
 ];
 
@@ -73,7 +73,7 @@ export default async function Home() {
           <p style={{ fontSize: 19, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, maxWidth: 580, margin: "0 auto 16px" }}>
             O client lê as demos que o CS2 já salva no seu PC. Você escolhe a partida,
             o scoring identifica os <b style={{ color: "rgba(255,255,255,0.8)" }}>melhores clutches, plants e defuses</b> e
-            renderiza um reel vertical pronto pra postar — direto no seu PC, sem upload.
+            renderiza um reel <b style={{ color: "rgba(255,255,255,0.8)" }}>vertical (TikTok/Reels) ou horizontal (YouTube/Twitch)</b> pronto pra postar — direto no seu PC, sem upload.
           </p>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 36 }}>
@@ -121,10 +121,10 @@ export default async function Home() {
       <section style={{ padding: "72px 24px", maxWidth: 1100, margin: "0 auto" }}>
         <div className="tag" style={{ textAlign: "center", marginBottom: 12 }}>O que você recebe</div>
         <h2 style={{ textAlign: "center", fontSize: 34, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 10 }}>
-          Reel vertical pronto pra postar
+          Reel pronto pra postar — vertical ou horizontal
         </h2>
         <p style={{ textAlign: "center", fontSize: 15, color: "rgba(255,255,255,0.4)", marginBottom: 48 }}>
-          1 reel por partida. 1 anúncio de 30s pra renderizar. Sem assinatura, sem taxa.
+          1 reel por partida. Você escolhe a orientação. 1 anúncio de 30s pra renderizar. Sem assinatura, sem taxa.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: outputs.length === 1 ? "minmax(0, 520px)" : "repeat(auto-fit, minmax(300px, 1fr))", gap: 20, justifyContent: "center" }}>
           {outputs.map((o) => (
