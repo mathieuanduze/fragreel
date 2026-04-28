@@ -30,10 +30,23 @@ MAX_DEMO_BYTES = 500 * 1024 * 1024  # 500 MB guard
 
 @router.post("/analyze")
 @router.post("/upload")  # legacy alias — do modelo auto-fila anterior
-async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
+async def upload_demo(
+    file: UploadFile = File(...),
+    steamid: str = "",
+    include_events: bool = False,
+):
     """
     Receive a CS2 .dem file, parse it, and return highlight summary.
     Only the .dem is needed — the companion .info file is CS2 UI metadata only.
+
+    Sprint I.4 (28/04, validation cross-check): query param `include_events=true`
+    faz a resposta incluir os eventos parseados (kills, rounds, bomb_events) no
+    schema esperado por fragreel.gg/api/score (TS scorer). Cliente usa esses
+    events pra fazer cross-check em paralelo do scoring Python (Railway) vs TS
+    (Vercel) e detectar divergências em produção real.
+
+    Default false — não inflaciona resposta de produção. Cliente opt-in via
+    env var FRAGREEL_API_CROSS_CHECK.
     """
     # ── Validate ───────────────────────────────────────────────────────────────
     if not file.filename or not file.filename.endswith(".dem"):
@@ -173,13 +186,77 @@ async def upload_demo(file: UploadFile = File(...), steamid: str = ""):
         save_match(match_id, match_doc)
         log.info(f"Match {match_id} parsed: {len(highlights)} highlights")
 
-        return {
+        response: dict = {
             "status":     "parsed",
             "match_id":   match_id,
             "map":        parsed.map_name,
             "kills":      total_kills,
             "highlights": len(highlights),
         }
+
+        # Sprint I.4 — cross-check support: cliente passa ?include_events=true
+        # quando opt-in via FRAGREEL_API_CROSS_CHECK env var. Adiciona events
+        # parseados no schema do /api/score TS (KillEvent, RoundState, BombEvent)
+        # pra cliente comparar Python scoring vs TS scoring em paralelo.
+        if include_events:
+            response["events"] = {
+                "kills": [
+                    {
+                        "tick": k.tick,
+                        "timestamp": k.timestamp,
+                        "round_num": k.round_num,
+                        "weapon": k.weapon,
+                        "headshot": k.headshot,
+                        "attacker_steamid": k.attacker_steamid or "",
+                        "victim_steamid": k.victim_steamid or "",
+                        "attacker_team": k.attacker_team,
+                        "victim_team": k.victim_team,
+                        "noscope": getattr(k, "noscope", False),
+                        "thrusmoke": getattr(k, "thrusmoke", False),
+                        "penetrated": getattr(k, "penetrated", 0),
+                        "attackerblind": getattr(k, "attackerblind", False),
+                        "attackerinair": getattr(k, "attackerinair", False),
+                        "distance": getattr(k, "distance", None),
+                        "attacker_health": getattr(k, "attacker_health", None),
+                    }
+                    for k in parsed.all_kills
+                ],
+                "rounds": [
+                    {
+                        "round_num": rn,
+                        "winner_team": rs.winner_team,
+                        "bomb_planted_by": rs.bomb_planted_by,
+                        "bomb_defused_by": rs.bomb_defused_by,
+                        "user_team": rs.user_team,
+                        "user_won": bool(rs.user_won),
+                    }
+                    for rn, rs in parsed.round_states.items()
+                ],
+                "bomb_events": [
+                    {
+                        "tick": be.tick,
+                        "timestamp": be.timestamp,
+                        "round_num": be.round_num,
+                        "player_steamid": be.player_steamid,
+                        "action": be.action,
+                    }
+                    for be in parsed.bomb_events
+                ],
+            }
+            response["demo_meta"] = {
+                "map": parsed.map_name,
+                "tickrate": parsed.tickrate,
+                "match_id": match_id,
+            }
+            response["player_steamid"] = parsed.player_steamid or steamid
+            log.info(
+                f"Match {match_id}: include_events=True → response inclui "
+                f"{len(response['events']['kills'])} kills, "
+                f"{len(response['events']['rounds'])} rounds, "
+                f"{len(response['events']['bomb_events'])} bomb_events"
+            )
+
+        return response
 
     except RuntimeError:
         # demoparser2 not installed — queued record already saved above
