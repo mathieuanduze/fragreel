@@ -125,11 +125,14 @@ export const HighlightsReel: React.FC<ReelProps> = ({
           src={staticFile(moodDef.file)}
           // Round 4c Fase 1.19 (Mathieu: "música tá muito alta vs som do
           // jogo"). Era 0.65 → 0.35. Game audio segue 0.85 (não baixa).
-          // Mix novo: música tá presente como atmosfera, game audio
-          // (tiros/passos/voz) domina foreground — relação ~2.4:1 favor
-          // game (vs ~1.3:1 anterior). Spec produto: game audio é
-          // protagonista, música é wallpaper.
-          volume={0.35}
+          // Round 4d 3.2 (Mathieu 29/04, primeiro reel próprio): "Som da
+          // música muito alto" — música ainda overshadowed game audio.
+          // 0.35 → 0.20. Game 0.85 / música 0.20 = relação 4.25:1 favor
+          // game audio. Regra de negócio: game audio é protagonista
+          // absoluto, música é wallpaper de fundo. Aplicado pra TODOS users
+          // (rule_user_feedback_is_universal_spec): produto self-service
+          // sem suporte = mix tem que estar certo de fábrica.
+          volume={0.20}
           startFrom={0}
           // Fase 1.18 — `loop` cobre reel longo (MP3 trilhas ~60-90s vs
           // reel 100s+). Sem loop, música cortava meio do vídeo.

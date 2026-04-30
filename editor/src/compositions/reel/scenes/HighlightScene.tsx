@@ -669,27 +669,32 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
           Round 4c Fase 1.36 (Mathieu pós-PASS Round 4c): "watermark
           fragreel.gg tem que ser maior do que o estado atual".
           fontSizes bumped ~50%, padding +30%, opacity 0.85→0.92.
-          Mais legível em mobile screens pequenos sem competir com
-          gameplay no centro. */}
+          Round 4d 4.1 (Mathieu 29/04, primeiro reel próprio): "watermark
+          ainda muito pequena durante o vídeo". Bump adicional ~50%
+          (vertical 17/20 → 26/30, horizontal 14/17 → 22/26), padding
+          +40%, opacity 0.92→1.0. Watermark é growth channel principal
+          (reels postados em redes) — precisa ser legível em mobile feed
+          a 50% scale. Regra de negócio universal pra TODOS users
+          (rule_user_feedback_is_universal_spec). */}
       <div
         style={{
           position: "absolute",
           bottom: isHorizontal ? 32 : 56,
           right: isHorizontal ? 32 : 40,
-          opacity: 0.92,
+          opacity: 1.0,
           display: "flex",
           alignItems: "center",
-          gap: 7,
-          padding: isHorizontal ? "7px 14px" : "9px 17px",
-          background: "rgba(0,0,0,0.65)",
+          gap: 9,
+          padding: isHorizontal ? "10px 20px" : "13px 24px",
+          background: "rgba(0,0,0,0.7)",
           backdropFilter: "blur(8px)",
-          borderRadius: 7,
-          border: `1px solid ${moodDef.color}40`,
+          borderRadius: 9,
+          border: `1px solid ${moodDef.color}60`,
         }}
       >
         <span
           style={{
-            fontSize: isHorizontal ? 14 : 17,
+            fontSize: isHorizontal ? 22 : 26,
             fontWeight: 700,
             color: theme.textMuted,
             letterSpacing: "0.05em",
@@ -700,7 +705,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
         </span>
         <span
           style={{
-            fontSize: isHorizontal ? 17 : 20,
+            fontSize: isHorizontal ? 26 : 30,
             fontWeight: 900,
             color: moodDef.color,
             letterSpacing: "-0.01em",
@@ -760,7 +765,18 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
       <div
         style={{
           position: "absolute",
-          top: isHorizontal ? 32 : 60,
+          // Round 4d 3.4 (Mathieu 29/04): "Killcount invade o scoreboard
+          // (overflow visual)". Scoreboard agora MAIOR (Fase 1.29) +
+          // centralizado top, killfeed também maior + top-right. No vertical
+          // (1080w) scoreboard ocupa ~390-690px, killfeed maxWidth=620 com
+          // weapon name + KILL/HEADSHOT em fontSize 32 ocupa ~460-1040px →
+          // overlap em ~460-690. Fix: empurrar killfeed pra BAIXO do
+          // scoreboard. Scoreboard altura visual ~140-180px com HP bar →
+          // killfeed top em vertical = 60 → 220. Horizontal mantém 32 (lá
+          // largura permite layout side-by-side sem overlap).
+          // Regra de negócio: scoreboard prioritário (contexto round),
+          // killfeed acumulativo abaixo (cronologia kills).
+          top: isHorizontal ? 32 : 220,
           right: isHorizontal ? 32 : 40,
           display: "flex",
           flexDirection: "column",
