@@ -104,7 +104,11 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
       highlight.start,
       sceneDurationSec,
       sceneSkipSec,
-      highlight.gameplayStartSec
+      highlight.gameplayStartSec,
+      // Round 4d 3.3 — passa playbackRate pra alinhar killfeed com video
+      // acelerado (caso 3.1 cluster grande). Quando rate=1.0 (caso normal),
+      // não muda nada. Quando rate>1, kill aparece NO MOMENTO VISUAL.
+      gameplayRate
     ),
   }));
   const completedKills = killTimings.filter((e) => e.sceneTime <= sceneTimeSec);
@@ -793,7 +797,9 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
             highlight.start,
             sceneDurationSec,
             sceneSkipSec,
-            highlight.gameplayStartSec
+            highlight.gameplayStartSec,
+            // Round 4d 3.3 — rate compensation
+            gameplayRate
           );
           const killFrame = s2f(killTimeSec);
 

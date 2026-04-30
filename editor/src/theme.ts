@@ -320,10 +320,24 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
   }
 
   const dynamicSceneEnd = lastEventRelative + reactionForThis;
-  // Cap pelo TAIL fallback (cluster pode ter PAD_POST < REACTION_PAD se
-  // round_end_tick truncou). Plus floor pra evitar cena negativa em caso
-  // patológico (event antes do highlight.start, não deveria acontecer).
-  return Math.max(0.5, Math.min(dynamicSceneEnd, tailFallbackEnd));
+
+  // Round 4d 3.5 BUG FIX (Mathieu 29/04, primeiro reel próprio: "Cena 1
+  // muito longa — kills isoladas + corte antes do defuse"): quando closing
+  // event é bomb (defuse/plant_won) E cluster v2 já adicionou bomb sub-
+  // window com V2_DEFUSE_POST_BUFFER_S=5s ou V2_PLANT_POST_BUFFER_S=7s, o
+  // mov real tem buffer pós-action pra mostrar "Bomba defusada/armada"
+  // notification. tailFallbackEnd = sourceDur - 4.5s cortava 4.5s desse
+  // buffer = notification mal-aparecia (apenas 0.5s visível em casos
+  // borderline).
+  // Fix: pra bomb-closing highlights, cap em sourceDur (full mov), não em
+  // tailFallback. Capture-side já garante buffer adequado pra notif. Pra
+  // kill-closing highlights mantém tailFallback (player standing still
+  // pós-kill é freeze indesejado).
+  const upperCap = bombIsClosing ? sourceDur : tailFallbackEnd;
+
+  // Cap pelo upper bound apropriado. Plus floor pra evitar cena negativa
+  // em caso patológico (event antes do highlight.start).
+  return Math.max(0.5, Math.min(dynamicSceneEnd, upperCap));
 };
 
 // Dimensões por orientação. Vertical = TikTok/Reels/Shorts; Horizontal = YouTube/Twitch.
@@ -372,7 +386,22 @@ export const s2f = (sec: number) => Math.round(sec * FPS);
 // ~33s vs 38s anterior. 3 highlights × ~25s média + intro 1.2s + outro
 // 3s = ~80s — ainda over 60s pra worst case, mas perto. Reduzir BOUNDS
 // 50→45 ajuda casos extremos sem prejudicar narrativa.
-export const REEL_HIGHLIGHT_BOUNDS = { min: 3, max: 45 } as const;
+//
+// Round 4d 3.1 (Mathieu 29/04, primeiro reel próprio): "Velocidade muito
+// rápida — parece 2x em alguns momentos". Root cause: cluster v2 captura
+// big highlights (kills + plant + defuse, R14 example: 24s gap entre W3
+// e W4) gerando source ~50-90s. Scene clamp em 45s = playbackRate
+// (availableVideo / scene) > 1.0 em clusters grandes. Pra rate=2.0 →
+// source=90s sob scene=45s. Mathieu spec original (Fase 1.10): "real-time
+// SEMPRE — sem time-lapse/fast cuts". Compromise: bump max 45→60s.
+//   - Reel worst case 3×60s + intro 1.2 + outro 3 = 184s
+//   - Reels/TikTok cap 90s: NÃO fits no worst case (mas média 3×30s = 93s)
+//   - YouTube Shorts cap 60s: já não fits desde Fase 1.30
+// Decisão: priorizar real-time playback (não acelerar) sobre Shorts compat.
+// Reels/TikTok são audience principal pra CS2 reels (Shorts é nicho).
+// Plus: killTimeInSceneSec agora compensa rate (3.3 fix), então mesmo
+// quando rate>1 em casos extremos, killfeed alinha com video.
+export const REEL_HIGHLIGHT_BOUNDS = { min: 3, max: 60 } as const;
 export const RECAP_HIGHLIGHT_BOUNDS = { min: 4, max: 45 } as const;
 
 export function clampHighlightSec(
@@ -410,6 +439,18 @@ export const SPRING = {
 // agora popula `gameplayStartSec` (= cluster_window[0].start_tick / tickrate).
 // Editor passa esse field pra cá → offset CORRETO.
 // Fallback pro Fase 1.20 behavior se gameplayStartSec ausente.
+//
+// Round 4d 3.3 BUG FIX (Mathieu 29/04, primeiro reel próprio: "Killcount
+// com delay (não sincroniza com kill)"): Fase 1.28 fixou OFFSET (start
+// time) mas não RATE. Quando playbackRate > 1.0 (cluster v2 grande
+// gerando source > scene_max, ver Round 4d 3.1), video plays acelerado
+// MAS killTimeInSceneSec retornava tempo em DEMO time (segundos de source
+// real), não SCENE time. Kill que acontece visualmente aos 2.5s no scene
+// (rate=2x) tinha killfeed aparecendo aos 5s = 2.5s LATE.
+// Fix: dividir rel por playbackRate pra mapear demo-time → scene-time.
+//   sceneTime = (kill.time - movStart) / playbackRate
+// Quando rate=1.0 (caso normal), behavior idêntico ao Fase 1.28.
+// Quando rate=2.0 (cluster grande), kill aparece NO MOMENTO VISUAL.
 export const KILL_FEED_EDGE_PAD_SEC = 0.5;
 export function killTimeInSceneSec(
   kill: { time?: number },
@@ -419,6 +460,7 @@ export function killTimeInSceneSec(
   sceneDurationSec: number,
   frontSkipSec: number = 0,
   gameplayStartSec?: number,
+  playbackRate: number = 1.0,
 ): number {
   if (typeof kill.time === "number" && isFinite(kill.time)) {
     // Round 4c Fase 1.28 — usa gameplayStartSec REAL (cluster window
@@ -428,8 +470,12 @@ export function killTimeInSceneSec(
       typeof gameplayStartSec === "number" && isFinite(gameplayStartSec)
         ? gameplayStartSec + frontSkipSec
         : highlightStart + frontSkipSec;
-    const rel = kill.time - movStartSec;
-    return Math.max(0, Math.min(sceneDurationSec, rel));
+    const relDemo = kill.time - movStartSec; // segundos no SOURCE/demo
+    // Round 4d 3.3 — converte demo-time → scene-time dividindo por rate.
+    // playbackRate defensive: clamp >0 pra não dividir por zero.
+    const safeRate = playbackRate > 0.01 ? playbackRate : 1.0;
+    const relScene = relDemo / safeRate;
+    return Math.max(0, Math.min(sceneDurationSec, relScene));
   }
   // Fallback uniforme (sem timing info).
   if (totalKills <= 0) return 0;
