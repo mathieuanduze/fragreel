@@ -266,11 +266,24 @@ function _enrichWithRoundContext(
 
   ctx.won_round = !!state.user_won;
 
-  // Bomb action (only counts if user did it AND team won)
-  if (state.user_won && player_steamid) {
+  // Round 4d 1.1 BUG FIX (Mathieu 30/04): defense-in-depth contra parser
+  // bugs em user_won. Defuse sempre = team venceu (game logic CS2 hard
+  // rule), então não precisa gateia em user_won — só verifica que user
+  // defusou. Plant_won precisa gate (plant alone não vence; bomb pode ser
+  // defused depois).
+  //
+  // Histórico: parser tinha off-by-one em winners[] (total_rounds_played+1
+  // dava winners[R+1] em vez de winners[R]) → user_won false em rounds
+  // que user defusou → bomb_action="defuse" silenciosamente skipped →
+  // /match não mostrava badge. Fix do parser shipped em local_parser/
+  // demo_parser.py, mas mantemos esse defense-in-depth aqui pra resilência
+  // contra futuros bugs no derivation chain.
+  if (player_steamid) {
     if (state.bomb_defused_by === player_steamid) {
+      // Defuse SEMPRE = team venceu (CS2 game logic). Trust bomb_defused.
       ctx.bomb_action = "defuse";
-    } else if (state.bomb_planted_by === player_steamid) {
+    } else if (state.user_won && state.bomb_planted_by === player_steamid) {
+      // Plant_won precisa team-won check (plant pode terminar com defuse).
       ctx.bomb_action = "plant_won";
     }
 
