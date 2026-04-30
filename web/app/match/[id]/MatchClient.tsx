@@ -442,13 +442,64 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
           >
             <div style={{ fontSize: 28, marginBottom: 12 }}>💾</div>
             <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
-              Sem espaço em disco pra capturar
+              Precisa de mais espaço em disco
             </div>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 14 }}>
-              O HLAE captura cada frame da partida como TGA não-comprimido (necessário pra qualidade
-              do vídeo final). Esses arquivos vão pro drive onde o CS2 está instalado e somem assim
-              que o ffmpeg termina de converter.
+              Round 4d 2.2 (Mathieu 29/04): "o número de gigas assusta, mas o usuário
+              precisa entender que ao final só vai ficar com um vídeo de x MB".
+              Antes a copy enfatizava o tamanho temporário (~7 GB/highlight) sem
+              destacar o tamanho final (~30-40 MB). User via "75 GB" e desistia.
+              Nova copy: mostra os 2 tamanhos lado a lado (temporário vs final),
+              explica que o temporário é apagado automaticamente.
             </p>
+
+            {/* Espaço temporário vs final — visual side-by-side */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+              marginBottom: 16,
+            }}>
+              <div style={{
+                padding: "12px 14px",
+                background: "rgba(255,107,53,0.08)",
+                border: "1px solid rgba(255,107,53,0.25)",
+                borderRadius: 8,
+              }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                  Durante a captura
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#FF6B35", marginBottom: 4 }}>
+                  ~75 GB
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.4 }}>
+                  TGAs intermediários do HLAE — apagados automaticamente
+                </div>
+              </div>
+              <div style={{
+                padding: "12px 14px",
+                background: "rgba(76,175,130,0.08)",
+                border: "1px solid rgba(76,175,130,0.30)",
+                borderRadius: 8,
+              }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                  Vídeo final
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#4CAF82", marginBottom: 4 }}>
+                  ~30-40 MB
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.4 }}>
+                  É só esse arquivo que sobra no seu disco
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 14 }}>
+              O HLAE captura cada frame como TGA não-comprimido pra qualidade máxima.
+              Esses arquivos ficam no drive do CS2 só durante o render — assim que o
+              ffmpeg termina, somem.
+            </p>
+
             {diskFullPrompt.issues && diskFullPrompt.issues.length > 0 && (
               <div style={{ marginBottom: 18, display: "flex", flexDirection: "column", gap: 8 }}>
                 {diskFullPrompt.issues.map((issue, i) => (
@@ -468,7 +519,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                       {issue.drive}
                     </div>
                     <div>
-                      Precisa de <b style={{ color: "#FF6B35" }}>{issue.needed_gb.toFixed(1)} GB</b>,
+                      Precisa de <b style={{ color: "#FF6B35" }}>{issue.needed_gb.toFixed(1)} GB</b> temporários,
                       mas só tem <b style={{ color: "#ffb088" }}>{issue.free_gb.toFixed(1)} GB</b> livres.
                     </div>
                   </div>
@@ -476,9 +527,9 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
               </div>
             )}
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, marginBottom: 20 }}>
-              <b style={{ color: "rgba(255,255,255,0.7)" }}>Soluções:</b> liberar espaço no drive,
-              selecionar menos cenas (cada highlight ocupa ~7 GB de TGA), ou aguardar o suporte
-              a redirecionamento de captura pra outro drive (em breve).
+              <b style={{ color: "rgba(255,255,255,0.7)" }}>Soluções:</b> liberar espaço
+              no drive (1-2 jogos AAA = ~80 GB), ou selecionar menos cenas (cada
+              highlight pesa ~7 GB temporários). Suporte a salvar em drive externo está vindo.
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button

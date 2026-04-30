@@ -437,77 +437,298 @@ function _multikillWordPt(n: number): string {
   return `${n}K`;
 }
 
+// Round 4d 1.2 (Mathieu 29/04, primeiro reel próprio): "as frases sao muito
+// padronizadas e nao condizem com o round em si muitas vezes. Precisamos
+// repensar". Versão antiga tinha 1 opening per scenario + cinemaBits parens
+// = template óbvio. Usuários percebem logo que é "frase gerada".
+//
+// Nova versão (30/04 v0.6.7+):
+// 1. Pool de openings com 3-5 variações por scenario, seleção determinística
+//    via round_num (mesmo round → mesma frase, sem flicker entre re-renders)
+// 2. Weapon-aware: AWP/knife/deagle/grenade têm flair próprio (vs apenas weapon name)
+// 3. Headshot density: "todas na cabeça" vs "duas na cabeça" vs "headshot"
+// 4. Clutch nuance: situação de site (B post-plant), HP crítico, time pressure
+// 5. Defuse drama: "defusou no detalhe" se foi último ato; "fechou o round defusando"
+// 6. RWK closing variations: "decisivo", "matou o último", "limpou o site"
+// 7. Sentenças mais curtas e variadas — não tudo encaixado no mesmo molde
+function _pickVariation<T>(pool: T[], seed: number): T {
+  // Determinístico: mesmo round → mesma frase. Hash simples baseado em
+  // round_num pra evitar Math.random() (não-determinístico) ou date-based.
+  const idx = Math.abs(seed * 2654435761) % pool.length; // Knuth multiplicative
+  return pool[idx];
+}
+
+function _headshotFlavor(roundKills: KillEvent[], n: number): string {
+  const headshots = roundKills.filter((k) => k.headshot).length;
+  if (headshots === 0) return "";
+  if (n === 1) return "na cabeça";
+  if (headshots === n) return "tudo na cabeça";
+  if (headshots >= 2) return `${headshots} na cabeça`;
+  return "uma na cabeça";
+}
+
+function _weaponFlair(roundKills: KillEvent[], n: number): string | null {
+  // Pra solo kill, weapon vem no opening direto. Pra multi, retorna flair só
+  // se for "weapon-defining" (todos AWP, todos faca, mistura especial).
+  const weapons = roundKills.map((k) => k.weapon.toLowerCase());
+  if (n === 1) return null;
+  if (weapons.every((w) => w.includes("knife") || w.includes("bayonet"))) {
+    return "tudo na facada";
+  }
+  if (weapons.every((w) => w === "awp" || w === "ssg08")) {
+    return "tudo de AWP";
+  }
+  if (weapons.every((w) => w === "deagle")) {
+    return "tudo de Deagle";
+  }
+  // Pistol round (R1/R13): todos pistola
+  if (weapons.every((w) => /^(glock|usp|p2|p250|deagle|tec|five|cz|elite|hkp|revolver)/.test(w))) {
+    return "no pistol";
+  }
+  return null;
+}
+
 function _roundNarrative(n: number, roundKills: KillEvent[], ctx: RoundContext): string {
   const wonRound = !!ctx.won_round;
   const rwk = !!ctx.is_round_winning_kill;
   const bomb = ctx.bomb_action;
   const clutch = ctx.clutch_situation;
+  const round_n = roundKills[0].round_num;
 
-  // 1. Opening — ação principal
+  // Cinema flags pra usar nas variações
+  const hasThrusmoke = roundKills.some((k) => k.thrusmoke === true);
+  const hasNoscope = roundKills.some((k) => k.noscope === true);
+  const hasWallbang = roundKills.some((k) => (k.penetrated ?? 0) > 0);
+  const hasFlashed = roundKills.some((k) => k.attackerblind === true);
+  const hasLowHp = roundKills.some(
+    (k) =>
+      k.attacker_health !== null &&
+      k.attacker_health !== undefined &&
+      k.attacker_health < LOW_HP_THRESHOLD,
+  );
+
+  // ── 1. Opening ────────────────────────────────────────────────────────────
   let opening: string;
+
   if (clutch) {
     const nEnemies = parseInt(clutch.slice(-1), 10);
-    if (n === 1 && nEnemies === 1) {
-      opening = "Sozinho contra 1, matou o último";
+    const won = n >= nEnemies;
+    if (won && n === 1 && nEnemies === 1) {
+      // 1v1 vencido
+      opening = _pickVariation(
+        [
+          "Mano a mano, fechou em 1v1",
+          "Duelo final — saiu vivo",
+          "1v1 nervoso, garantiu o round",
+          "Sozinho contra o último, não deixou escapar",
+        ],
+        round_n,
+      );
+    } else if (won) {
+      // 1vN clutch convertido
+      opening = _pickVariation(
+        [
+          `Sozinho contra ${nEnemies}, virou em clutch com ${_multikillWordPt(n)}`,
+          `Clutch 1v${nEnemies} — ${_multikillWordPt(n)} e round fechado`,
+          `1v${nEnemies}: ${_multikillWordPt(n)} pra fechar`,
+          `Time tinha caído, sobrou ele — ${_multikillWordPt(n)} no clutch`,
+        ],
+        round_n,
+      );
     } else if (n === 1) {
-      opening = `Sozinho contra ${nEnemies}, matou 1`;
-    } else if (n >= nEnemies) {
-      opening = `Sozinho contra ${nEnemies}, fez ${_multikillWordPt(n)} pra virar o round em clutch`;
+      // 1vN, matou 1, não fechou
+      opening = _pickVariation(
+        [
+          `Tentou o clutch 1v${nEnemies} e levou 1 junto`,
+          `Sozinho contra ${nEnemies} — caiu mas levou um inimigo`,
+          `1v${nEnemies}: matou 1 antes de cair`,
+        ],
+        round_n,
+      );
     } else {
-      opening = `Sozinho contra ${nEnemies}, fez ${_multikillWordPt(n)}`;
+      // 1vN, matou N (mas n < nEnemies)
+      opening = _pickVariation(
+        [
+          `Clutch 1v${nEnemies} parcial — fez ${_multikillWordPt(n)}`,
+          `Sozinho contra ${nEnemies}, fez ${_multikillWordPt(n)} antes de cair`,
+        ],
+        round_n,
+      );
     }
   } else if (n === 1) {
     const kill = roundKills[0];
     const wep = weaponDisplay(kill.weapon);
-    opening = kill.headshot ? `Solo kill de ${wep} na cabeça` : `Solo kill de ${wep}`;
+    if (kill.headshot && (wep === "AWP" || wep === "Deagle")) {
+      opening = _pickVariation(
+        [
+          `Headshot seco de ${wep}`,
+          `${wep}, headshot, fim`,
+          `1 tap de ${wep}`,
+        ],
+        round_n,
+      );
+    } else if (kill.headshot) {
+      opening = _pickVariation(
+        [
+          `${wep} na cabeça`,
+          `Headshot de ${wep}`,
+          `Solo kill — ${wep} na cara`,
+        ],
+        round_n,
+      );
+    } else if (wep === "AWP") {
+      opening = _pickVariation(
+        ["AWP marcando presença", "Tiro limpo de AWP", "AWP, 1 frag"],
+        round_n,
+      );
+    } else if (wep === "Faca" || wep === "Knife") {
+      opening = _pickVariation(
+        ["Kill na facada — humilhação", "Pegou na faca", "Facada cinematográfica"],
+        round_n,
+      );
+    } else {
+      opening = _pickVariation(
+        [`Solo kill de ${wep}`, `1 frag de ${wep}`, `${wep}, kill solo`],
+        round_n,
+      );
+    }
   } else {
-    opening = `Pegou um ${_multikillWordPt(n)}`;
+    // Multikill (n >= 2)
+    const word = _multikillWordPt(n);
+    const wepFlair = _weaponFlair(roundKills, n);
+    const hsFlavor = _headshotFlavor(roundKills, n);
+
+    if (wepFlair) {
+      opening = _pickVariation(
+        [
+          `${word} ${wepFlair}`,
+          `${wepFlair} pra fazer ${word}`,
+        ],
+        round_n,
+      );
+    } else if (hsFlavor === "tudo na cabeça") {
+      opening = _pickVariation(
+        [
+          `${word} ${hsFlavor}`,
+          `${word} preciso — ${hsFlavor}`,
+          `${hsFlavor}, ${word}`,
+        ],
+        round_n,
+      );
+    } else if (hsFlavor) {
+      opening = _pickVariation(
+        [
+          `${word} (${hsFlavor})`,
+          `${word} com ${hsFlavor}`,
+        ],
+        round_n,
+      );
+    } else if (n >= 4) {
+      // 4K/ACE merece destaque sem ser genérico
+      opening = _pickVariation(
+        [
+          `${word} no round`,
+          `Round dele — ${word}`,
+          `${word} dominante`,
+        ],
+        round_n,
+      );
+    } else {
+      opening = _pickVariation(
+        [
+          `${word} no round`,
+          `Pegou um ${word}`,
+          `Round de ${word}`,
+        ],
+        round_n,
+      );
+    }
   }
 
-  // 2. Bomb addon
+  // ── 2. Bomb addon ────────────────────────────────────────────────────────
   let bombAddon = "";
   if (bomb === "defuse") {
-    bombAddon = clutch ? "e ainda defusou a bomba" : "e defusou a bomba";
+    bombAddon = _pickVariation(
+      clutch
+        ? [
+            "+ defuse no clutch",
+            "e ainda defusou a bomba",
+            "+ defuse pra completar",
+          ]
+        : [
+            "e defusou a bomba",
+            "+ defuse",
+            "fechou defusando",
+          ],
+      round_n,
+    );
   } else if (bomb === "plant_won") {
-    bombAddon = "e plantou pro time fechar";
+    bombAddon = _pickVariation(
+      [
+        "e plantou pro time fechar",
+        "+ plant decisivo",
+        "fechou armando a bomba",
+      ],
+      round_n,
+    );
   }
 
-  // 3. Cinema flair
+  // ── 3. Cinema flair (sutil, não em parênteses obrigatório) ───────────────
   const cinemaBits: string[] = [];
-  if (roundKills.some((k) => k.thrusmoke === true)) cinemaBits.push("through smoke");
-  if (roundKills.some((k) => k.noscope === true)) cinemaBits.push("no-scope");
-  if (roundKills.some((k) => (k.penetrated ?? 0) > 0)) cinemaBits.push("wallbang");
-  if (roundKills.some((k) => k.attackerblind === true)) cinemaBits.push("flashado");
-  if (
-    roundKills.some(
-      (k) =>
-        k.attacker_health !== null &&
-        k.attacker_health !== undefined &&
-        k.attacker_health < LOW_HP_THRESHOLD,
-    )
-  ) {
-    cinemaBits.push("HP crítico");
-  }
-  const cinemaStr = cinemaBits.length > 0 ? ` (${cinemaBits.join(", ")})` : "";
+  if (hasThrusmoke) cinemaBits.push("through smoke");
+  if (hasNoscope) cinemaBits.push("no-scope");
+  if (hasWallbang) cinemaBits.push("wallbang");
+  if (hasFlashed) cinemaBits.push("flashado");
+  if (hasLowHp && !clutch) cinemaBits.push("HP crítico");
+  // Em clutches, HP crítico é ESPERADO, não cinema flair — evita redundância
 
-  // 4. Closing
+  let cinemaStr = "";
+  if (cinemaBits.length === 1) {
+    cinemaStr = ` · ${cinemaBits[0]}`;
+  } else if (cinemaBits.length > 1) {
+    cinemaStr = ` · ${cinemaBits.join(", ")}`;
+  }
+
+  // ── 4. Closing ───────────────────────────────────────────────────────────
   let closing = "";
-  if (rwk && !bomb && !clutch) {
-    closing = "— a kill que fechou o round";
-  } else if (rwk && clutch) {
-    closing = "";
-  } else if (!wonRound) {
-    closing = "— time perdeu o round mesmo assim";
+  if (rwk && !bomb && !clutch && n === 1) {
+    closing = _pickVariation(
+      [
+        "— última kill, round fechou",
+        "— matou o último",
+        "— kill decisiva",
+      ],
+      round_n,
+    );
+  } else if (rwk && !bomb && !clutch && n >= 2) {
+    closing = _pickVariation(
+      [
+        "— limpou o site",
+        "— round fechou aí",
+        "— kill final do round",
+      ],
+      round_n,
+    );
+  } else if (!wonRound && !clutch) {
+    closing = _pickVariation(
+      [
+        "— time perdeu mesmo assim",
+        "— round perdido apesar disso",
+        "— mas time não conseguiu",
+      ],
+      round_n,
+    );
   }
 
-  // Compose
+  // ── 5. Compose ────────────────────────────────────────────────────────────
   let sentence = opening;
   if (bombAddon) sentence += " " + bombAddon;
   sentence += cinemaStr;
   if (closing) sentence += " " + closing;
 
   sentence = sentence.trim();
-  if (!sentence.endsWith(".")) sentence += ".";
+  // Não força ponto final se já termina em outro punctuation (— closing)
+  if (!/[.!?]$/.test(sentence)) sentence += ".";
 
   return sentence;
 }
