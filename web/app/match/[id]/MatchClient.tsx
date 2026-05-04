@@ -440,20 +440,21 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
               padding: 28,
             }}
           >
+            {/* Comments preserved internally; user-facing copy só fala
+                claro sobre temporário vs final + atualiza pros números
+                de 720p (Sprint J.6). Antes vazou comentário "Round 4d 2.2
+                (Mathieu 29/04)..." direto pro UI — bug feio. Nunca mais. */}
             <div style={{ fontSize: 28, marginBottom: 12 }}>💾</div>
             <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>
               Precisa de mais espaço em disco
             </div>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 14 }}>
-              Round 4d 2.2 (Mathieu 29/04): "o número de gigas assusta, mas o usuário
-              precisa entender que ao final só vai ficar com um vídeo de x MB".
-              Antes a copy enfatizava o tamanho temporário (~7 GB/highlight) sem
-              destacar o tamanho final (~30-40 MB). User via "75 GB" e desistia.
-              Nova copy: mostra os 2 tamanhos lado a lado (temporário vs final),
-              explica que o temporário é apagado automaticamente.
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, marginBottom: 14 }}>
+              Durante o render, o FragReel guarda arquivos temporários no drive do CS2.
+              Eles somem automaticamente assim que o vídeo final é gerado — você
+              fica só com o MP4.
             </p>
 
-            {/* Espaço temporário vs final — visual side-by-side */}
+            {/* Temporário vs final lado a lado — números atualizados pra 720p (Sprint J.6) */}
             <div style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
@@ -470,10 +471,10 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                   Durante a captura
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: "#FF6B35", marginBottom: 4 }}>
-                  ~75 GB
+                  ~10-30 GB
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.4 }}>
-                  TGAs intermediários do HLAE — apagados automaticamente
+                  Frames temporários — apagados automaticamente
                 </div>
               </div>
               <div style={{
@@ -493,12 +494,6 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                 </div>
               </div>
             </div>
-
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, marginBottom: 14 }}>
-              O HLAE captura cada frame como TGA não-comprimido pra qualidade máxima.
-              Esses arquivos ficam no drive do CS2 só durante o render — assim que o
-              ffmpeg termina, somem.
-            </p>
 
             {diskFullPrompt.issues && diskFullPrompt.issues.length > 0 && (
               <div style={{ marginBottom: 18, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -526,10 +521,11 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                 ))}
               </div>
             )}
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, marginBottom: 20 }}>
-              <b style={{ color: "rgba(255,255,255,0.7)" }}>Soluções:</b> liberar espaço
-              no drive (1-2 jogos AAA = ~80 GB), ou selecionar menos cenas (cada
-              highlight pesa ~7 GB temporários). Suporte a salvar em drive externo está vindo.
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.55, marginBottom: 20 }}>
+              <b style={{ color: "rgba(255,255,255,0.75)" }}>Como liberar:</b> apagar 1-2
+              jogos pesados costuma resolver, ou selecionar menos cenas pra render
+              (cada cena pesa ~3 GB temporários). Suporte a salvar em drive externo
+              está vindo.
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
