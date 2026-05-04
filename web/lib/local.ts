@@ -327,6 +327,13 @@ export interface LocalRenderSession {
   error: string | null;
   started_at: number | null;
   finished_at: number | null;
+  // Round 4d field follow-up (Mathieu 03/05): client agora marca quando
+  // reel saiu via concat fallback (sem Remotion = sem música/edição/
+  // orientação custom). UI mostra warning explícito pra user não achar
+  // que o output cru é o produto normal.
+  degraded?: boolean;
+  degraded_reason?: string | null;
+  degraded_log_path?: string | null;
 }
 
 export interface RenderPreflight {

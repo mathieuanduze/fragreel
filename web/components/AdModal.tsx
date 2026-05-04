@@ -788,6 +788,47 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
             </div>
           </div>
 
+          {/* Round 4d field follow-up (Mathieu 03/05): banner DEGRADED.
+              Antes do fix, quando Remotion falhava o reel saía via concat
+              fallback (widescreen sem música/edição/orientação custom) sem
+              user saber. Backend agora seta session.degraded=true + reason.
+              UI mostra warning honesto + caminho pro suporte ver log. */}
+          {localRenderMode && localStatus?.degraded && (
+            <div
+              style={{
+                marginBottom: 14,
+                padding: "12px 14px",
+                background: "rgba(255,107,53,0.08)",
+                border: "1px solid rgba(255,107,53,0.4)",
+                borderRadius: 8,
+                fontSize: 12,
+                color: "rgba(255,255,255,0.85)",
+                lineHeight: 1.55,
+              }}
+            >
+              <div style={{ fontWeight: 700, color: "#FF6B35", marginBottom: 6, fontSize: 13 }}>
+                ⚠️ Reel saiu em modo degradado
+              </div>
+              <div style={{ marginBottom: 6 }}>
+                A edição do Remotion (música, orientação vertical, cropping de
+                HUD, transições) não rodou. O vídeo abaixo é o capture cru do
+                CS2 — playable mas sem o polish.
+              </div>
+              {localStatus.degraded_reason && (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", fontFamily: "monospace", marginBottom: 6 }}>
+                  Motivo: {localStatus.degraded_reason}
+                </div>
+              )}
+              {localStatus.degraded_log_path && (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                  Log completo: <span style={{ fontFamily: "monospace" }}>{localStatus.degraded_log_path}</span>
+                  <br />
+                  (envie pra suporte se quiser que a gente investigue)
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Bottom row */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.22)" }}>
