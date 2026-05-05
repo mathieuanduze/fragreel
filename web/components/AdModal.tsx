@@ -84,12 +84,31 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   // we poll 127.0.0.1:5775/render/status — the real rendering is happening
   // right there, CS2 hidden offscreen, frames accumulating. Otherwise we
   // fall back to the server path.
+  // Snapshot do timestamp de quando AdModal montou. Usamos pra descartar
+  // stale "done" sessions de renders anteriores (started_at < adModalMountTs).
+  // 05/05: Mathieu reportou bars 100% imediato no retry pós-CS-busy. Backend
+  // já tem fix (clear terminal session em start()), mas defensive frontend
+  // também ajuda em race conditions ou client antigo sem o fix.
+  const adModalMountTs = useState(() => Date.now() / 1000)[0];
+
   useEffect(() => {
     if (localRenderMode) {
       const id = setInterval(async () => {
         try {
           const s = await getLocalRenderStatus();
           if ("render_id" in s) {
+            // Defensive: se session é terminal (done/error/cancelled) MAS
+            // started_at < quando AdModal montou, é o RENDER ANTERIOR — não
+            // poluir UI com bars 100%. Aguarda próximo poll que pega o NOVO.
+            const sessionStartedAt = s.started_at ?? 0;
+            const isStaleDone =
+              (s.state === "done" || s.state === "error" || s.state === "cancelled") &&
+              sessionStartedAt > 0 &&
+              sessionStartedAt < adModalMountTs - 1; // 1s tolerância
+            if (isStaleDone) {
+              // Skip — session é do render anterior, novo ainda começando
+              return;
+            }
             setLocalStatus(s);
             if (s.state === "done" || s.state === "error" || s.state === "cancelled") {
               clearInterval(id);
