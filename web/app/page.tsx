@@ -137,6 +137,29 @@ export default async function Home() {
           {/* RIGHT — features grid + map pool */}
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
+            {/* Header sobre o features grid */}
+            <div>
+              <div style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                color: "#FF6B35",
+                marginBottom: 8,
+                textTransform: "uppercase",
+              }}>
+                Cada reel inclui
+              </div>
+              <h2 style={{
+                fontSize: 22,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                margin: 0,
+                lineHeight: 1.2,
+              }}>
+                Tudo o que faz parecer um reel de Major
+              </h2>
+            </div>
+
             {/* Features grid 2 colunas (3 rows × 2 cols) */}
             <div style={{
               display: "grid",
