@@ -228,15 +228,19 @@ export default function LibraryContent() {
   }, []);
 
   const onPick = async (demo: LocalDemo) => {
-    // Hard gate: client desatualizado nunca passa daqui. Sem esse check
-    // o user antigo conseguia clicar e o client começava a uploadar/
-    // renderizar com bugs já corrigidos antes do MatchClient ter chance
-    // de barrar (bug reportado no v0.2.10 testing).
+    // Sprint #7 (05/05) — unified flow: TODAS demos vão pro novo /demo/[sha]
+    // (roster picker → escolhe player). User pode renderizar perspective de
+    // qualquer player na demo, não só dele mesmo. Click → roster.
+    //
+    // Hard gate: client desatualizado nunca passa daqui.
     if (clientVersion.status === "outdated") {
       setUpdatePrompt(true);
       return;
     }
-    await triggerReupload(demo);
+    // Sprint #7 — redirect direto pra /demo/[sha] (roster picker). Substitui
+    // o antigo flow triggerReupload() → AnalyzeModal → /match/[id] que
+    // assumia user é player na demo.
+    router.push(`/demo/${demo.sha1}`);
   };
 
   if (offline) {
@@ -535,12 +539,10 @@ export default function LibraryContent() {
                   className="btn-primary"
                   style={{ fontSize: 13, padding: "10px 18px", marginTop: 2 }}
                 >
-                  🎯 Mapear jogadas de impacto
+                  Escolher player →
                 </button>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", lineHeight: 1.4 }}>
-                  {isProcessed
-                    ? "Demo já processada · abre rápido no seletor de formato"
-                    : "A IA detecta ACEs, clutches e multi-kills · ~30s · você escolhe o formato depois"}
+                  Roster da partida · escolha quem vai protagonizar o reel
                 </div>
               </div>
             </div>

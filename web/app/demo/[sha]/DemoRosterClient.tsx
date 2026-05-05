@@ -1,14 +1,11 @@
 "use client";
 
 /**
- * Sprint #5 Phase B — Roster picker pra "render qualquer player".
+ * Sprint #7 Phase 7.2 — Roster picker unified.
  *
- * Mostra os 10 players da demo (top fragger primeiro) com kills/HS/team.
- * User clica num player → MVP placeholder (Phase C wire pending).
- *
- * MVP shipped agora: roster picker visual + botão "Renderizar reel" que
- * salva intent em sessionStorage + alert. Próximo sprint completa Phase C
- * (custom score+render endpoint).
+ * Substitui /pro/[sha]/ProRosterClient. Mesmo design visual + funcional.
+ * Player picked → "Mapear plays de impacto" CTA → Phase 7.3+ wire (Ad +
+ * score override + highlights + render). MVP atual: alert placeholder.
  */
 import { useEffect, useState } from "react";
 import {
@@ -17,17 +14,10 @@ import {
   type DemoRosterResponse,
 } from "@/lib/local";
 
-const TEAM_LABEL: Record<number, string> = {
-  2: "T",
-  3: "CT",
-};
+const TEAM_LABEL: Record<number, string> = { 2: "T", 3: "CT" };
+const TEAM_COLOR: Record<number, string> = { 2: "#fbbf24", 3: "#60a5fa" };
 
-const TEAM_COLOR: Record<number, string> = {
-  2: "#fbbf24",  // T = amarelo CS
-  3: "#60a5fa",  // CT = azul CS
-};
-
-export default function ProRosterClient({ sha }: { sha: string }) {
+export default function DemoRosterClient({ sha }: { sha: string }) {
   const [data, setData] = useState<DemoRosterResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<DemoRosterPlayer | null>(null);
@@ -56,7 +46,7 @@ export default function ProRosterClient({ sha }: { sha: string }) {
   if (!data) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
-        Parseando demo... (5-15s pra demos grandes)
+        Parseando demo... (5-15s pra demo grande)
       </div>
     );
   }
@@ -146,7 +136,7 @@ export default function ProRosterClient({ sha }: { sha: string }) {
         })}
       </div>
 
-      {/* CTA bar (sticky bottom feel) */}
+      {/* CTA bar — sticky-feel quando player picked */}
       {picked && (
         <div style={{
           marginTop: 24,
@@ -171,50 +161,44 @@ export default function ProRosterClient({ sha }: { sha: string }) {
               </span>
             </div>
           </div>
-          <ProRenderButton sha={sha} player={picked} />
+          <MapearPlaysButton sha={sha} player={picked} />
         </div>
       )}
 
       <p style={{ marginTop: 32, fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
         Render usa POV in-eye do player escolhido (`spec_player` no HLAE).
-        Mesmo pipeline do FragReel padrão — mood, X-ray e orientação configuráveis.
+        Pipeline padrão FragReel — mood, X-ray, orientação, flash, bomb timer
+        configuráveis na próxima etapa.
       </p>
     </>
   );
 }
 
-function ProRenderButton({ sha, player }: { sha: string; player: DemoRosterPlayer }) {
-  // Sprint #5 status: Phase A (roster endpoint) + Phase B (UI roster picker)
-  // shipped. Phase C (custom score+render endpoint) ainda em desenvolvimento.
-  //
-  // Phase C scope: novo endpoint `/demos/<sha>/render-pro` que internamente:
-  //   1. parseia .dem com target_steamid override (já suportado)
-  //   2. POST eventos pra /api/score com player_steamid=target_steamid
-  //   3. recebe highlights scored
-  //   4. monta render plan + spawna render via render_coordinator
-  //   5. retorna render session pra web mostrar progress
-  // Plus UI: web mostra preview cards dos highlights antes de render +
-  // mood/orientation/xray pickers + AdModal pra render flow.
-  // Esforço Phase C: ~3-4h.
+function MapearPlaysButton({ sha, player }: { sha: string; player: DemoRosterPlayer }) {
+  // Sprint #7 Phase 7.2 — MVP atual: salva intent + alert. Phase 7.3+ vai
+  // wire o flow completo: Ad 30s → POST /demos/<sha>/score com
+  // target_steamid → highlights → user picks ranks → render via /render
+  // com user_steamid64 + user_player_name overrides.
   const [pending, setPending] = useState(false);
   return (
     <button
       onClick={() => {
         setPending(true);
-        // MVP placeholder honest: salva intent + avisa user.
-        sessionStorage.setItem("fragreel:pro:intent", JSON.stringify({
+        sessionStorage.setItem("fragreel:demo:intent", JSON.stringify({
           sha,
           target_steamid: player.steamid,
           target_name: player.name,
           picked_at: Date.now(),
         }));
         alert(
-          `Selecionado: ${player.name || player.steamid}\n\n` +
-          `Phase C (render flow) em desenvolvimento.\n` +
-          `Roster picker já registra o player escolhido.\n\n` +
-          `Próxima sprint conecta: parse → score com target_steamid → ` +
-          `render via local client.\n\n` +
-          `Por hora, intent salvo em sessionStorage pra debug.`
+          `Player escolhido: ${player.name || player.steamid}\n\n` +
+          `Phase 7.3 (fluxo Ad → score → highlights → render) em desenvolvimento.\n\n` +
+          `Próxima sprint conecta:\n` +
+          `1. Ad 30s enquanto demo é parseada + scoreada\n` +
+          `2. Highlights aparecem pra você escolher\n` +
+          `3. "Gerar FragReel" → render com perspectiva do ${player.name}\n` +
+          `4. Ad final → download MP4\n\n` +
+          `Por enquanto, intent salvo em sessionStorage pra debug.`
         );
         setPending(false);
       }}
@@ -222,7 +206,7 @@ function ProRenderButton({ sha, player }: { sha: string; player: DemoRosterPlaye
       className="btn-primary"
       style={{ padding: "12px 24px", fontSize: 14, opacity: pending ? 0.6 : 1 }}
     >
-      {pending ? "..." : "Renderizar reel ▶"}
+      {pending ? "..." : "🎯 Mapear plays de impacto"}
     </button>
   );
 }
