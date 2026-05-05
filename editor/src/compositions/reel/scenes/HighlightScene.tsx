@@ -138,15 +138,33 @@ export const HighlightScene: React.FC<Props> = ({
   });
 
   // Sprint #6.1 — Kill flash effect: dispara flash branco intenso em cada
-  // kill timestamp do scene quando killFlashEnabled=true. Computa o flash
-  // value max em cima de TODOS os kill frames (multiple kills near each
-  // other → flash sustained). Decay 6 frames (200ms @30fps).
+  // kill timestamp do scene quando killFlashEnabled=true.
+  //
+  // 05/05 BUG FIX (Mathieu reportou "não apareceu nada"):
+  // versão original usava interpolate(frame - kFrame, [0, 2, 6], [0.85, 0.5, 0])
+  // com extrapolateLeft: "clamp" → ANTES da kill (delta < 0), output era
+  // CLAMPED pro primeiro valor 0.85 → flash sempre ON ANTES de cada kill,
+  // não NA kill. Math.max() agregava 0.85 sustained → cena toda lavada
+  // de branco antes da primeira kill. Aparentemente o blend mode + screen
+  // mascarava isso? Talvez nem rendered (renderRemotion sometimes ignora
+  // overlays no fundo gradiente).
+  //
+  // Fix: explicit return 0 quando delta fora do range (pre-kill ou pós-decay).
+  // Plus bumped intensity 0.85 → 0.95 + decay 6 → 12 frames (~400ms @30fps).
+  // Mais visível mas sem ofuscar gameplay.
   const killFlashIntensity = killFlashEnabled
     ? Math.max(
         0,
         ...killTimings.map((t) => {
           const kFrame = s2f(t.sceneTime);
-          return interpolate(frame - kFrame, [0, 2, 6], [0.85, 0.5, 0], {
+          const delta = frame - kFrame;
+          // Antes da kill ou pós-decay completo: invisible
+          if (delta < 0 || delta > 12) return 0;
+          // Peak no frame da kill, decay rápido inicial + suave depois.
+          // [0, 2, 12] → [0.95, 0.7, 0]: peak 0.95 mantém 1 frame, cai
+          // pra 0.7 em 2 frames (~67ms — instant pulse), decay suave
+          // 0.7 → 0 em 10 frames adicionais (~333ms).
+          return interpolate(delta, [0, 2, 12], [0.95, 0.7, 0], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           });
@@ -157,18 +175,24 @@ export const HighlightScene: React.FC<Props> = ({
   // Sprint #6.2 — Bomb timer red bar (Major-style). CS2 bomb explode 40s
   // pós-plant. Mostra barra decrescendo do plant até explosion ou defuse.
   //
-  // MVP: só plant_won case (bomb_action_timestamp = plant tick). Pra defuse
-  // round, bomb_action_timestamp é o defuse tick (NÃO plant tick) — mostrar
-  // bar decrescendo precisa plant_tick separado, backend não expõe ainda.
-  // Backlog Sprint #6.2.1: adicionar plant_tick em HighlightOut pra defuse.
+  // Sprint #6.2.1 BUG FIX (Mathieu 05/05): timer não aparecia em defuse rounds.
+  // Causa: versão original usava bomb_action_timestamp como plant tick, mas em
+  // defuse rounds esse field é o DEFUSE tick (não plant). Backend agora popula
+  // bomb_planted_timestamp INDEPENDENTE de quem plantou. Editor usa esse field.
+  // Backwards-compat: fallback pra bomb_action_timestamp quando highlight é
+  // legacy (pré-Sprint #6.2.1) E bomb_action="plant_won" (mesma semântica).
   const BOMB_FUSE_TIME_SEC = 40.0;
-  const showBombBar =
-    bombTimerEnabled &&
-    highlight.bomb_action === "plant_won" &&
-    typeof highlight.bomb_action_timestamp === "number";
+  const plantTimestamp =
+    typeof highlight.bomb_planted_timestamp === "number"
+      ? highlight.bomb_planted_timestamp
+      : highlight.bomb_action === "plant_won" &&
+        typeof highlight.bomb_action_timestamp === "number"
+      ? highlight.bomb_action_timestamp
+      : null;
+  const showBombBar = bombTimerEnabled && plantTimestamp !== null;
   // Plant time relative to scene
   const plantSceneTime = showBombBar
-    ? (highlight.bomb_action_timestamp! - refStartSec(highlight) - sceneSkipSec) / Math.max(0.01, gameplayRate)
+    ? (plantTimestamp! - refStartSec(highlight) - sceneSkipSec) / Math.max(0.01, gameplayRate)
     : -1;
   const sceneTimeNow = frame / fps;
   // Fraction remaining (1.0 at plant → 0.0 at 40s post-plant). Bar disappears

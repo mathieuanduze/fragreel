@@ -92,6 +92,11 @@ class HighlightOut(BaseModel):
     # set E foi pelo user. None pra highlights legados.
     bomb_action_tick: Optional[int] = None
     bomb_action_timestamp: Optional[float] = None
+    # Sprint #6.2.1 (05/05) — plant tick INDEPENDENTE de quem plantou.
+    # Editor usa pra bomb timer red bar funcionar em defuse rounds (onde
+    # bomb_action_timestamp = defuse tick, não plant). None se round
+    # sem plant ou highlight legacy (pré-Sprint #6.2.1).
+    bomb_planted_timestamp: Optional[float] = None
     # ── v0.3.2 Round 4c Fase 1.27 — alive timeline pra counter ao vivo ────────
     # Lista de events `{time, alive_ct, alive_t}` ordenados por tick.
     # Inclui TODAS deaths do round (CT + T), não só user kills (Fase 1.23 só

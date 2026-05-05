@@ -125,7 +125,12 @@ export default function LibraryContent() {
     }
   }, []);
 
-  useEffect(() => { load(false); }, [load]);
+  // Sprint #7 hotfix (05/05) — refresh=true ao montar /library. Mathieu
+  // reportou: dropou .dem nova em replays/ mas não apareceu na lista.
+  // Causa: /demos endpoint só dispara bg-scan no FIRST call após boot do
+  // client. Subsequente loads usam scan_done=true cache. Pra capturar
+  // demos novas droppadas no replays/ pós-boot, force refresh ao montar.
+  useEffect(() => { load(true); }, [load]);
 
   // Enquanto o scan tá rolando no client, o /demos já retorna imediatamente
   // com scanning=true. Polling leve a cada 2.5s atualiza a UI quando o

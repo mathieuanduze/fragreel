@@ -71,6 +71,11 @@ export type Highlight = {
   // cortava cena antes do bomb event quando plant ocorria após última kill.
   bomb_action_timestamp?: number;
   bomb_action?: "defuse" | "plant_won";
+  // Sprint #6.2.1 (05/05) — plant tick INDEPENDENTE de quem plantou.
+  // Editor usa pra bomb timer red bar funcionar em defuse rounds (onde
+  // bomb_action_timestamp = defuse tick, não plant). Null se round
+  // sem plant ou highlight legacy (pré-Sprint #6.2.1).
+  bomb_planted_timestamp?: number;
   // Round 4c Fase 1.27 — alive timeline pra counter ao vivo. Inclui TODAS
   // deaths do round (não só user kills da Fase 1.23). Editor renderiza
   // counter navegando essa timeline em tempo real (sceneTime → encontra

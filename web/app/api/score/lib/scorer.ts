@@ -240,6 +240,7 @@ function _scoreRound(
     kill_timestamps: roundKills.map((k) => k.timestamp),
     bomb_action_tick: ctx.bomb_action_tick,
     bomb_action_timestamp: ctx.bomb_action_timestamp,
+    bomb_planted_timestamp: ctx.bomb_planted_timestamp,
   };
 }
 
@@ -256,6 +257,7 @@ function _enrichWithRoundContext(
     is_round_winning_kill: false,
     bomb_action_tick: null,
     bomb_action_timestamp: null,
+    bomb_planted_timestamp: null,
   };
 
   if (seq.length === 0) return ctx;
@@ -300,6 +302,21 @@ function _enrichWithRoundContext(
           break;
         }
       }
+    }
+  }
+
+  // Sprint #6.2.1 (05/05) — bomb_planted_timestamp INDEPENDENTE de quem plantou.
+  // Mathieu reportou: bomb timer red bar não aparecia em rounds que ele DEFUSOU.
+  // Causa: editor checava `bomb_action === "plant_won"` como gate, mas em defuse
+  // rounds bomb_action="defuse" e bomb_action_timestamp = defuse tick (não plant).
+  // Fix: sempre populamos bomb_planted_timestamp se houve plant no round (qualquer
+  // player). Editor usa esse field pra calcular timer 40s do plant_tick — funciona
+  // pra plant_won (user planted), defuse (user defused, mas alguém plantou), ou
+  // mero contexto (player rendering como spectator de round com plant).
+  for (const be of events.bomb_events) {
+    if (be.round_num === round_num && be.action === "planted") {
+      ctx.bomb_planted_timestamp = be.timestamp;
+      break;
     }
   }
 

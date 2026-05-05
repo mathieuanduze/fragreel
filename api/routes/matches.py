@@ -298,6 +298,8 @@ def _to_match_out(doc: dict) -> MatchOut:
             # v0.3.0-beta-2 — bomb action tick (back-calc anim window in client)
             bomb_action_tick=h.get("bomb_action_tick"),
             bomb_action_timestamp=h.get("bomb_action_timestamp"),
+            # Sprint #6.2.1 — plant tick independente de quem plantou
+            bomb_planted_timestamp=h.get("bomb_planted_timestamp"),
             # v0.3.2 Fase 1.27 — alive timeline pra counter ao vivo
             alive_timeline=[
                 AliveEventOut(time=ev["time"], alive_ct=ev["alive_ct"], alive_t=ev["alive_t"])

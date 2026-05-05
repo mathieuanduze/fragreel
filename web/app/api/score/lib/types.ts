@@ -102,6 +102,11 @@ export interface Highlight {
   kill_timestamps: number[];
   bomb_action_tick?: number | null;
   bomb_action_timestamp?: number | null;
+  /** Sprint #6.2.1 (05/05) — plant_tick INDEPENDENTE de quem plantou.
+   *  Editor usa pra bomb timer red bar funcionar em defuse rounds (onde
+   *  bomb_action_timestamp = defuse tick, não plant). Null se round
+   *  não teve plant. */
+  bomb_planted_timestamp?: number | null;
 }
 
 export type ClutchSituation = "1v2" | "1v3" | "1v4" | "1v5";
@@ -116,4 +121,6 @@ export interface RoundContext {
   is_round_winning_kill: boolean;
   bomb_action_tick: number | null;
   bomb_action_timestamp: number | null;
+  /** Sprint #6.2.1 — plant tick INDEPENDENTE de quem plantou. */
+  bomb_planted_timestamp: number | null;
 }
