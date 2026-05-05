@@ -99,59 +99,89 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Demo video placeholder (Sprint #3 — wire quando Mathieu mandar MP4) ───
-          Quando Mathieu mandar o MP4 killer, trocar essa div pelo <video>:
-            <video autoPlay muted loop playsInline poster="/demo-poster.jpg">
-              <source src="<R2 url>" type="video/mp4" />
-            </video>
-          Por enquanto: placeholder pra reservar o slot visual. */}
-      <section style={{ padding: "0 24px 60px", maxWidth: 720, margin: "0 auto" }}>
+      {/* ── Demo + Features + Mapas (2-col split) ──────────────────────
+          Left: video placeholder 9:16 (Sprint #3 wire quando Mathieu mandar MP4 →
+            trocar por <video autoPlay muted loop playsInline> + <source src="<R2 url>" />)
+          Right: features grid + map pool inline
+          Mobile: collapse via grid auto-fit minmax 320px. */}
+      <section style={{ padding: "0 24px 60px", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{
-          aspectRatio: "9 / 16",
-          maxWidth: 360,
-          margin: "0 auto",
-          borderRadius: 18,
-          background: "linear-gradient(180deg, #1A1A2E 0%, #16213E 100%)",
-          border: "1px solid #2D2D44",
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 32,
           alignItems: "center",
-          justifyContent: "center",
-          color: "rgba(255,255,255,0.25)",
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: "0.05em",
-          textTransform: "uppercase",
         }}>
-          ▶ Demo em breve
-        </div>
-      </section>
+          {/* LEFT — Video demo placeholder */}
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <div style={{
+              aspectRatio: "9 / 16",
+              width: "100%",
+              maxWidth: 380,
+              borderRadius: 18,
+              background: "linear-gradient(180deg, #1A1A2E 0%, #16213E 100%)",
+              border: "1px solid #2D2D44",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "rgba(255,255,255,0.25)",
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+            }}>
+              ▶ Demo em breve
+            </div>
+          </div>
 
-      {/* ── Mapas — minimal ─────────────────────────────────────────── */}
-      <section style={{ padding: "0 24px 60px", maxWidth: 1000, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)", marginBottom: 16, textTransform: "uppercase" }}>
-          Pool competitivo CS2
-        </div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
-          {MAPS.map((m) => (
-            <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 8, overflow: "hidden", background: "#16213E", border: "1px solid #2D2D44" }}>
-                <img src={`/maps/${m.id}.png`} alt={m.name} width={48} height={48} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          {/* RIGHT — features grid + map pool */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+            {/* Features grid 2 colunas (3 rows × 2 cols) */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+            }}>
+              {features.map((feat) => (
+                <div key={feat.label} style={{
+                  padding: "14px 14px",
+                  background: "#1A1A2E",
+                  border: "1px solid #2D2D44",
+                  borderRadius: 8,
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 22, marginBottom: 6 }}>{feat.icon}</div>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{feat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Map pool — tag + ícones inline */}
+            <div>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                color: "rgba(255,255,255,0.25)",
+                marginBottom: 12,
+                textTransform: "uppercase",
+              }}>
+                Pool competitivo CS2
               </div>
-              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{m.name.toUpperCase()}</span>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {MAPS.map((m) => (
+                  <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 7, overflow: "hidden", background: "#16213E", border: "1px solid #2D2D44" }}>
+                      <img src={`/maps/${m.id}.png`} alt={m.name} width={38} height={38} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
+                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{m.name.toUpperCase()}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── Features grid — sem H2, sem paragraph, só cards com 1 label ── */}
-      <section style={{ padding: "60px 24px", maxWidth: 920, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-          {features.map((feat) => (
-            <div key={feat.label} style={{ padding: "14px 14px", background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 8, textAlign: "center" }}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>{feat.icon}</div>
-              <div style={{ fontWeight: 600, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{feat.label}</div>
-            </div>
-          ))}
+          </div>
         </div>
       </section>
 
