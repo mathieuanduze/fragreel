@@ -329,11 +329,25 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
   // notification. tailFallbackEnd = sourceDur - 4.5s cortava 4.5s desse
   // buffer = notification mal-aparecia (apenas 0.5s visível em casos
   // borderline).
-  // Fix: pra bomb-closing highlights, cap em sourceDur (full mov), não em
-  // tailFallback. Capture-side já garante buffer adequado pra notif. Pra
-  // kill-closing highlights mantém tailFallback (player standing still
-  // pós-kill é freeze indesejado).
-  const upperCap = bombIsClosing ? sourceDur : tailFallbackEnd;
+  //
+  // Round 4d 3.5.1 BUG FIX (Mathieu 05/05, novo reel): "última kill das
+  // cenas cortam muito rápido novamente". Round 4d 3.5 fix original só
+  // tratou bomb-closing. Kill-closing ainda usava tailFallback (sourceDur-
+  // 4.5s) como upperCap, cortando reaction de kills tardias:
+  //   mov 18s, lastKill aos 14s, reaction 2s → dynamicSceneEnd = 16s
+  //   tailFallback = 13.5s → scene corta em 13.5, kill aos 14 NUNCA aparece
+  //
+  // Root cause arquitetural: tailFallback só faz sentido como "no events"
+  // fallback (cortar standing-still trailing). Quando temos events,
+  // dynamicSceneEnd = lastEvent + reaction É o cap natural. Aplicar
+  // tailFallback adicional cortava events legítimos.
+  //
+  // Fix: upperCap = sourceDur SEMPRE quando há events. dynamicSceneEnd
+  // já é bounded pelo lastEvent + reaction apropriada (kill 2s, plant 3s,
+  // defuse 4s) — não precisa cap extra. sourceDur garante não passar mov
+  // físico (anti hold-last-frame).
+  // Aplica pra kill-closing E bomb-closing (subsumes Round 4d 3.5).
+  const upperCap = sourceDur;
 
   // Cap pelo upper bound apropriado. Plus floor pra evitar cena negativa
   // em caso patológico (event antes do highlight.start).
