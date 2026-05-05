@@ -127,6 +127,35 @@ export async function getLocalDemos(refresh = false): Promise<LocalDemosResponse
 }
 
 /**
+ * Round 4d field follow-up (Mathieu PC test 04/05): race condition
+ * "primeiro click no Render → modal 'Não achei a demo'". Causa: `/demos`
+ * endpoint dispara bg-scan no first call mas retorna `matches=[]` IMEDIATAMENTE
+ * (scan async). Web checa array vazio → "demo não encontrada" → modal.
+ * Segundo click funciona porque bg-scan já completou.
+ *
+ * Esta função wrapper espera o scan terminar antes de retornar a lista
+ * completa. Pra usar em fluxos críticos (clicar render, etc) que NÃO
+ * podem race com o scan inicial.
+ *
+ * Polling a cada 500ms até scan_done=true OU timeout 10s. Se timeout,
+ * retorna o que tem (degraded mas não-bloqueante).
+ */
+export async function getLocalDemosAwaitingScan(
+  opts: { timeoutMs?: number; pollIntervalMs?: number } = {},
+): Promise<LocalDemosResponse> {
+  const timeout = opts.timeoutMs ?? 10_000;
+  const interval = opts.pollIntervalMs ?? 500;
+  const deadline = Date.now() + timeout;
+
+  let resp = await getLocalDemos();
+  while (resp.scanning && !resp.scan_done && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, interval));
+    resp = await getLocalDemos();
+  }
+  return resp;
+}
+
+/**
  * Bug #10 fix V2 (28/04): `force=true` faz o local client invalidar o cache
  * de processamento ANTES de enviar (apaga match_id + processed_at do scanner
  * cache em disco). Sem isso, demos com cache hit retornam o match_id antigo

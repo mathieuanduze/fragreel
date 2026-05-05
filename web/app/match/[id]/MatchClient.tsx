@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MatchOut, HighlightOut, Mood, Orientation, getMatch } from "@/lib/api";
 import {
   cancelLocalRender,
-  getLocalDemos,
+  getLocalDemosAwaitingScan,
   LocalClientOffline,
   pingLocalClient,
   renderPreflight,
@@ -279,7 +279,12 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
       }
 
       // Localiza a .dem pelo match_id (já indexada pelo scanner local).
-      const demos = await getLocalDemos();
+      // Round 4d field test (PC catched 04/05): primeiro click no render
+      // disparava modal "Não achei a demo" porque /demos endpoint dispara
+      // bg-scan no first call mas retorna matches=[] imediatamente. Segundo
+      // click funcionava (scan completado). Fix: getLocalDemosAwaitingScan
+      // poll-aguarda scan_done=true antes de retornar (timeout 10s).
+      const demos = await getLocalDemosAwaitingScan();
       const localDemo = demos.matches.find((d) => d.match_id === match.id);
       if (!localDemo) {
         setRenderErrorPrompt({
