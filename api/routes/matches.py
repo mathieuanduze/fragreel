@@ -108,26 +108,10 @@ def render_plan(match_id: str, body: RenderPlanRequest, request: Request) -> Ren
             detail=f"Nenhum highlight com rank em {body.highlight_ranks}",
         )
 
+    # v0.7.0 — Reel-only cleanup. Card + recap deletados do produto.
+    # Branches condicionais antigas removidas pra simplicidade.
     fmt = body.format
-    is_recap = fmt == VideoFormat.recap
-    is_card = fmt == VideoFormat.card
-    bounds = _RECAP_BOUNDS if is_recap else _REEL_BOUNDS
-
-    # Card é um still, não tem timeline de cenas — devolvemos plan especial.
-    if is_card:
-        # Card sempre vertical (mesma regra do generate).
-        w, h = _DIMS["vertical"]
-        return RenderPlan(
-            format=fmt,
-            orientation=Orientation.vertical,
-            intro_sec=0.0,
-            timeline_sec=0.0,
-            outro_sec=0.0,
-            highlights=[],
-            total_sec=0.0,  # PNG estático
-            width=w,
-            height=h,
-        )
+    bounds = _REEL_BOUNDS
 
     plan_highlights = [
         HighlightPlan(
@@ -138,9 +122,9 @@ def render_plan(match_id: str, body: RenderPlanRequest, request: Request) -> Ren
         for h in selected
     ]
 
-    intro = _RECAP_INTRO_SEC if is_recap else _REEL_INTRO_SEC
-    outro = _RECAP_OUTRO_SEC if is_recap else _REEL_OUTRO_SEC
-    timeline = _RECAP_TIMELINE_SEC if is_recap else 0.0
+    intro = _REEL_INTRO_SEC
+    outro = _REEL_OUTRO_SEC
+    timeline = 0.0
     total = intro + timeline + sum(p.duration_sec for p in plan_highlights) + outro
 
     w, h = _DIMS[body.orientation.value]
@@ -188,11 +172,8 @@ def generate_video(match_id: str, body: GenerateRequest, request: Request):
         or "player"
     )
 
-    # Card é estático e sempre vertical (formato semântico do produto);
-    # reel/recap respeitam a escolha do user.
-    orientation = (
-        "vertical" if body.format.value == "card" else body.orientation.value
-    )
+    # v0.7.0 — Reel-only: orientation respeita escolha do user (vertical/horizontal).
+    orientation = body.orientation.value
 
     # Monta as props exatamente como o ReelProps/CardProps do editor/src/types.ts
     props = {
@@ -228,14 +209,9 @@ def generate_video(match_id: str, body: GenerateRequest, request: Request):
     # stage timings + recalibrar. Hoje é estimate, não medida.
     sum_segment_durations_s = 0  # TODO: vem do props ou highlight_ranks lookup
     n_segments = len(body.highlight_ranks)
-    if body.format.value == "card":
-        estimated = 15
-    elif body.format.value == "reel":
-        # ~real-time captura + per-segment overhead + Remotion + boot
-        # Conservative pra não criar expectativa "vai em 90s" que vira "demorou 5min"
-        estimated = 60 + (n_segments * 60) + 180  # 60s base + 60s/segment + 3min boot
-    else:  # recap
-        estimated = 90 + (n_segments * 60) + 180
+    # v0.7.0 — Reel-only: estimate model simplificado (era branched por format).
+    # ~real-time captura + per-segment overhead + Remotion + boot
+    estimated = 60 + (n_segments * 60) + 180  # 60s base + 60s/segment + 3min boot
     # Cap inferior pra não mostrar "10s" em casos de 1 highlight
     estimated = max(estimated, 120)
 

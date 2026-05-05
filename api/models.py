@@ -4,9 +4,14 @@ from enum import Enum
 
 
 class VideoFormat(str, Enum):
+    """v0.7.0 (05/05) — Reel-only cleanup. Card e recap formats foram
+    deletados do produto. Web FORMATS array já estava só com `reel` desde
+    Sprint I.5. Backend ainda tinha branches condicionais pra card/recap
+    nunca atingidas — limpeza pra simplicidade. Clientes legados enviando
+    format=card ou format=recap recebem 422 validation error (esperado:
+    nenhum cliente atual envia esses valores).
+    """
     reel = "reel"
-    recap = "recap"
-    card = "card"
 
 
 class JobStatus(str, Enum):

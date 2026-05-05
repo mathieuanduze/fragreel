@@ -49,13 +49,12 @@ _jobs_lock = threading.Lock()
 
 
 def _format_config(fmt: str) -> tuple[str, str, str]:
-    """Retorna (composition_id, subcommand, extension)."""
+    """Retorna (composition_id, subcommand, extension).
+
+    v0.7.0 (05/05) — Reel-only cleanup. Card + recap deletados do produto.
+    """
     if fmt == "reel":
         return "HighlightsReel", "render", "mp4"
-    if fmt == "card":
-        return "StoryCard", "still", "png"
-    if fmt == "recap":
-        return "Recap", "render", "mp4"
     raise ValueError(f"unknown format: {fmt}")
 
 

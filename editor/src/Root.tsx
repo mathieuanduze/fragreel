@@ -3,12 +3,7 @@ import {
   HighlightsReel,
   calcReelDurationFromHighlights,
 } from "./compositions/reel/HighlightsReel";
-import {
-  Recap,
-  calcRecapDurationFromHighlights,
-} from "./compositions/recap/Recap";
-import { StoryCard } from "./compositions/card/StoryCard";
-import { MOCK_REEL_PROPS, MOCK_CARD_PROPS } from "./mock";
+import { MOCK_REEL_PROPS } from "./mock";
 import { FPS, getDimensions } from "./theme";
 import { ReelProps } from "./types";
 
@@ -21,12 +16,17 @@ const selectedHighlights = (props: ReelProps) =>
 // em runtime conforme props.orientation).
 const DEFAULT_DIMS = getDimensions("vertical");
 
+// v0.7.0 (05/05) — Reel-only cleanup. Compositions Recap + StoryCard
+// removidas do Root. Files em compositions/recap/ e compositions/card/
+// mantidas como dead code histórico (low priority cleanup); podem ser
+// deletadas em sprint dedicada. Backend rejeita format=card e format=recap
+// com 422 desde v0.7.0.
 export const Root: React.FC = () => {
   return (
     <>
       {/*
         HighlightsReel — Top N highlights, duração = soma das durações reais
-        (h.end - h.start clampado em [3, 7]s) + intro + outro.
+        (h.end - h.start clampado em REEL_HIGHLIGHT_BOUNDS) + intro + outro.
         Suporta orientação vertical (1080x1920, default) ou horizontal
         (1920x1080) via props.orientation — resolvido em calculateMetadata.
       */}
@@ -50,46 +50,6 @@ export const Root: React.FC = () => {
             height: dims.height,
           };
         }}
-      />
-
-      {/*
-        Recap — retrospectivo da partida (~50-90s). Cada highlight respeita
-        a duração real clampada em [4, 10]s — bounds maiores que o reel.
-      */}
-      <Composition
-        id="Recap"
-        component={Recap}
-        defaultProps={MOCK_REEL_PROPS}
-        durationInFrames={calcRecapDurationFromHighlights(
-          selectedHighlights(MOCK_REEL_PROPS)
-        )}
-        fps={FPS}
-        width={DEFAULT_DIMS.width}
-        height={DEFAULT_DIMS.height}
-        calculateMetadata={({ props }) => {
-          const dims = getDimensions(props.orientation ?? "vertical");
-          return {
-            durationInFrames: calcRecapDurationFromHighlights(
-              selectedHighlights(props)
-            ),
-            width: dims.width,
-            height: dims.height,
-          };
-        }}
-      />
-
-      {/*
-        StoryCard — 1 frame exportado como PNG. Sempre 9:16 (story de Instagram).
-        Não respeita orientation — formato é semântico do produto.
-      */}
-      <Composition
-        id="StoryCard"
-        component={StoryCard}
-        defaultProps={MOCK_CARD_PROPS}
-        durationInFrames={60}
-        fps={FPS}
-        width={DEFAULT_DIMS.width}
-        height={DEFAULT_DIMS.height}
       />
     </>
   );
