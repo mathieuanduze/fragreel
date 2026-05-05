@@ -20,14 +20,30 @@ const STATS = [
   { label: "ACE",            sub: "5 kills · 1 round",     color: "#a78bfa" },
 ];
 
-// v0.7.0 LP rewrite (05/05): reduzido ~50% do texto pós-feedback Mathieu
-// "tem muito texto". Princípio: 1 frase por bloco, action-oriented, deixa
-// o vídeo demo (Sprint #3) carregar a explicação visual quando disponível.
+// v0.7.0 LP rewrite (05/05): reduzido pós-feedback Mathieu "tem muito texto".
+// Update 05/05 #2: "Como funciona" pode ter mais texto — section principal
+// de explicação do produto, vale dar contexto. Demais sections continuam tight.
 const steps = [
-  { num: "01", title: "Baixe o client",    desc: "Windows. Login Steam. Pronto." },
-  { num: "02", title: "Escolha a partida", desc: "Detecta as demos do CS2 automaticamente." },
-  { num: "03", title: "Veja 1 anúncio",    desc: "30s enquanto seu PC renderiza." },
-  { num: "04", title: "MP4 no Desktop",    desc: "Pronto pra postar TikTok / Reels / YouTube." },
+  {
+    num: "01",
+    title: "Baixe o client",
+    desc: "FragReel.exe pra Windows (~120 MB). Login Steam pra detectar suas demos. Sem assinatura, sem cadastro extra.",
+  },
+  {
+    num: "02",
+    title: "Escolha a partida",
+    desc: "O client lista as demos que o CS2 já salva no seu PC + qualquer .dem que você baixar (HLTV, CSGOStats). Click na que você quer.",
+  },
+  {
+    num: "03",
+    title: "Veja 1 anúncio",
+    desc: "Render leva ~15-20min no seu PC (HLAE captura + ffmpeg encode + Remotion edit). Você assiste 1 ad de 30s — é o que sustenta o site grátis.",
+  },
+  {
+    num: "04",
+    title: "MP4 no Desktop",
+    desc: "Vídeo final pronto na sua área de trabalho (~30-40 MB). Vertical pra TikTok/Reels/Shorts ou horizontal pra YouTube/Twitch — você escolhe na hora.",
+  },
 ];
 
 const features = [
@@ -94,25 +110,6 @@ export default async function Home() {
             </a>
             <Link href="/login" className="btn-ghost" style={{ fontSize: 16 }}>
               Entrar com Steam →
-            </Link>
-          </div>
-
-          {/* Sprint #5 — Pro demo entry point */}
-          <div style={{ marginTop: 18 }}>
-            <Link href="/pro" style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 16px",
-              border: "1px solid rgba(255,107,53,0.3)",
-              borderRadius: 999,
-              fontSize: 12,
-              color: "#FF6B35",
-              fontWeight: 600,
-              textDecoration: "none",
-              letterSpacing: "0.02em",
-            }}>
-              ✨ NOVO · Renderize reel de pro player →
             </Link>
           </div>
         </div>
