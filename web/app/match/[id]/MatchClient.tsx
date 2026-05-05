@@ -178,9 +178,14 @@ interface MatchClientProps {
   targetSteamid?: string;
   /** Sprint #7 Phase 7.4 — override session name (Pro Demo Render). */
   targetName?: string;
+  /** Sprint #7 hotfix (05/05) — sha1 da demo local pra lookup correto.
+   *  Em Pro Demo flow, match.id é filename stem (parse_and_score_locally),
+   *  NÃO match_id do scanner. Sem demoSha, demos.matches.find falha → erro
+   *  "Não achei a demo". Quando setado, lookup vai por sha1. */
+  demoSha?: string;
 }
 
-export default function MatchClient({ match: initialMatch, targetSteamid, targetName }: MatchClientProps) {
+export default function MatchClient({ match: initialMatch, targetSteamid, targetName, demoSha }: MatchClientProps) {
   const [match, setMatch] = useState(initialMatch);
   const [format, setFormat] = useState("reel");
   // Pré-seleção: respeita o cap do formato inicial (reel = 5)
@@ -324,7 +329,13 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
       // click funcionava (scan completado). Fix: getLocalDemosAwaitingScan
       // poll-aguarda scan_done=true antes de retornar (timeout 10s).
       const demos = await getLocalDemosAwaitingScan();
-      const localDemo = demos.matches.find((d) => d.match_id === match.id);
+      // Sprint #7 hotfix (05/05): em Pro Demo flow, match.id = filename stem
+      // do parse_and_score_locally, NÃO match_id do scanner. Lookup por sha1
+      // quando demoSha é prop (override). Senão (legacy /match/[id] flow),
+      // lookup por match_id como antes.
+      const localDemo = demoSha
+        ? demos.matches.find((d) => d.sha1 === demoSha)
+        : demos.matches.find((d) => d.match_id === match.id);
       if (!localDemo) {
         setRenderErrorPrompt({
           open: true,

@@ -142,11 +142,13 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
   // Phase "ready" — passa match_doc + overrides pro MatchClient existente.
   // MatchClient renderiza highlights, mood selector, 5 toggles, AdModal,
   // render trigger — tudo igual fluxo /match/[id] (Sprint #6 features incluídas).
+  // Sprint #7 hotfix: demoSha pra lookup correto da demo local (match.id !== sha1).
   return (
     <MatchClient
       match={match}
       targetSteamid={targetSteamid}
       targetName={targetName}
+      demoSha={sha}
     />
   );
 }
