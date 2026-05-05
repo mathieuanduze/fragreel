@@ -89,7 +89,7 @@ export const Recap: React.FC<ReelProps> = ({
     <AbsoluteFill>
       {playMusic && (
         // Fase 1.18 — loop pra cobrir reel longo (Recap pode ser 5min+).
-        <Audio src={staticFile(moodDef.file)} volume={0.6} startFrom={0} loop />
+        <Audio src={staticFile(moodDef.file ?? moodDef.tracks[0].file)} volume={0.6} startFrom={0} loop />
       )}
 
       <Sequence from={0} durationInFrames={introF}>

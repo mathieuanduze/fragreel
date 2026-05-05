@@ -18,12 +18,21 @@ export const theme = {
 
 // Music moods — tracks bundled em /public/music/
 // BPM é usado para sync de cortes. Todos CC0 do Pixabay Music.
-// Placeholders até adicionarmos MP3s reais.
+// Sprint #6.4 (05/05): refatorado de `file: string` (1 track) → `tracks:
+// string[]` (multi-variant per mood). User picks variant em ReelProps.
+// trackVariantIndex (default 0). Backward-compat: `file` deprecated mas
+// ainda lido como fallback (highlights/dev preview que setam `file` direto).
+//
+// Pra ADICIONAR tracks novas (sem código novo): drop MP3 em
+// editor/public/music/<mood>-2.mp3 (ou qualquer nome) → adicionar string
+// em MOODS[mood].tracks. Estrutura permanente, escalável.
 export type MoodDef = {
   id: "eletronica" | "acao" | "heroico" | "chill";
   label: string;
   icon: string;
-  file: string; // relativo a staticFile()
+  tracks: { file: string; label: string }[];   // Sprint #6.4 — multi-variant
+  /** @deprecated use tracks[index].file. Read-only fallback pra dev preview. */
+  file?: string;
   bpm: number;
   color: string;
 };
@@ -33,6 +42,12 @@ export const MOODS: Record<string, MoodDef> = {
     id: "eletronica",
     label: "Eletrônica",
     icon: "🎧",
+    // TODO Mathieu: dropar mais MP3s aqui (sources Pixabay/CC0). Ex:
+    //   { file: "music/eletronica-driving.mp3", label: "Driving" },
+    //   { file: "music/eletronica-synthwave.mp3", label: "Synthwave" },
+    tracks: [
+      { file: "music/eletronica.mp3", label: "Original" },
+    ],
     file: "music/eletronica.mp3",
     bpm: 140,
     color: "#a78bfa",
@@ -41,6 +56,9 @@ export const MOODS: Record<string, MoodDef> = {
     id: "acao",
     label: "Ação",
     icon: "⚡",
+    tracks: [
+      { file: "music/acao.mp3", label: "Original" },
+    ],
     file: "music/acao.mp3",
     bpm: 128,
     color: "#FF6B35",
@@ -49,6 +67,9 @@ export const MOODS: Record<string, MoodDef> = {
     id: "heroico",
     label: "Heroico",
     icon: "🦸",
+    tracks: [
+      { file: "music/heroico.mp3", label: "Original" },
+    ],
     file: "music/heroico.mp3",
     bpm: 120,
     color: "#fbbf24",
@@ -57,11 +78,25 @@ export const MOODS: Record<string, MoodDef> = {
     id: "chill",
     label: "Chill",
     icon: "😎",
+    tracks: [
+      { file: "music/chill.mp3", label: "Original" },
+    ],
     file: "music/chill.mp3",
     bpm: 90,
     color: "#4CAF82",
   },
 };
+
+// Sprint #6.4 — resolve track file from mood + variant index.
+// Default variant 0 (primary). Out-of-range index → falls back to 0.
+export function resolveMoodTrack(moodId: string, variantIndex = 0): string {
+  const mood = MOODS[moodId];
+  if (!mood) return "music/acao.mp3"; // safe fallback
+  const tracks = mood.tracks;
+  if (!tracks || tracks.length === 0) return mood.file ?? "music/acao.mp3";
+  const idx = Math.max(0, Math.min(variantIndex, tracks.length - 1));
+  return tracks[idx].file;
+}
 
 // Frames por segundo do projeto — 30fps para render rápido no Railway
 export const FPS = 30;

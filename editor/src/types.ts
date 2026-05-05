@@ -131,6 +131,11 @@ export type ReelProps = {
   // Aparece só durante highlights com plant ativo (40s timer decrescendo
   // do plant_tick até explosion). Igual broadcast Major.
   bombTimerEnabled?: boolean;
+  // Sprint #6.4 (05/05) — variant da track musical do mood. 0 = primary
+  // (default). Permite múltiplas trilhas por mood (acao-1, acao-2, etc).
+  // theme.MOODS[mood].tracks lista as opções; resolveMoodTrack(mood, idx)
+  // resolve o file. Ignored se musicEnabled=false.
+  trackVariantIndex?: number;
 };
 
 export type CardProps = {

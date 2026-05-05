@@ -17,6 +17,7 @@ import {
   effectiveTailSkipSec,
   effectiveSceneEndSec,
   refSourceDurSec,
+  resolveMoodTrack,
   s2f,
 } from "../../theme";
 import { Intro } from "./scenes/Intro";
@@ -80,6 +81,7 @@ export const HighlightsReel: React.FC<ReelProps> = ({
   scoreboardEnabled,
   killFlashEnabled,
   bombTimerEnabled,
+  trackVariantIndex,
 }) => {
   const moodDef = MOODS[mood];
 
@@ -126,7 +128,7 @@ export const HighlightsReel: React.FC<ReelProps> = ({
     <AbsoluteFill>
       {playMusic && (
         <Audio
-          src={staticFile(moodDef.file)}
+          src={staticFile(resolveMoodTrack(mood, trackVariantIndex ?? 0))}
           // Round 4c Fase 1.19 (Mathieu: "música tá muito alta vs som do
           // jogo"). Era 0.65 → 0.35. Game audio segue 0.85 (não baixa).
           // Round 4d 3.2 (Mathieu 29/04, primeiro reel próprio): "Som da

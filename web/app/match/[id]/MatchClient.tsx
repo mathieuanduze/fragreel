@@ -65,6 +65,16 @@ function killBadgeStyle(weapon: string, headshot: boolean): { bg: string; border
   return { bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" };
 }
 
+// Sprint #6.4 — variants per mood. Espelhar editor/src/theme.ts MOODS[mood].tracks.
+// MUDOU LÁ → atualizar AQUI (manual sync, no pipe automatic — TODO Sprint
+// dedicada de design system se essa lista crescer muito).
+const MOOD_VARIANTS: Record<Mood, { label: string }[]> = {
+  acao: [{ label: "Original" }],
+  eletronica: [{ label: "Original" }],
+  heroico: [{ label: "Original" }],
+  chill: [{ label: "Original" }],
+};
+
 const MOODS: { id: Mood; icon: string; label: string; desc: string; color: string }[] = [
   { id: "acao",       icon: "⚡", label: "Ação",       desc: "128 BPM · heavy bass",    color: "#FF6B35" },
   { id: "eletronica", icon: "🎧", label: "Eletrônica", desc: "140 BPM · dnb / dubstep", color: "#a78bfa" },
@@ -159,6 +169,10 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
     new Set(initialMatch.highlights.slice(0, Math.min(SCENE_CAPS.reel, 3)).map((h) => h.rank))
   );
   const [mood, setMood] = useState<Mood>("acao");
+  // Sprint #6.4 (05/05) — variant da track musical do mood (0=primary).
+  // Resetado pra 0 quando user troca mood (cada mood tem suas próprias
+  // variants). UI só renderiza picker quando mood tem >1 track.
+  const [trackVariantIndex, setTrackVariantIndex] = useState<number>(0);
   // Round 4c Fase 1.17 — toggle música. Default ON (mantém comportamento
   // anterior). Quando OFF, só game audio (tiros/passos/voice/bomb beep)
   // toca no MP4 final.
@@ -372,6 +386,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         scoreboardEnabled,                                  // Fase 1.27 toggle
         killFlashEnabled,                                   // Sprint #6.1 toggle
         bombTimerEnabled,                                   // Sprint #6.2 toggle
+        trackVariantIndex,                                  // Sprint #6.4 picker
       };
       try {
         await startLocalRender({
@@ -971,7 +986,12 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                 return (
                   <button
                     key={m.id}
-                    onClick={() => setMood(m.id)}
+                    onClick={() => {
+                      setMood(m.id);
+                      // Sprint #6.4 — reset variant ao trocar mood pra
+                      // evitar índice fora do range de tracks do novo mood.
+                      setTrackVariantIndex(0);
+                    }}
                     disabled={dimmed}
                     style={{
                       padding: "14px 16px",
@@ -995,6 +1015,55 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                 );
               })}
             </div>
+
+            {/* Sprint #6.4 — variant picker. Só aparece quando mood tem >1
+                track e música está habilitada. Layout: linha de pills
+                horizontal abaixo do mood grid. */}
+            {musicEnabled && MOOD_VARIANTS[mood] && MOOD_VARIANTS[mood].length > 1 && (
+              <div style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                background: "#16213E",
+                border: "1px solid #2D2D44",
+                borderRadius: 10,
+              }}>
+                <div style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.5)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                }}>
+                  Variante da trilha
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {MOOD_VARIANTS[mood].map((v, idx) => {
+                    const isActive = trackVariantIndex === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setTrackVariantIndex(idx)}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: 999,
+                          border: isActive ? `1px solid ${MOODS.find((m) => m.id === mood)?.color || "#FF6B35"}` : "1px solid #2D2D44",
+                          background: isActive ? `${MOODS.find((m) => m.id === mood)?.color || "#FF6B35"}1F` : "transparent",
+                          color: isActive ? "#fff" : "rgba(255,255,255,0.6)",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {v.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Round 4c Fase 1.17 — toggle música. Game audio (tiros/passos/voice)
                 sempre presente (não-toggleable per Mathieu spec). Só a trilha mood
