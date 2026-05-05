@@ -96,24 +96,44 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
   }
 
   if (phase === "error" || !match) {
+    // Detect 404 — endpoint não existe → client antigo (< v0.6.16).
+    // Sprint #7 Phase 7.3 endpoint só existe em v0.6.16+.
+    const is404 = error?.includes("404") || error?.includes("Not Found");
+
     return (
       <section style={{ paddingTop: 110, paddingBottom: 60, paddingLeft: 24, paddingRight: 24 }}>
         <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>{is404 ? "⬆️" : "⚠️"}</div>
           <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>
-            Não consegui mapear as plays
+            {is404 ? "Atualize o FragReel" : "Não consegui mapear as plays"}
           </h1>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 8, lineHeight: 1.5 }}>
-            Algo deu errado parseando a demo ou consultando o scorer.
-          </p>
-          {error && (
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", marginBottom: 24, padding: "10px 14px", background: "#1A1A2E", borderRadius: 8, maxWidth: 480, margin: "0 auto 24px" }}>
-              {error}
+          {is404 ? (
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 24, lineHeight: 1.6, maxWidth: 480, margin: "0 auto 24px" }}>
+              Esse fluxo (Pro Demo Render) precisa do FragReel <b>v0.6.16</b> ou mais novo.
+              Baixe a versão mais recente abaixo.
             </p>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 8, lineHeight: 1.5 }}>
+                Algo deu errado parseando a demo ou consultando o scorer.
+              </p>
+              {error && (
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace", marginBottom: 24, padding: "10px 14px", background: "#1A1A2E", borderRadius: 8, maxWidth: 480, margin: "0 auto 24px" }}>
+                  {error}
+                </p>
+              )}
+            </>
           )}
-          <Link href={`/demo/${sha}`} className="btn-secondary" style={{ padding: "10px 22px", fontSize: 13, textDecoration: "none" }}>
-            ← Voltar
-          </Link>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            {is404 && (
+              <a href="/download" download="FragReel.exe" className="btn-primary" style={{ padding: "10px 22px", fontSize: 13, textDecoration: "none" }}>
+                ⬇ Baixar v0.6.16+
+              </a>
+            )}
+            <Link href={`/demo/${sha}`} className="btn-secondary" style={{ padding: "10px 22px", fontSize: 13, textDecoration: "none" }}>
+              ← Voltar
+            </Link>
+          </div>
         </div>
       </section>
     );
