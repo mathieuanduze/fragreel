@@ -4,15 +4,11 @@
  * Sprint #5 Phase B — Roster picker pra "render qualquer player".
  *
  * Mostra os 10 players da demo (top fragger primeiro) com kills/HS/team.
- * User clica num player → manda pra fluxo de render passando user_steamid64
- * + user_player_name como overrides (já suportado pelo client local).
+ * User clica num player → MVP placeholder (Phase C wire pending).
  *
- * MVP: roster picker + botão render direto (sem score plan customizado nem
- * highlight ranking — só passa player + render full demo).
- *
- * Futuro: chamar /api/score com player_steamid override pra obter highlights
- * scored, mostrar preview cards, deixar user escolher highlight ranks. Por
- * enquanto, click → render direto de toda a demo perspectiva do player.
+ * MVP shipped agora: roster picker visual + botão "Renderizar reel" que
+ * salva intent em sessionStorage + alert. Próximo sprint completa Phase C
+ * (custom score+render endpoint).
  */
 import { useEffect, useState } from "react";
 import {
@@ -188,31 +184,45 @@ export default function ProRosterClient({ sha }: { sha: string }) {
 }
 
 function ProRenderButton({ sha, player }: { sha: string; player: DemoRosterPlayer }) {
-  // MVP: por enquanto só "abrir match page" usando sha como id (web vai
-  // tratar como custom flow). Wire completo do render com user_steamid64
-  // override fica pra Phase C — precisa endpoint /score que aceite
-  // target_steamid + retornar highlights pro user picker → trigger render.
+  // Sprint #5 status: Phase A (roster endpoint) + Phase B (UI roster picker)
+  // shipped. Phase C (custom score+render endpoint) ainda em desenvolvimento.
   //
-  // Pra ship MVP, link redireciona pra existing /match/[id] que vai
-  // fallback pro local match doc se existir, ou mostra "match não encontrada".
-  // Phase C completa fecha essa loose end.
-  const playerSlug = (player.name || player.steamid).replace(/[^a-zA-Z0-9]/g, "");
+  // Phase C scope: novo endpoint `/demos/<sha>/render-pro` que internamente:
+  //   1. parseia .dem com target_steamid override (já suportado)
+  //   2. POST eventos pra /api/score com player_steamid=target_steamid
+  //   3. recebe highlights scored
+  //   4. monta render plan + spawna render via render_coordinator
+  //   5. retorna render session pra web mostrar progress
+  // Plus UI: web mostra preview cards dos highlights antes de render +
+  // mood/orientation/xray pickers + AdModal pra render flow.
+  // Esforço Phase C: ~3-4h.
+  const [pending, setPending] = useState(false);
   return (
     <button
       onClick={() => {
-        // Stash the override in sessionStorage, redirect to render flow.
-        // Match page lê isso e injeta no payload do /render.
-        sessionStorage.setItem("fragreel:pro:override", JSON.stringify({
+        setPending(true);
+        // MVP placeholder honest: salva intent + avisa user.
+        sessionStorage.setItem("fragreel:pro:intent", JSON.stringify({
           sha,
           target_steamid: player.steamid,
-          target_name: player.name || playerSlug,
+          target_name: player.name,
+          picked_at: Date.now(),
         }));
-        window.location.href = `/match/${sha}?pro=1`;
+        alert(
+          `Selecionado: ${player.name || player.steamid}\n\n` +
+          `Phase C (render flow) em desenvolvimento.\n` +
+          `Roster picker já registra o player escolhido.\n\n` +
+          `Próxima sprint conecta: parse → score com target_steamid → ` +
+          `render via local client.\n\n` +
+          `Por hora, intent salvo em sessionStorage pra debug.`
+        );
+        setPending(false);
       }}
+      disabled={pending}
       className="btn-primary"
-      style={{ padding: "12px 24px", fontSize: 14 }}
+      style={{ padding: "12px 24px", fontSize: 14, opacity: pending ? 0.6 : 1 }}
     >
-      Renderizar reel ▶
+      {pending ? "..." : "Renderizar reel ▶"}
     </button>
   );
 }
