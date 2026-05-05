@@ -4,3 +4,9 @@ pydantic==2.9.2
 python-multipart==0.0.12
 demoparser2>=0.41.0
 PyJWT>=2.8.0
+# Sprint #4 R2 Storage Migration (05/05): match docs persistem em
+# Cloudflare R2 (S3-compatible) em vez de filesystem efêmero do
+# Railway. boto3 cliente padrão, ~10 MB. Activates quando env vars
+# R2_BUCKET + R2_ACCESS_KEY_ID + R2_SECRET_ACCESS_KEY + R2_ACCOUNT_ID
+# todas presentes; senão fallback filesystem (dev local).
+boto3>=1.35.0
