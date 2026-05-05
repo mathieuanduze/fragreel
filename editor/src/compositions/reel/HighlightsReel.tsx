@@ -78,6 +78,8 @@ export const HighlightsReel: React.FC<ReelProps> = ({
   playerName,
   musicEnabled,
   scoreboardEnabled,
+  killFlashEnabled,
+  bombTimerEnabled,
 }) => {
   const moodDef = MOODS[mood];
 
@@ -111,6 +113,8 @@ export const HighlightsReel: React.FC<ReelProps> = ({
           mood={mood}
           index={i}
           showScoreboard={scoreboardEnabled !== false}
+          killFlashEnabled={killFlashEnabled === true}
+          bombTimerEnabled={bombTimerEnabled === true}
         />
       </Sequence>
     );

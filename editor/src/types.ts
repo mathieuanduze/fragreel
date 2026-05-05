@@ -123,6 +123,14 @@ export type ReelProps = {
   // (fallback Fase 1.21 estático). User opt-out pra estilo "puro POV
   // sem HUD overlays" via UI toggle.
   scoreboardEnabled?: boolean;
+  // Sprint #6.1 (05/05) — Kill flash effects toggle. Quando true, dispara
+  // flash branco + leve scale pulse no momento de cada kill (~0.3s),
+  // valoriza visualmente o impacto. Default false (off — opt-in pelo user).
+  killFlashEnabled?: boolean;
+  // Sprint #6.2 (05/05) — Bomb timer red bar topo do vídeo. Default false.
+  // Aparece só durante highlights com plant ativo (40s timer decrescendo
+  // do plant_tick até explosion). Igual broadcast Major.
+  bombTimerEnabled?: boolean;
 };
 
 export type CardProps = {

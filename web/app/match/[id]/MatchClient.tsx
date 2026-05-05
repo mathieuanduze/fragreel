@@ -172,6 +172,12 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
   // CT/T alive count + HP em tempo real, estilo placar HLTV). User opt-out
   // pra estilo "puro POV sem HUD overlays".
   const [scoreboardEnabled, setScoreboardEnabled] = useState<boolean>(true);
+  // Sprint #6.1 (05/05) — Kill flash effects. Default OFF (opt-in cinematic
+  // upgrade). Quando ativo, dispara flash branco/colorido a cada kill.
+  const [killFlashEnabled, setKillFlashEnabled] = useState<boolean>(false);
+  // Sprint #6.2 (05/05) — Bomb timer red bar. Default OFF. Aparece só em
+  // highlights com plant_won (40s timer Major-style topo do vídeo).
+  const [bombTimerEnabled, setBombTimerEnabled] = useState<boolean>(false);
   // vertical = TikTok/Reels (default); horizontal = YouTube/Twitch.
   // Card é sempre vertical (formato semântico do produto), backend força.
   const [orientation, setOrientation] = useState<Orientation>("vertical");
@@ -364,6 +370,8 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         orientation: orientation as "vertical" | "horizontal",
         musicEnabled,                                       // Fase 1.17 toggle
         scoreboardEnabled,                                  // Fase 1.27 toggle
+        killFlashEnabled,                                   // Sprint #6.1 toggle
+        bombTimerEnabled,                                   // Sprint #6.2 toggle
       };
       try {
         await startLocalRender({
@@ -1168,6 +1176,116 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
                     boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
                   }}
                 />
+              </button>
+            </div>
+
+            {/* Sprint #6.1 — Kill flash effects toggle. Default OFF
+                (cinematic upgrade opt-in). */}
+            <div style={{
+              marginTop: 12,
+              padding: "12px 14px",
+              borderRadius: 10,
+              background: "#16213E",
+              border: "1px solid #2D2D44",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
+                  {killFlashEnabled ? "⚡ Flash nas kills" : "🌑 Sem flash"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                  {killFlashEnabled
+                    ? "Flash visual estilizado a cada kill — valoriza o impacto, estilo fragmovie premium."
+                    : "Kills sem efeito visual extra — só a edição padrão."}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setKillFlashEnabled((v) => !v)}
+                aria-pressed={killFlashEnabled}
+                aria-label="Alternar flash nas kills"
+                style={{
+                  position: "relative",
+                  width: 48,
+                  height: 26,
+                  borderRadius: 13,
+                  border: "none",
+                  background: killFlashEnabled ? "#FFD700" : "#2D2D44",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                  padding: 0,
+                }}
+              >
+                <div style={{
+                  position: "absolute",
+                  top: 3,
+                  left: killFlashEnabled ? 25 : 3,
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "white",
+                  transition: "left 0.15s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                }} />
+              </button>
+            </div>
+
+            {/* Sprint #6.2 — Bomb timer red bar toggle. Default OFF.
+                Aparece só em rounds com plant_won (CS2 fuse 40s). */}
+            <div style={{
+              marginTop: 12,
+              padding: "12px 14px",
+              borderRadius: 10,
+              background: "#16213E",
+              border: "1px solid #2D2D44",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
+                  {bombTimerEnabled ? "💣 Bomb timer ativo" : "🚫 Sem bomb timer"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                  {bombTimerEnabled
+                    ? "Barra vermelha topo do vídeo decrescendo 40s pós-plant — estilo broadcast Major."
+                    : "Sem timer da bomba. Highlights com plant continuam mostrando notif nativa CS2."}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBombTimerEnabled((v) => !v)}
+                aria-pressed={bombTimerEnabled}
+                aria-label="Alternar bomb timer"
+                style={{
+                  position: "relative",
+                  width: 48,
+                  height: 26,
+                  borderRadius: 13,
+                  border: "none",
+                  background: bombTimerEnabled ? "#FF3B30" : "#2D2D44",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  flexShrink: 0,
+                  padding: 0,
+                }}
+              >
+                <div style={{
+                  position: "absolute",
+                  top: 3,
+                  left: bombTimerEnabled ? 25 : 3,
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "white",
+                  transition: "left 0.15s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                }} />
               </button>
             </div>
           </div>

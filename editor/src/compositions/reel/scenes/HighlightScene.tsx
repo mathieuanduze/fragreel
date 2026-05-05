@@ -29,6 +29,10 @@ type Props = {
   // Round 4c Fase 1.27 — toggle scoreboard (default true). User opt-out
   // via UI no match-page. Quando false, badge só mostra `#N` rank.
   showScoreboard?: boolean;
+  // Sprint #6.1 (05/05) — flash branco + scale pulse no momento de cada kill.
+  killFlashEnabled?: boolean;
+  // Sprint #6.2 (05/05) — bomb timer red bar topo (40s plant→explosion).
+  bombTimerEnabled?: boolean;
 };
 
 /**
@@ -40,7 +44,14 @@ type Props = {
  *   2. Scanlines, flash de impacto, gradient overlays (linguagem visual).
  *   3. Rank badge, label, kill feed (HUD overlays).
  */
-export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showScoreboard = true }) => {
+export const HighlightScene: React.FC<Props> = ({
+  highlight,
+  mood,
+  index,
+  showScoreboard = true,
+  killFlashEnabled = false,
+  bombTimerEnabled = false,
+}) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames, width, height } = useVideoConfig();
   const moodDef = MOODS[mood];
@@ -121,10 +132,52 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
   const dynamicAliveT = aliveResolved.alive_t;
   const dynamicHp = lastKill?.attacker_health ?? null;
 
-  // Flash branco no frame 0 (impacto)
+  // Flash branco no frame 0 (impacto inicial da scene)
   const flash = interpolate(frame, [0, 4, 8], [1, 0.3, 0], {
     extrapolateRight: "clamp",
   });
+
+  // Sprint #6.1 — Kill flash effect: dispara flash branco intenso em cada
+  // kill timestamp do scene quando killFlashEnabled=true. Computa o flash
+  // value max em cima de TODOS os kill frames (multiple kills near each
+  // other → flash sustained). Decay 6 frames (200ms @30fps).
+  const killFlashIntensity = killFlashEnabled
+    ? Math.max(
+        0,
+        ...killTimings.map((t) => {
+          const kFrame = s2f(t.sceneTime);
+          return interpolate(frame - kFrame, [0, 2, 6], [0.85, 0.5, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          });
+        }),
+      )
+    : 0;
+
+  // Sprint #6.2 — Bomb timer red bar (Major-style). CS2 bomb explode 40s
+  // pós-plant. Mostra barra decrescendo do plant até explosion ou defuse.
+  //
+  // MVP: só plant_won case (bomb_action_timestamp = plant tick). Pra defuse
+  // round, bomb_action_timestamp é o defuse tick (NÃO plant tick) — mostrar
+  // bar decrescendo precisa plant_tick separado, backend não expõe ainda.
+  // Backlog Sprint #6.2.1: adicionar plant_tick em HighlightOut pra defuse.
+  const BOMB_FUSE_TIME_SEC = 40.0;
+  const showBombBar =
+    bombTimerEnabled &&
+    highlight.bomb_action === "plant_won" &&
+    typeof highlight.bomb_action_timestamp === "number";
+  // Plant time relative to scene
+  const plantSceneTime = showBombBar
+    ? (highlight.bomb_action_timestamp! - refStartSec(highlight) - sceneSkipSec) / Math.max(0.01, gameplayRate)
+    : -1;
+  const sceneTimeNow = frame / fps;
+  // Fraction remaining (1.0 at plant → 0.0 at 40s post-plant). Bar disappears
+  // before plant happens (sceneTime < plantSceneTime) AND after explosion.
+  const bombFraction = showBombBar
+    ? Math.max(0, Math.min(1, 1 - (sceneTimeNow - plantSceneTime) / BOMB_FUSE_TIME_SEC))
+    : 0;
+  const bombSecondsLeft = Math.max(0, BOMB_FUSE_TIME_SEC * bombFraction);
+  const bombBarVisible = showBombBar && sceneTimeNow >= plantSceneTime && bombFraction > 0;
 
   // Rank badge (#1, #2, #3) entra com spring
   const rankSpring = spring({
@@ -390,7 +443,7 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
         </AbsoluteFill>
       )}
 
-      {/* Flash de impacto */}
+      {/* Flash de impacto inicial (frame 0 da cena) */}
       <AbsoluteFill
         style={{
           background: "white",
@@ -398,6 +451,20 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
           pointerEvents: "none",
         }}
       />
+
+      {/* Sprint #6.1 — Kill flash effect (per-kill flash quando opt-in).
+          Layer separada do flash inicial pra empilhar sem conflito.
+          Cor mood-specific pra evitar flash branco genérico. */}
+      {killFlashEnabled && killFlashIntensity > 0.001 && (
+        <AbsoluteFill
+          style={{
+            background: `radial-gradient(circle at center, ${moodDef.color}66 0%, transparent 70%), white`,
+            opacity: killFlashIntensity,
+            pointerEvents: "none",
+            mixBlendMode: "screen",
+          }}
+        />
+      )}
 
       {/* Gradient overlay top + bottom */}
       <AbsoluteFill
@@ -414,6 +481,81 @@ export const HighlightScene: React.FC<Props> = ({ highlight, mood, index, showSc
           Plus #N rank badge removido (sem utilidade pro user) — espaço
           reaproveitado pra watermark fragreel.gg no top-left (atrai
           outros users a saber como foi gerado). */}
+      {/* Sprint #6.2 — Bomb timer red bar (Major-style). Top center.
+          Fica acima do scoreboard pra não conflitar. Animação smooth via
+          fração calc per-frame. Pulse vermelho intensifica nos últimos 5s. */}
+      {bombBarVisible && (() => {
+        const isCritical = bombSecondsLeft < 5;
+        const pulseAlpha = isCritical
+          ? 0.85 + 0.15 * Math.sin((frame * Math.PI) / 6) // 5Hz pulse
+          : 1.0;
+        const barWidth = isHorizontal ? 520 : 600;
+        return (
+          <div style={{
+            position: "absolute",
+            top: isHorizontal ? 14 : 22,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: barWidth,
+            maxWidth: "70%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 4,
+            pointerEvents: "none",
+            zIndex: 5,
+            opacity: pulseAlpha,
+          }}>
+            {/* Label "BOMB" + tempo */}
+            <div style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 8,
+              fontFamily: theme.fontDisplay,
+            }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: "#FF3B30",
+                letterSpacing: "0.18em",
+                textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+              }}>
+                💣 BOMB
+              </span>
+              <span style={{
+                fontSize: 14,
+                fontWeight: 900,
+                color: isCritical ? "#FF3B30" : "white",
+                fontVariantNumeric: "tabular-nums",
+                textShadow: "0 1px 4px rgba(0,0,0,0.85)",
+              }}>
+                0:{Math.ceil(bombSecondsLeft).toString().padStart(2, "0")}
+              </span>
+            </div>
+            {/* Bar */}
+            <div style={{
+              width: "100%",
+              height: 6,
+              borderRadius: 3,
+              background: "rgba(0,0,0,0.55)",
+              border: "1px solid rgba(255,59,48,0.4)",
+              overflow: "hidden",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            }}>
+              <div style={{
+                width: `${bombFraction * 100}%`,
+                height: "100%",
+                background: isCritical
+                  ? "linear-gradient(90deg, #FF3B30 0%, #FF6B35 100%)"
+                  : "linear-gradient(90deg, #C82018 0%, #FF3B30 100%)",
+                transition: "width 0.05s linear",
+                boxShadow: isCritical ? "0 0 8px rgba(255,59,48,0.7)" : "none",
+              }} />
+            </div>
+          </div>
+        );
+      })()}
+
       {showScoreboard && hasScoreboardContext && (
         <div
           style={{
