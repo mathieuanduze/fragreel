@@ -161,7 +161,26 @@ function heroBadgeAccent(h: HighlightOut): string {
   return `${hero.fg}80`;
 }
 
-export default function MatchClient({ match: initialMatch }: { match: MatchOut }) {
+/**
+ * MatchClient props.
+ *
+ * Sprint #7 Phase 7.4 (05/05) — adicionado optional `targetSteamid` +
+ * `targetName` pra reusar este component no fluxo /demo/[sha]/render
+ * (Pro Demo Render). Quando setados, override session.user.steamid e
+ * session.user.name no payload do /render.
+ *
+ * Backwards-compat: ambos opcionais. Quando ausentes, comportamento idêntico
+ * ao Sprint I.5 (user logado é o player do reel).
+ */
+interface MatchClientProps {
+  match: MatchOut;
+  /** Sprint #7 Phase 7.4 — override session steamid (Pro Demo Render). */
+  targetSteamid?: string;
+  /** Sprint #7 Phase 7.4 — override session name (Pro Demo Render). */
+  targetName?: string;
+}
+
+export default function MatchClient({ match: initialMatch, targetSteamid, targetName }: MatchClientProps) {
   const [match, setMatch] = useState(initialMatch);
   const [format, setFormat] = useState("reel");
   // Pré-seleção: respeita o cap do formato inicial (reel = 5)
@@ -369,7 +388,13 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
       // o name in-game do parser e expõe em match.player_name. Web prefere
       // esse, com fallback no Steam display name pra demos antigas.
       const user = getUser();
-      const inGameName = match.player_name || user?.name || undefined;
+      // Sprint #7 Phase 7.4 — override Pro Demo Render flow. Quando
+      // targetSteamid/targetName presentes (vindos de /demo/[sha]/render),
+      // user logado pode estar renderizando perspective de OUTRO player
+      // (ex: NiKo). Override session pra que HLAE camera lock + scorer
+      // filtrem pelo target, não pelo logged user.
+      const effectiveSteamid = targetSteamid || user?.steamid || undefined;
+      const inGameName = targetName || match.player_name || user?.name || undefined;
       // Round 4c Fase 1.6 (Bug PC test 26/04): full ReelProps payload
       // pro Remotion compositor. Sem isso, hlae_runner passa base_props={}
       // → composition cai em defaultProps (MOCK_REEL_PROPS = Dust2/mathieu
@@ -392,7 +417,7 @@ export default function MatchClient({ match: initialMatch }: { match: MatchOut }
         await startLocalRender({
           demo_path: localDemo.demo_path,
           segments,
-          user_steamid64: user?.steamid || undefined,
+          user_steamid64: effectiveSteamid,
           user_player_name: inGameName,
           reel_props: reelProps,
           // Round 4c Fase 1.21 — x-ray opt-in (capture-side cvar).

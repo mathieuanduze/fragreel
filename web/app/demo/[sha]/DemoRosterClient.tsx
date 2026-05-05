@@ -175,10 +175,9 @@ export default function DemoRosterClient({ sha }: { sha: string }) {
 }
 
 function MapearPlaysButton({ sha, player }: { sha: string; player: DemoRosterPlayer }) {
-  // Sprint #7 Phase 7.2 — MVP atual: salva intent + alert. Phase 7.3+ vai
-  // wire o flow completo: Ad 30s → POST /demos/<sha>/score com
-  // target_steamid → highlights → user picks ranks → render via /render
-  // com user_steamid64 + user_player_name overrides.
+  // Sprint #7 Phase 7.3+ shipped (05/05): redirect pra /demo/[sha]/render
+  // que dispara o flow completo (Ad → score override → highlights → render).
+  // sessionStorage carrega o player pickado pra a render page consumir.
   const [pending, setPending] = useState(false);
   return (
     <button
@@ -190,17 +189,13 @@ function MapearPlaysButton({ sha, player }: { sha: string; player: DemoRosterPla
           target_name: player.name,
           picked_at: Date.now(),
         }));
-        alert(
-          `Player escolhido: ${player.name || player.steamid}\n\n` +
-          `Phase 7.3 (fluxo Ad → score → highlights → render) em desenvolvimento.\n\n` +
-          `Próxima sprint conecta:\n` +
-          `1. Ad 30s enquanto demo é parseada + scoreada\n` +
-          `2. Highlights aparecem pra você escolher\n` +
-          `3. "Gerar FragReel" → render com perspectiva do ${player.name}\n` +
-          `4. Ad final → download MP4\n\n` +
-          `Por enquanto, intent salvo em sessionStorage pra debug.`
-        );
-        setPending(false);
+        // Encoda steamid + nome no URL pra deep-link works mesmo se
+        // sessionStorage limpou. nome pode ter espaços/acentos → encodeURIComponent.
+        const params = new URLSearchParams({
+          steamid: player.steamid,
+          name: player.name ?? `Player ${player.steamid.slice(-6)}`,
+        });
+        window.location.href = `/demo/${sha}/render?${params.toString()}`;
       }}
       disabled={pending}
       className="btn-primary"

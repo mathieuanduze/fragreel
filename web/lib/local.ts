@@ -151,6 +151,20 @@ export async function getDemoRoster(sha: string): Promise<DemoRosterResponse> {
   return fetchLocal<DemoRosterResponse>(`/demos/${sha}/roster`);
 }
 
+// Sprint #7 Phase 7.3 — score demo arbitrária com target_steamid.
+// Returns match_doc no schema de /matches/<id>. Use pra fluxo unified de
+// render de player arbitrário (Pro demo flow).
+export async function scoreDemoForPlayer(
+  sha: string,
+  target_steamid: string,
+): Promise<unknown> {
+  // Returns match_doc — schema flexível, web casts pra MatchOut quando precisa.
+  return fetchLocal<unknown>(`/demos/${sha}/score`, {
+    method: "POST",
+    body: JSON.stringify({ target_steamid }),
+  });
+}
+
 /**
  * Round 4d field follow-up (Mathieu PC test 04/05): race condition
  * "primeiro click no Render → modal 'Não achei a demo'". Causa: `/demos`
