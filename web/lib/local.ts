@@ -159,8 +159,11 @@ export async function scoreDemoForPlayer(
   target_steamid: string,
 ): Promise<unknown> {
   // Returns match_doc — schema flexível, web casts pra MatchOut quando precisa.
+  // Content-Type explicit: sem ele, Flask request.get_json() retorna None
+  // → body vazio → backend rejeita com target_steamid_required.
   return fetchLocal<unknown>(`/demos/${sha}/score`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target_steamid }),
   });
 }
