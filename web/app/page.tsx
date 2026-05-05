@@ -96,6 +96,25 @@ export default async function Home() {
               Entrar com Steam →
             </Link>
           </div>
+
+          {/* Sprint #5 — Pro demo entry point */}
+          <div style={{ marginTop: 18 }}>
+            <Link href="/pro" style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 16px",
+              border: "1px solid rgba(255,107,53,0.3)",
+              borderRadius: 999,
+              fontSize: 12,
+              color: "#FF6B35",
+              fontWeight: 600,
+              textDecoration: "none",
+              letterSpacing: "0.02em",
+            }}>
+              ✨ NOVO · Renderize reel de pro player →
+            </Link>
+          </div>
         </div>
       </section>
 

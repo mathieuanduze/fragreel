@@ -126,6 +126,31 @@ export async function getLocalDemos(refresh = false): Promise<LocalDemosResponse
   return fetchLocal<LocalDemosResponse>(`/demos${refresh ? "?refresh=1" : ""}`);
 }
 
+// Sprint #5 — Pro Demo Render
+// Roster de uma demo qualquer (não só matchmaking history). Pra UX
+// "render reel de pro player": user baixa .dem de HLTV/CSGOStats,
+// coloca em replays/, escolhe qual jogador renderizar.
+export interface DemoRosterPlayer {
+  steamid: string;
+  name: string | null;
+  team: number | null; // 2=T, 3=CT, null=indeterminado
+  kills: number;
+  headshots: number;
+  deaths: number;
+}
+export interface DemoRosterResponse {
+  sha: string;
+  match_id: string | null;
+  map_name: string;
+  ct_score: number;
+  t_score: number;
+  tickrate: number;
+  roster: DemoRosterPlayer[];
+}
+export async function getDemoRoster(sha: string): Promise<DemoRosterResponse> {
+  return fetchLocal<DemoRosterResponse>(`/demos/${sha}/roster`);
+}
+
 /**
  * Round 4d field follow-up (Mathieu PC test 04/05): race condition
  * "primeiro click no Render → modal 'Não achei a demo'". Causa: `/demos`
