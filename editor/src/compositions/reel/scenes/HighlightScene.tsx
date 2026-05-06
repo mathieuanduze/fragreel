@@ -141,55 +141,103 @@ export const HighlightScene: React.FC<Props> = ({
     extrapolateRight: "clamp",
   });
 
-  // Sprint Aesthetic (06/05) — Visual styles SELETIVOS por kill:
-  // Mathieu spec: "minha intenção é que apareça o estilo visual só nas
-  // kills esteticamente mais bonitas, pois em todas as kills, pode ser
-  // que fique cansativo".
+  // Sprint Aesthetic V2 (06/05) — Visual styles CINEMATIC, não flash.
   //
-  // Mudança vs Sprint #6.1 (kill flash all-kills):
-  //   - Antes: killFlashEnabled = ON → flash em TODA kill.
-  //   - Agora: kills com `aesthetic_style` set recebem flash COR-ESPECÍFICA
-  //     baseado no estilo (noscope=dourado, knife=quente, wallbang=branco,
-  //     smoke=azul, blind=branco overpower, flick=laranja). Kills sem
-  //     style ficam sem efeito visual.
+  // Mathieu spec round 2: "as flashes tão parecendo muito flashes do
+  // próprio jogo, como se o adversário tivesse jogado flashes". Flash
+  // branco/colorido full-screen confunde com flashbang in-game. Substituí
+  // por combo CLEARLY editorial:
+  //   1. Style LABEL popup centro ("NO SCOPE", "WALLBANG", etc) com
+  //      pop-in scale + fade (~700ms). Major-style highlight callout.
+  //   2. VIGNETTE pulse colorido (escurecido nos cantos, focus ao centro)
+  //      — não wash, é darken seletivo.
+  //   3. BORDER accent (corner brackets) na cor do estilo, pulse breve.
+  //   4. Slow-mo opcional: kills com style ganham playbackRate dip via
+  //      Sequence externa (HighlightsReel layer level).
+  //
+  // Nenhum elemento É flash branco full-screen → não confunde com gameplay.
   //
   // Threshold é gerenciado pelo scorer (aesthetic_score >= threshold seta
   // style). Editor é dumb consumer — só renderiza o que vier.
-  //
-  // Backwards compat: `killFlashEnabled` toggle ainda funciona como
-  // master gate (UI marcado "em breve" mas backend ON quando user re-
-  // enable). Default false → no effect, mesmo com aesthetic_style set.
-  // Quando true → effects renderizados conforme style.
   const STYLE_COLORS: Record<string, string> = {
-    noscope:  "rgba(255, 215, 0, 0.95)",   // dourado
-    knife:    "rgba(255, 140, 60, 0.85)",  // laranja quente
-    wallbang: "rgba(255, 255, 255, 0.95)", // branco x-ray
-    smoke:    "rgba(120, 180, 255, 0.90)", // azul claro
-    blind:    "rgba(255, 255, 255, 1.0)",  // branco overpower
-    flick:    "rgba(255, 107, 53, 0.90)",  // laranja FragReel
+    noscope:  "#FFD700", // dourado
+    knife:    "#FF8C3C", // laranja quente
+    wallbang: "#E8E8FF", // branco azulado x-ray
+    smoke:    "#78B4FF", // azul claro
+    blind:    "#FFFFFF", // branco
+    flick:    "#FF6B35", // laranja FragReel
   };
 
-  // Compute flash intensity + color from active styled kill (max nas
-  // overlapping styled kills, mas raramente overlap em < 12 frames).
-  let killFlashIntensity = 0;
-  let killFlashColor = STYLE_COLORS.flick;
+  const STYLE_LABELS: Record<string, string> = {
+    noscope:  "NO SCOPE",
+    knife:    "BACKSTAB",
+    wallbang: "WALLBANG",
+    smoke:    "THROUGH SMOKE",
+    blind:    "BLIND KILL",
+    flick:    "ONE TAP",
+  };
+
+  /** Find the active styled kill near current frame (within effect window).
+   *  Returns the kill + style + frame-delta pra computar progress. */
+  type ActiveStyleEvent = {
+    style: string;
+    label: string;
+    color: string;
+    delta: number; // frames since kill moment (0 = exact kill frame)
+    progress: number; // 0..1 normalized within effect window (40 frames ~1.3s)
+  };
+  let activeStyle: ActiveStyleEvent | null = null;
   if (killFlashEnabled) {
+    const EFFECT_WINDOW_FRAMES = 40; // 1.33s @ 30fps total cinematic window
+    const PRE_FRAMES = 4; // 0.13s antes da kill: label começa a aparecer
     for (const t of killTimings) {
       const style = (t.kill as Kill).aesthetic_style;
-      if (!style) continue; // skip kills sem style
+      if (!style) continue;
       const kFrame = s2f(t.sceneTime);
       const delta = frame - kFrame;
-      if (delta < 0 || delta > 12) continue;
-      const intensity = interpolate(delta, [0, 2, 12], [0.95, 0.7, 0], {
-        extrapolateLeft: "clamp",
-        extrapolateRight: "clamp",
-      });
-      if (intensity > killFlashIntensity) {
-        killFlashIntensity = intensity;
-        killFlashColor = STYLE_COLORS[style] ?? STYLE_COLORS.flick;
+      if (delta < -PRE_FRAMES || delta > EFFECT_WINDOW_FRAMES) continue;
+      // Mais perto da kill = mais "ativo" (pra escolher entre overlapping)
+      if (activeStyle === null || Math.abs(delta) < Math.abs(activeStyle.delta)) {
+        const progress = (delta + PRE_FRAMES) / (EFFECT_WINDOW_FRAMES + PRE_FRAMES);
+        activeStyle = {
+          style,
+          label: STYLE_LABELS[style] ?? "HIGHLIGHT",
+          color: STYLE_COLORS[style] ?? STYLE_COLORS.flick,
+          delta,
+          progress: Math.max(0, Math.min(1, progress)),
+        };
       }
     }
   }
+
+  // Vignette intensity: peak at kill moment, decay smoothly
+  const vignetteIntensity = activeStyle
+    ? interpolate(
+        activeStyle.delta,
+        [-4, 0, 8, 30],
+        [0, 0.85, 0.55, 0],
+        { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+      )
+    : 0;
+
+  // Label popup: spring-style scale + fade
+  const labelOpacity = activeStyle
+    ? interpolate(activeStyle.delta, [-4, 0, 20, 36], [0, 1, 1, 0], {
+        extrapolateLeft: "clamp", extrapolateRight: "clamp",
+      })
+    : 0;
+  const labelScale = activeStyle
+    ? interpolate(activeStyle.delta, [-4, 0, 4, 36], [0.6, 1.15, 1.0, 1.0], {
+        extrapolateLeft: "clamp", extrapolateRight: "clamp",
+      })
+    : 1;
+
+  // Border accent: pulse na kill, fade out
+  const borderIntensity = activeStyle
+    ? interpolate(activeStyle.delta, [-2, 0, 12, 28], [0, 1, 0.6, 0], {
+        extrapolateLeft: "clamp", extrapolateRight: "clamp",
+      })
+    : 0;
 
   // Sprint #6.2 — Bomb timer red bar (Major-style). CS2 bomb explode 40s
   // pós-plant. Mostra barra decrescendo do plant até explosion ou defuse.
@@ -495,20 +543,90 @@ export const HighlightScene: React.FC<Props> = ({
         }}
       />
 
-      {/* Sprint Aesthetic (06/05) — Style-specific flash, per-kill.
-          Cor vem de `aesthetic_style` do scorer (noscope=dourado,
-          knife=quente, wallbang=branco, smoke=azul, blind=branco
-          overpower, flick=laranja FragReel). Kills sem style não
-          renderizam flash (anti-fadiga). */}
-      {killFlashEnabled && killFlashIntensity > 0.001 && (
+      {/* Sprint Aesthetic V2 (06/05) — Visual styles CINEMATIC.
+          3 layers per styled kill, NÃO flash branco (que confundia com
+          flashbang in-game per Mathieu spec):
+            (a) VIGNETTE pulse: darken nos cantos com tinta da cor do style,
+                gradient transparent no centro → mantém visual do gameplay
+                claro mas FOCA atenção. Visualmente é "câmera fechando".
+            (b) BORDER ACCENT corners: 4 cantos com bracket grosso em cor
+                do style, pulse na kill, fade out.
+            (c) LABEL POPUP center: texto "NO SCOPE", "WALLBANG", etc com
+                scale+fade entrance, persistente ~700ms, fade out.
+          Kills sem style: NADA renderizado (anti-fadiga). */}
+      {activeStyle && vignetteIntensity > 0.01 && (
         <AbsoluteFill
           style={{
-            background: `radial-gradient(circle at center, ${killFlashColor} 0%, transparent 70%)`,
-            opacity: killFlashIntensity,
+            background: `radial-gradient(ellipse at center, transparent 30%, ${activeStyle.color}88 90%)`,
+            opacity: vignetteIntensity,
             pointerEvents: "none",
-            mixBlendMode: "screen",
+            mixBlendMode: "multiply",
           }}
         />
+      )}
+      {activeStyle && borderIntensity > 0.01 && (
+        <AbsoluteFill style={{ pointerEvents: "none", opacity: borderIntensity }}>
+          {/* 4 corner brackets — top-left, top-right, bottom-left, bottom-right */}
+          {[
+            { top: 24, left: 24, borderTop: 4, borderLeft: 4 },
+            { top: 24, right: 24, borderTop: 4, borderRight: 4 },
+            { bottom: 24, left: 24, borderBottom: 4, borderLeft: 4 },
+            { bottom: 24, right: 24, borderBottom: 4, borderRight: 4 },
+          ].map((pos, i) => {
+            const { borderTop, borderLeft, borderRight, borderBottom, ...positioning } = pos;
+            return (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  ...positioning,
+                  width: 80,
+                  height: 80,
+                  borderColor: activeStyle.color,
+                  borderStyle: "solid",
+                  borderWidth: 0,
+                  borderTopWidth: borderTop ?? 0,
+                  borderLeftWidth: borderLeft ?? 0,
+                  borderRightWidth: borderRight ?? 0,
+                  borderBottomWidth: borderBottom ?? 0,
+                  boxShadow: `0 0 24px ${activeStyle.color}`,
+                }}
+              />
+            );
+          })}
+        </AbsoluteFill>
+      )}
+      {activeStyle && labelOpacity > 0.01 && (
+        <AbsoluteFill
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              transform: `scale(${labelScale})`,
+              opacity: labelOpacity,
+              padding: "14px 32px",
+              background: "rgba(0,0,0,0.65)",
+              backdropFilter: "blur(6px)",
+              border: `2px solid ${activeStyle.color}`,
+              borderRadius: 12,
+              fontSize: isHorizontal ? 42 : 56,
+              fontWeight: 900,
+              letterSpacing: "0.18em",
+              color: activeStyle.color,
+              fontFamily: theme.fontDisplay,
+              textShadow: `0 0 24px ${activeStyle.color}, 0 4px 12px rgba(0,0,0,0.8)`,
+              boxShadow: `0 0 40px ${activeStyle.color}80, 0 8px 24px rgba(0,0,0,0.6)`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {activeStyle.label}
+          </div>
+        </AbsoluteFill>
       )}
 
       {/* Gradient overlay top + bottom */}
@@ -968,17 +1086,15 @@ export const HighlightScene: React.FC<Props> = ({
         style={{
           position: "absolute",
           // Round 4d 3.4 (Mathieu 29/04): "Killcount invade o scoreboard
-          // (overflow visual)". Scoreboard agora MAIOR (Fase 1.29) +
-          // centralizado top, killfeed também maior + top-right. No vertical
-          // (1080w) scoreboard ocupa ~390-690px, killfeed maxWidth=620 com
-          // weapon name + KILL/HEADSHOT em fontSize 32 ocupa ~460-1040px →
-          // overlap em ~460-690. Fix: empurrar killfeed pra BAIXO do
-          // scoreboard. Scoreboard altura visual ~140-180px com HP bar →
-          // killfeed top em vertical = 60 → 220. Horizontal mantém 32 (lá
-          // largura permite layout side-by-side sem overlap).
-          // Regra de negócio: scoreboard prioritário (contexto round),
-          // killfeed acumulativo abaixo (cronologia kills).
-          top: isHorizontal ? 32 : 220,
+          // (overflow visual)". Killfeed pra baixo do scoreboard — top 220.
+          // 06/05 (Mathieu spec): "ticker do bomb está sobrepondo o primeiro
+          // kill do killfeed". Bomb timer ficou abaixo do scoreboard (top
+          // 180, height 14 + label ~22 = bottom ~216). Killfeed em 220
+          // ficava 4px abaixo — visualmente claustrofóbico + sombras
+          // sobrepunham. Fix: empurrar killfeed top 220 → 280 (60px breathing
+          // room abaixo do bomb timer). Horizontal mantém 32 (sem bomb timer
+          // colidir lá — layout side-by-side).
+          top: isHorizontal ? 32 : 280,
           right: isHorizontal ? 32 : 40,
           display: "flex",
           flexDirection: "column",
