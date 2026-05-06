@@ -15,9 +15,20 @@ type Props = {
 };
 
 /**
- * Intro — 2s
- * Fundo com gradiente, logo/player name, mapa e score.
- * Elementos entram com spring.
+ * Intro — 5s (06/05 bumpado de 3s).
+ *
+ * Mathieu spec: "frame de início com nome do jogador e stats... precisa
+ * ficar mais tempo, principalmente pra pessoa ler". Pré-Sprint: intro só
+ * tinha name + map + score + "HIGHLIGHTS" tagline. Sem K/D, HS%, ADR,
+ * RATING — Mathieu queria.
+ *
+ * Layout pós-fix:
+ *   0-30   (1.0s)  → badge "COUNTER-STRIKE 2" + nome aparece (spring)
+ *   6-36   (1.0s)  → mapa entra
+ *   12-42  (1.0s)  → score (round wins) entra
+ *   30-90  (2.0s)  → 4 stats em cascata (gap 8 frames entre cada — mesma
+ *                     lógica do Outro pra leitura sequencial confortável)
+ *   135-150 (0.5s) → fade out, transition pro highlight 1
  */
 export const Intro: React.FC<Props> = ({ match, playerName, mood }) => {
   const frame = useCurrentFrame();
@@ -45,6 +56,13 @@ export const Intro: React.FC<Props> = ({ match, playerName, mood }) => {
     config: { damping: 16, mass: 1 },
   });
 
+  // Stats em cascata (06/05) — mesma cadência do Outro, começando depois
+  // que name+map+score já settled. Stats começam em frame 30 (1s pós-início),
+  // gap 8 frames entre cada (~0.27s). Última stat lands em frame 30+24=54
+  // (~1.8s). Antes do fade out começar (durationInFrames - 15).
+  const statsStart = 30;
+  const statsGap = 8;
+
   // Fade out no último 0.5s
   const fadeOut = interpolate(
     frame,
@@ -52,6 +70,13 @@ export const Intro: React.FC<Props> = ({ match, playerName, mood }) => {
     [1, 0],
     { extrapolateRight: "clamp" }
   );
+
+  const stats = [
+    { label: "K/D", value: match.stats.kd, color: theme.text },
+    { label: "HS%", value: match.stats.hs, color: moodDef.color },
+    { label: "ADR", value: match.stats.adr, color: theme.text },
+    { label: "RATING", value: match.stats.rating, color: moodDef.color },
+  ];
 
   const mapName = match.map
     .replace("de_", "")
@@ -151,19 +176,65 @@ export const Intro: React.FC<Props> = ({ match, playerName, mood }) => {
           {match.score}
         </div>
 
-        {/* Tagline */}
+        {/* Stats grid (06/05) — K/D, HS%, ADR, RATING em cascata. Mesma
+            lógica visual do Outro pra coerência. Cada stat fade+slide-in
+            com gap de 8 frames pra leitura sequencial. */}
         <div
           style={{
-            marginTop: 20,
-            opacity: scoreSpring * 0.6,
-            fontSize: 28,
-            fontWeight: 600,
-            color: theme.textDim,
-            letterSpacing: "0.3em",
-            fontFamily: theme.fontDisplay,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            width: "78%",
+            marginTop: 12,
           }}
         >
-          HIGHLIGHTS
+          {stats.map((s, i) => {
+            const statSpring = spring({
+              frame: frame - (statsStart + i * statsGap),
+              fps,
+              config: { damping: 18, mass: 0.7 },
+            });
+            return (
+              <div
+                key={s.label}
+                style={{
+                  transform: `translateY(${(1 - statSpring) * 20}px)`,
+                  opacity: statSpring,
+                  padding: "12px 14px",
+                  background: `${theme.bg}cc`,
+                  border: `1px solid ${moodDef.color}30`,
+                  borderRadius: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: theme.textDim,
+                    letterSpacing: "0.15em",
+                    fontFamily: theme.fontMono,
+                  }}
+                >
+                  {s.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 36,
+                    fontWeight: 800,
+                    color: s.color,
+                    fontFamily: theme.fontDisplay,
+                    lineHeight: 1,
+                  }}
+                >
+                  {s.value}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </AbsoluteFill>
 
