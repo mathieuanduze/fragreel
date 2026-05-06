@@ -14,11 +14,13 @@
  *
  * Layout vertical 1080×1920:
  *   ┌─────────────────────────┐
- *   │ ZYWOO                   │  ← top-left zona
- *   │ fragreel.gg             │
- *   │                         │
  *   │  ●●●●○      ●●●●●       │  ← top-center: dots
  *   │  CT 4  14/30  5  T      │  ← scores + round
+ *   │                         │
+ *   │       GAMEPLAY          │
+ *   │                         │
+ *   │        ZYWOO            │  ← bottom-center stack
+ *   │      fragreel.gg        │
  *   └─────────────────────────┘
  *
  * Anti-fadiga: minimalista por design — só info essencial. Player name
@@ -79,37 +81,44 @@ export const HudV2: React.FC<HudV2Props> = ({
     config: { damping: 14, mass: 0.6 },
   });
 
-  // ── Top-Left: Player name + watermark ──────────────────────────────────
-  const topLeft = (
+  // ── Bottom-Center: Player name + watermark ────────────────────────────
+  // Mathieu spec round 2 (06/05): "mantenha o player name no bottom center
+  // e embaixo do player o watermark". Stack centralizado bottom (acima da
+  // safe area do TikTok/Reels que tipicamente tem 150-200px de UI controls
+  // bottom, então bottom: 240 vertical / 80 horizontal pra ficar visível
+  // mas não overlap com app UI).
+  // Animação: slide-up entry (vs slide-down do top-left antes).
+  const bottomCenter = (
     <div style={{
       position: "absolute",
-      top: isHorizontal ? 32 : 40,
-      left: isHorizontal ? 32 : 40,
-      transform: `translateY(${(1 - entrance) * -20}px)`,
+      bottom: isHorizontal ? 80 : 240,
+      left: "50%",
+      transform: `translateX(-50%) translateY(${(1 - entrance) * 20}px)`,
       opacity: entrance,
       display: "flex",
       flexDirection: "column",
+      alignItems: "center",
       gap: 4,
+      pointerEvents: "none",
     }}>
       <div style={{
-        fontSize: isHorizontal ? 32 : 40,
+        fontSize: isHorizontal ? 40 : 52,
         fontWeight: 900,
         color: theme.text,
         letterSpacing: "-0.01em",
         fontFamily: theme.fontDisplay,
-        textShadow: `0 2px 12px rgba(0,0,0,0.85), 0 0 24px ${moodDef.color}40`,
+        textShadow: `0 2px 12px rgba(0,0,0,0.9), 0 0 32px ${moodDef.color}50`,
         lineHeight: 1,
       }}>
         {playerName.toUpperCase()}
       </div>
       <div style={{
-        fontSize: isHorizontal ? 14 : 17,
+        fontSize: isHorizontal ? 16 : 20,
         fontWeight: 700,
         color: moodDef.color,
-        letterSpacing: "0.04em",
+        letterSpacing: "0.06em",
         fontFamily: theme.fontDisplay,
         textShadow: "0 2px 8px rgba(0,0,0,0.85)",
-        opacity: 0.9,
       }}>
         fragreel.gg
       </div>
@@ -280,8 +289,8 @@ export const HudV2: React.FC<HudV2Props> = ({
 
   return (
     <AbsoluteFill style={{ pointerEvents: "none" }}>
-      {topLeft}
       {topCenter}
+      {bottomCenter}
     </AbsoluteFill>
   );
 };
