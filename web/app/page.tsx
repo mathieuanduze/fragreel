@@ -83,16 +83,14 @@ export default async function Home() {
             Counter-Strike 2 · Exclusivo
           </div>
 
-          {/* H1 06/05 (Mathieu spec): "Em 3 segundos, o usuário deve
-              entender: Eu coloco meu link/arquivo e saio com um vídeo
-              pronto para o TikTok. Diferenciar do allstargg que é
-              processo manual. Aqui é tudo automático." */}
-          <h1 style={{ fontSize: "clamp(40px, 6.5vw, 76px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 20 }}>
-            Suas demos viram{" "}
-            <span style={{ color: "#FF6B35" }}>reels prontos</span>
+          {/* H1 06/05 (round 2 — Mathieu preferiu fórmula direta):
+              "Transforme suas gameplays em Reels virais em segundos". */}
+          <h1 style={{ fontSize: "clamp(38px, 6vw, 72px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 20 }}>
+            Transforme suas gameplays em{" "}
+            <span style={{ color: "#FF6B35" }}>Reels virais</span>
             <br />
-            pro TikTok.{" "}
-            <span style={{ color: "rgba(255,255,255,0.3)" }}>Automático.</span>
+            em <span style={{ color: "#FF6B35" }}>segundos</span>
+            <span style={{ color: "rgba(255,255,255,0.3)" }}>.</span>
           </h1>
 
           <p style={{ fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, maxWidth: 600, margin: "0 auto 14px" }}>
@@ -268,16 +266,204 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Por que FragReel — 4 cards com 1 frase só ─────────────── */}
-      <section style={{ padding: "60px 24px", background: "#1A1A2E", borderTop: "1px solid #2D2D44", borderBottom: "1px solid #2D2D44" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
-          <h2 style={{ textAlign: "center", fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 32 }}>
-            Feito pra jogador de CS2
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, textAlign: "left" }}>
+      {/* ── FragReel AI — section nova (06/05, Mathieu spec):
+          "Eu usaria ela inteira para valorizar a IA FragReel. Uma animação
+          junto. Faça algo que impressione, explique como o sistema de
+          pontuação escolhe as melhores kills e o player pode selecionar
+          os que ele quiser."
+
+          Design: timeline central animada + cards laterais com critérios
+          de scoring + linha "você decide" reforçando agency do user.
+          ui-ux-pro-max principles: SVG icons (não emoji), 150-300ms
+          transitions, transform/opacity animations only. */}
+      <section style={{ padding: "84px 24px", background: "linear-gradient(180deg, #0D0D1A 0%, #14142A 50%, #0D0D1A 100%)", borderTop: "1px solid #2D2D44", borderBottom: "1px solid #2D2D44", position: "relative", overflow: "hidden" }}>
+        {/* Ambient glow background */}
+        <div aria-hidden style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: 900, height: 600, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,107,53,0.08) 0%, transparent 60%)", pointerEvents: "none" }} />
+
+        <div style={{ maxWidth: 1100, margin: "0 auto", position: "relative" }}>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 14px", background: "rgba(255,107,53,0.10)", border: "1px solid rgba(255,107,53,0.25)", borderRadius: 999, fontSize: 11, fontWeight: 700, color: "#FF6B35", letterSpacing: "0.12em", marginBottom: 18, textTransform: "uppercase" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              FragReel AI Scorer
+            </div>
+            <h2 style={{ fontSize: "clamp(28px, 4.2vw, 44px)", fontWeight: 900, letterSpacing: "-0.025em", margin: "0 0 14px", lineHeight: 1.1 }}>
+              A IA escolhe seus <span style={{ color: "#FF6B35" }}>melhores momentos</span>.
+              <br />
+              <span style={{ color: "rgba(255,255,255,0.55)", fontWeight: 700 }}>Você decide quais entram.</span>
+            </h2>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", lineHeight: 1.55, maxWidth: 580, margin: "0 auto" }}>
+              Cada kill, clutch, defuse e plant ganha um score baseado em dificuldade e impacto.
+              Ranqueamos. Você cura.
+            </p>
+          </div>
+
+          {/* Animated timeline + criteria — 2-col split */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 32, alignItems: "center" }}>
+
+            {/* LEFT — Animated demo timeline */}
+            <div style={{
+              padding: 24,
+              background: "rgba(13,13,26,0.7)",
+              border: "1px solid rgba(255,107,53,0.18)",
+              borderRadius: 16,
+              backdropFilter: "blur(8px)",
+              animation: "ai-glow-pulse 4s ease-in-out infinite",
+            }}>
+              {/* Mini-header simulando UI do app */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 8px #34d399" }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.7)" }}>ANALISANDO DEMO · MIRAGE</span>
+                </div>
+                <span style={{ fontSize: 10, fontFamily: "var(--font-mono, monospace)", color: "rgba(255,255,255,0.35)" }}>Round 14 · 02:18</span>
+              </div>
+
+              {/* Timeline track */}
+              <div style={{ position: "relative", height: 90, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+                {/* Tick marks */}
+                {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((p) => (
+                  <div key={p} aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `${p}%`, width: 1, background: "rgba(255,255,255,0.04)" }} />
+                ))}
+
+                {/* Scan sweep line */}
+                <div aria-hidden style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  width: 2,
+                  background: "linear-gradient(180deg, transparent 0%, #FF6B35 30%, #FF6B35 70%, transparent 100%)",
+                  boxShadow: "0 0 16px rgba(255,107,53,0.8)",
+                  animation: "ai-scan-sweep 6s linear infinite",
+                }} />
+
+                {/* Event markers — staggered animation delays simulate "events being detected" */}
+                {[
+                  { left: 18, label: "HS", color: "#FF6B35", score: "+8", delay: "0.6s" },
+                  { left: 32, label: "2K", color: "#FF6B35", score: "+15", delay: "1.7s" },
+                  { left: 48, label: "AWP", color: "#fbbf24", score: "+12", delay: "2.6s" },
+                  { left: 64, label: "1v3", color: "#a78bfa", score: "+45", delay: "3.7s" },
+                  { left: 82, label: "DEFUSE", color: "#34d399", score: "+25", delay: "4.8s" },
+                ].map((ev) => (
+                  <div key={ev.left} style={{ position: "absolute", left: `${ev.left}%`, top: "50%", transform: "translate(-50%, -50%)" }}>
+                    <div style={{
+                      padding: "4px 8px",
+                      background: `${ev.color}22`,
+                      border: `1px solid ${ev.color}`,
+                      borderRadius: 6,
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: ev.color,
+                      letterSpacing: "0.08em",
+                      whiteSpace: "nowrap",
+                      animation: `ai-event-pop 6s ease-out ${ev.delay} infinite`,
+                      opacity: 0,
+                    }}>
+                      {ev.label}
+                    </div>
+                    <div style={{
+                      position: "absolute",
+                      top: -10,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      fontSize: 13,
+                      fontWeight: 900,
+                      color: ev.color,
+                      fontFamily: "var(--font-mono, monospace)",
+                      whiteSpace: "nowrap",
+                      animation: `ai-score-float 6s ease-out ${ev.delay} infinite`,
+                      opacity: 0,
+                      pointerEvents: "none",
+                      textShadow: `0 0 12px ${ev.color}`,
+                    }}>
+                      {ev.score}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer status */}
+              <div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  142 events detected
+                </span>
+                <span style={{ fontFamily: "var(--font-mono, monospace)" }}>top <span style={{ color: "#FF6B35", fontWeight: 700 }}>8</span> selected</span>
+              </div>
+            </div>
+
+            {/* RIGHT — Scoring criteria cards */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 4 }}>
+                Sistema de pontuação
+              </div>
+
+              {[
+                { label: "1vN Clutch",      desc: "Última vida do time, vence o round", points: "+45", tone: "#a78bfa" },
+                { label: "ACE",             desc: "5 kills · 1 round, sem assistência", points: "+50", tone: "#FF6B35" },
+                { label: "Defuse / Plant",  desc: "Decide o round com a bomba",         points: "+25", tone: "#34d399" },
+                { label: "Multi-kill",      desc: "2K, 3K, 4K · combo dentro de 5s",    points: "+15", tone: "#FF6B35" },
+                { label: "AWP no-scope",    desc: "Estilo · raridade técnica",          points: "+12", tone: "#fbbf24" },
+              ].map((c) => (
+                <div
+                  key={c.label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "14px 16px",
+                    background: "rgba(26,26,46,0.7)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: 10,
+                    transition: "transform 200ms ease, border-color 200ms ease, background 200ms ease",
+                  }}
+                >
+                  <div style={{
+                    width: 56,
+                    height: 36,
+                    borderRadius: 8,
+                    background: `${c.tone}18`,
+                    border: `1px solid ${c.tone}55`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: "var(--font-mono, monospace)",
+                    fontSize: 13,
+                    fontWeight: 900,
+                    color: c.tone,
+                    letterSpacing: "-0.02em",
+                    flexShrink: 0,
+                  }}>
+                    {c.points}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>{c.label}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.35 }}>{c.desc}</div>
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ marginTop: 4, padding: "12px 14px", background: "rgba(255,107,53,0.08)", border: "1px dashed rgba(255,107,53,0.4)", borderRadius: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>
+                  <polyline points="9 11 12 14 22 4"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
+                  Você revê o ranking e <strong style={{ color: "#FF6B35" }}>marca/desmarca</strong> highlights antes de gerar o reel.
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Bottom row — 4 quick-fact cards (substitui reasons antigos compactos) */}
+          <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
             {reasons.map((f) => (
-              <div key={f.label} style={{ padding: "16px 18px", background: "#0D0D1A", border: "1px solid #2D2D44", borderRadius: 10 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#FF6B35" }}>✓ {f.label}</div>
+              <div key={f.label} style={{ padding: "14px 16px", background: "rgba(13,13,26,0.6)", border: "1px solid #2D2D44", borderRadius: 10, transition: "border-color 200ms ease, background 200ms ease" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points="20 6 9 17 4 12"/></svg>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#E8E8F0" }}>{f.label}</div>
+                </div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>{f.sub}</div>
               </div>
             ))}
@@ -317,6 +503,92 @@ export default async function Home() {
         <div style={{ marginTop: 16, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
           🔒 Vídeos nunca saem do seu PC.{" "}
           <Link href="/privacy" style={{ color: "#FF6B35", textDecoration: "none", borderBottom: "1px dotted #FF6B35" }}>Privacidade</Link>
+        </div>
+      </section>
+
+      {/* ── FAQ — 06/05 (Mathieu spec): "Adicione um FAQ também no final".
+          Native <details> tag pra accessibility (keyboard nav free, no JS).
+          7 perguntas baseadas em dúvidas que aparecem em testes de campo. */}
+      <section style={{ padding: "72px 24px", borderTop: "1px solid #2D2D44" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 36 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "#FF6B35", textTransform: "uppercase", marginBottom: 8 }}>
+              FAQ
+            </div>
+            <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
+              Perguntas frequentes
+            </h2>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {[
+              {
+                q: "Preciso enviar minha demo pra algum servidor?",
+                a: "Não. O parsing da demo + render do reel rodam 100% no seu PC. Nada sai da sua máquina — o vídeo final fica direto na sua área de trabalho. O que vai pro servidor é só o evento de score (qual demo você analisou) pra estatísticas anônimas.",
+              },
+              {
+                q: "Quanto tempo leva pra gerar um reel?",
+                a: "Depende da demo e do PC. Tipicamente 5-15 minutos do clique ao MP4 pronto: ~5s parsing + ~2s ranking IA + ~3-10min CS2 capture + ~1-3min Remotion edit. Reels mobile (vertical) saem por volta dos 10min na maioria das máquinas.",
+              },
+              {
+                q: "Como o FragReel difere do AllStar/CapCut?",
+                a: "AllStar e CapCut são editores manuais — você corta, escolhe transições, adiciona música. FragReel é totalmente automático: a IA detecta clutches, ACEs, plants, defuses, multi-kills com base em parsing de tick-data da demo, ranqueia por score, e o editor Remotion monta o reel cinematográfico sozinho. Você escolhe quais highlights vão pro corte final, mas não precisa editar nada.",
+              },
+              {
+                q: "Funciona com pro demos (HLTV, BLAST, FACEIT)?",
+                a: "Sim. Coloque o .dem em ~/Downloads ou csgo/replays/ — FragReel detecta automaticamente. Importante: pro demos de torneios podem ter sido gravadas em build CS2 diferente do seu instalado. Se isso acontecer, o FragReel avisa em ~90s com mensagem clara.",
+              },
+              {
+                q: "Por que precisa de Windows + CS2 instalado?",
+                a: "Porque a captura do gameplay usa o próprio CS2 + HLAE (Half-Life Advanced Effects) pra renderizar a câmera POV do jogador. Sem CS2 rodando local, não tem como capturar o frame. Mac/Linux ainda não suportados.",
+              },
+              {
+                q: "Posso escolher quais kills entram no reel?",
+                a: "Sim. Depois do scoring automático, você vê o ranking dos highlights e marca/desmarca os que quer. O reel final usa só os marcados.",
+              },
+              {
+                q: "É realmente grátis? Onde está o catch?",
+                a: "Grátis e sem assinatura. Você assiste 1 anúncio de 30s antes de gerar cada reel — é o que sustenta o site. Sem upsell escondido, sem premium tier (por enquanto). Código open-source MIT, auditável no GitHub.",
+              },
+            ].map((item) => (
+              <details
+                key={item.q}
+                style={{
+                  background: "#1A1A2E",
+                  border: "1px solid #2D2D44",
+                  borderRadius: 10,
+                  overflow: "hidden",
+                }}
+              >
+                <summary style={{
+                  cursor: "pointer",
+                  padding: "16px 18px",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: "#E8E8F0",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  listStyle: "none",
+                  userSelect: "none",
+                }}>
+                  <span>{item.q}</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, transition: "transform 200ms ease" }} className="faq-chevron">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </summary>
+                <div style={{ padding: "0 18px 18px", fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>
+                  {item.a}
+                </div>
+              </details>
+            ))}
+          </div>
+          {/* Chevron rotation when details opens. Inline style restriction
+              workaround via CSS string in <style> child. */}
+          <style>{`
+            details[open] .faq-chevron { transform: rotate(180deg); }
+            details summary::-webkit-details-marker { display: none; }
+          `}</style>
         </div>
       </section>
 

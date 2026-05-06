@@ -17,6 +17,7 @@ import MatchClient from "@/app/match/[id]/MatchClient";
 import { scoreDemoForPlayer } from "@/lib/local";
 import type { MatchOut } from "@/lib/api";
 import Spinner from "@/components/Spinner";
+import AdSlot from "@/components/AdSlot";
 
 interface Props {
   sha: string;
@@ -94,8 +95,17 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
             }
           `}</style>
 
-          <div style={{ marginTop: 48, fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+          <div style={{ marginTop: 32, fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
             Backend parseando .dem (~5s) + IA scorer ranqueando highlights (~2s)
+          </div>
+
+          {/* 06/05 — Mathieu spec: "Todas essas páginas que tem loaders
+              precisam ter ads também. Não precisa mexer na experiência da
+              geração do fragreel que tem os vídeo ads, essa já está boa."
+              AdSlot rectangle abaixo do loader. Não interfere com flow,
+              espera passiva durante 5-15s parsing já é attention dead time. */}
+          <div style={{ marginTop: 40 }}>
+            <AdSlot id="demo-render-loader-ad" size="rectangle" label="Anúncio" />
           </div>
         </div>
       </section>
