@@ -212,10 +212,25 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
   const [scoreboardEnabled, setScoreboardEnabled] = useState<boolean>(true);
   // Sprint #6.1 (05/05) — Kill flash effects. Default OFF (opt-in cinematic
   // upgrade). Quando ativo, dispara flash branco/colorido a cada kill.
+  // 06/05 — Mathieu reportou: "ao invés de fazer flash nas kills, vamos
+  // chamar de 'estilos visuais' ou algo assim. minha intenção é que apareça
+  // o estilo visual só nas kills esteticamente mais bonitas, pois em todas
+  // as kills, pode ser que fique cansativo." → renomeado UI label pra
+  // "Estilos visuais" + marcado "em breve" + toggle disabled. Aguarda
+  // sprint dedicada de aesthetic kill scoring (AWP no-scope, knife, wallbang,
+  // multi-kill, pistol HS, etc) antes de re-habilitar. Backend code do
+  // flash continua presente — só desligado no UI.
   const [killFlashEnabled, setKillFlashEnabled] = useState<boolean>(false);
-  // Sprint #6.2 (05/05) — Bomb timer red bar. Default OFF. Aparece só em
-  // highlights com plant_won (40s timer Major-style topo do vídeo).
-  const [bombTimerEnabled, setBombTimerEnabled] = useState<boolean>(false);
+  // Sprint #6.2 (05/05) — Bomb timer red bar.
+  // 06/05 — Mathieu reportou: "Não vi nenhuma barra vermelha de bomb timer".
+  // Default era OFF (opt-in), Mathieu não sabia ativar. Per
+  // rule_user_feedback_is_universal_spec: bomb timer é regra de negócio
+  // universal (drama factor quando há plant), não opt-in. Default → ON.
+  // Comportamento: aparece SÓ em highlights com bomb_planted_timestamp
+  // setado pelo scorer. Highlights sem plant ficam silenciosos — sem
+  // pollution / fatigue. User pode opt-out via toggle se quiser estilo
+  // "puro POV sem HUD overlays".
+  const [bombTimerEnabled, setBombTimerEnabled] = useState<boolean>(true);
   // vertical = TikTok/Reels (default); horizontal = YouTube/Twitch.
   // Card é sempre vertical (formato semântico do produto), backend força.
   const [orientation, setOrientation] = useState<Orientation>("vertical");
@@ -1284,14 +1299,23 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
               </button>
             </div>
 
-            {/* Sprint #6.1 — Kill flash effects toggle. Default OFF
-                (cinematic upgrade opt-in). */}
+            {/* Sprint #6.1 — Kill flash effects toggle.
+                06/05 — Mathieu reportou: "vamos chamar de 'estilos visuais'
+                ou algo assim. minha intenção é que apareça o estilo visual
+                só nas kills esteticamente mais bonitas, pois em todas as
+                kills, pode ser que fique cansativo." → toggle disabled "em
+                breve". Backend Remotion code do flash continua presente
+                (HighlightScene killFlashEnabled prop) mas UI bloqueada até
+                sprint dedicada implementar aesthetic kill scoring (AWP
+                no-scope, knife, wallbang, multi-kill, pistol HS) — só
+                kills no top X% recebem o efeito, evitando fatigue. */}
             <div style={{
               marginTop: 12,
               padding: "12px 14px",
               borderRadius: 10,
               background: "#16213E",
               border: "1px solid #2D2D44",
+              opacity: 0.55,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1299,27 +1323,29 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
-                  {killFlashEnabled ? "⚡ Flash nas kills" : "🌑 Sem flash"}
+                  ✨ Estilos visuais{" "}
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "#FFD700", marginLeft: 4 }}>
+                    EM BREVE
+                  </span>
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                  {killFlashEnabled
-                    ? "Flash visual estilizado a cada kill — valoriza o impacto, estilo fragmovie premium."
-                    : "Kills sem efeito visual extra — só a edição padrão."}
+                  Efeitos cinematic (flash, slow-mo, color grade) aplicados só nas kills mais bonitas — AWP no-scope, wallbang, multi-kill. Em desenvolvimento.
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setKillFlashEnabled((v) => !v)}
-                aria-pressed={killFlashEnabled}
-                aria-label="Alternar flash nas kills"
+                disabled
+                aria-disabled="true"
+                aria-label="Estilos visuais — em breve"
+                title="Em breve: vai aplicar efeitos só nas kills esteticamente mais bonitas pra evitar fatigue."
                 style={{
                   position: "relative",
                   width: 48,
                   height: 26,
                   borderRadius: 13,
                   border: "none",
-                  background: killFlashEnabled ? "#FFD700" : "#2D2D44",
-                  cursor: "pointer",
+                  background: "#2D2D44",
+                  cursor: "not-allowed",
                   transition: "background 0.15s",
                   flexShrink: 0,
                   padding: 0,
@@ -1328,11 +1354,11 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                 <div style={{
                   position: "absolute",
                   top: 3,
-                  left: killFlashEnabled ? 25 : 3,
+                  left: 3,
                   width: 20,
                   height: 20,
                   borderRadius: "50%",
-                  background: "white",
+                  background: "rgba(255,255,255,0.5)",
                   transition: "left 0.15s",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
                 }} />

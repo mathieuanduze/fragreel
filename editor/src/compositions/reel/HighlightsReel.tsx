@@ -39,12 +39,19 @@ import { Outro } from "./scenes/Outro";
 // 05/05 (Mathieu test report): "frame de início com nome do jogador e stats,
 // assim como o frame final que dá o nome do jogador e stats, precisa ficar
 // mais tempo, principalmente pra pessoa ler: crie o seu em fragreel.gg".
-// Bumpado pra dar tempo de leitura confortável:
-//   intro 1.2s → 3.0s (player name + map + stats — ~2s leitura mínima)
-//   outro 3.0s → 5.0s (CTA "crie o seu em fragreel.gg" precisa registrar)
-// Trade-off: reel ~4s mais longo. Ainda dentro Reels/TikTok 90s cap.
-export const INTRO_SEC = 3.0;
-export const OUTRO_SEC = 5.0;
+// Bumpado 1.2s → 3.0s / 3.0s → 5.0s.
+// 06/05 — após render do reel ZyWoo, Mathieu reportou: "Início e final do
+// vídeo com stats ainda estão muito rápidos". 3s/5s ainda insuficiente pra
+// leitura confortável de player name + map + 4 stats (K/D + HS% + ADR).
+// Bump 2: intro 3.0 → 5.0, outro 5.0 → 7.0.
+//   intro 5s: dá ~2.5s pra ler nome+map, ~2.5s pra absorver os 4 stats
+//   outro 7s: dá ~3s pra stats finais, ~2s pra "crie o seu em fragreel.gg"
+//             registrar como CTA, ~2s de fade out confortável
+// Trade-off: reel +4s vs versão anterior. Ainda dentro Reels/TikTok 90s cap.
+// Per rule_user_feedback_is_universal_spec — feedback de produto = regra
+// de negócio universal, não tweak pra reel específico.
+export const INTRO_SEC = 5.0;
+export const OUTRO_SEC = 7.0;
 
 // HIGHLIGHT_VIDEO_SKIP_SEC vive em theme.ts (canonical) pra evitar circular
 // import HighlightScene → HighlightsReel.
