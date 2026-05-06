@@ -22,7 +22,10 @@ const TEAM_COLOR: Record<number, string> = { 2: "#fbbf24", 3: "#60a5fa" };
 export default function DemoRosterClient({ sha }: { sha: string }) {
   const [data, setData] = useState<DemoRosterResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [picked, setPicked] = useState<DemoRosterPlayer | null>(null);
+  // 06/05 (Mathieu): "era melhor quando estava em cada card". Removido
+  // step picked → confirm. Click direto no card OU no CTA inline dispara
+  // o flow de render. UX 1-step em vez de 2-step.
+  const [pendingPlayer, setPendingPlayer] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,18 +107,18 @@ export default function DemoRosterClient({ sha }: { sha: string }) {
         </div>
       </div>
 
-      {/* Roster grid — 06/05 redesign (Mathieu spec):
-          "a página para selecionar o player, não está esteticamente muito
-          legal". Antes: cards flat com #1 + nome + 3 stats inline.
-          Agora: cards com avatar gradient (initial + score-based hue),
-          rank badge tipo "leaderboard" #1/#2/#3 dourado/prata/bronze,
-          stats em layout pill, hover state com lift + glow.
-          Player photos via Steam API: backlog research (Mathieu nota:
-          "esteticamente, a página já pode melhorar"). Hoje usa initial-
-          letter avatar com hash-based color como placeholder visual. */}
+      {/* Roster grid — 06/05 redesign + per-card CTA (Mathieu spec):
+          "Escolha o player ficou bem melhor, mas precisa de um CTA mapear
+          kills de impacto" → "era melhor quando estava em cada card".
+          Modelo: cada card é o CTA. Click anywhere → vai direto pro
+          render flow do player escolhido (1-step UX, sem confirmation
+          intermediária).
+          Cards com avatar gradient (initial + hash-based color), rank
+          medal #1/#2/#3 gold/silver/bronze, stats em pills, footer com
+          CTA inline "Mapear plays de impacto →". */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
         {data.roster.map((p, idx) => {
-          const isPicked = picked?.steamid === p.steamid;
+          const isPending = pendingPlayer === p.steamid;
           const teamLabel = p.team !== null ? TEAM_LABEL[p.team] : null;
           const teamColor = p.team !== null ? TEAM_COLOR[p.team] : "#666";
           const hsRate = p.kills > 0 ? Math.round((p.headshots / p.kills) * 100) : 0;
@@ -132,39 +135,66 @@ export default function DemoRosterClient({ sha }: { sha: string }) {
           const rankColors: Record<number, string> = { 0: "#FFD700", 1: "#C0C0C0", 2: "#CD7F32" };
           const rankColor = rankColors[idx] || "rgba(255,255,255,0.3)";
 
+          // 06/05 — handler único do flow. Click direto no card OU no CTA
+          // dispara o redirect pro /demo/[sha]/render?steamid=...&name=...
+          // Mesma lógica do antigo MapearPlaysButton (sessionStorage +
+          // URLSearchParams), agora inline pra UX 1-step.
+          const handlePick = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (pendingPlayer) return; // já tem flow em progresso
+            setPendingPlayer(p.steamid);
+            sessionStorage.setItem("fragreel:demo:intent", JSON.stringify({
+              sha,
+              target_steamid: p.steamid,
+              target_name: p.name,
+              picked_at: Date.now(),
+            }));
+            const params = new URLSearchParams({
+              steamid: p.steamid,
+              name: p.name ?? `Player ${p.steamid.slice(-6)}`,
+            });
+            window.location.href = `/demo/${sha}/render?${params.toString()}`;
+          };
+
           return (
             <button
               key={p.steamid}
-              onClick={() => setPicked(p)}
-              aria-label={`Escolher ${displayName} — ${p.kills} kills, ${p.deaths} deaths`}
+              onClick={handlePick}
+              disabled={isPending || !!pendingPlayer}
+              aria-label={`Mapear plays de impacto de ${displayName} — ${p.kills} kills, ${p.deaths} deaths`}
               style={{
                 textAlign: "left",
                 padding: "16px",
-                background: isPicked
+                background: isPending
                   ? "linear-gradient(135deg, rgba(255,107,53,0.18) 0%, rgba(255,107,53,0.06) 100%)"
                   : "#1A1A2E",
-                border: isPicked ? "2px solid #FF6B35" : "1px solid #2D2D44",
+                border: isPending ? "2px solid #FF6B35" : "1px solid #2D2D44",
                 borderRadius: 12,
-                cursor: "pointer",
+                cursor: pendingPlayer ? "wait" : "pointer",
+                opacity: pendingPlayer && !isPending ? 0.4 : 1,
                 color: "inherit",
                 fontFamily: "inherit",
-                transition: "transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease",
-                boxShadow: isPicked
+                transition: "transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease, opacity 200ms ease",
+                boxShadow: isPending
                   ? "0 8px 24px rgba(255,107,53,0.25), 0 0 0 1px rgba(255,107,53,0.4)"
                   : "0 2px 8px rgba(0,0,0,0.2)",
                 position: "relative",
                 overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
               }}
               onMouseEnter={(e) => {
-                if (!isPicked) {
+                if (!pendingPlayer) {
                   e.currentTarget.style.transform = "translateY(-2px)";
                   e.currentTarget.style.borderColor = "rgba(255,107,53,0.4)";
+                  e.currentTarget.style.boxShadow = "0 6px 18px rgba(255,107,53,0.18)";
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isPicked) {
+                if (!pendingPlayer) {
                   e.currentTarget.style.transform = "translateY(0)";
                   e.currentTarget.style.borderColor = "#2D2D44";
+                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
                 }
               }}
             >
@@ -236,7 +266,7 @@ export default function DemoRosterClient({ sha }: { sha: string }) {
               </div>
 
               {/* Stats pills */}
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
                 <div style={{ flex: 1, padding: "6px 8px", background: "rgba(255,107,53,0.08)", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 6, textAlign: "center" }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: "#FF6B35", fontFamily: "var(--font-mono, monospace)" }}>{p.kills}</div>
                   <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,107,53,0.7)", letterSpacing: "0.1em" }}>KILLS</div>
@@ -250,39 +280,47 @@ export default function DemoRosterClient({ sha }: { sha: string }) {
                   <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(251,191,36,0.7)", letterSpacing: "0.1em" }}>HS</div>
                 </div>
               </div>
+
+              {/* Inline CTA — sempre visível em cada card (06/05 Mathieu spec) */}
+              <div style={{
+                marginTop: "auto",
+                padding: "10px 12px",
+                background: isPending ? "#FF6B35" : "rgba(255,107,53,0.10)",
+                border: `1px solid ${isPending ? "#FF6B35" : "rgba(255,107,53,0.35)"}`,
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                fontSize: 13,
+                fontWeight: 700,
+                color: isPending ? "white" : "#FF6B35",
+                letterSpacing: "0.01em",
+                transition: "background 200ms ease, color 200ms ease",
+              }}>
+                {isPending ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 50 50" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" style={{ animation: "spin 0.9s linear infinite" }} aria-hidden>
+                      <circle cx="25" cy="25" r="20" strokeOpacity="0.3"/>
+                      <circle cx="25" cy="25" r="20" strokeDasharray="32 200"/>
+                    </svg>
+                    Carregando…
+                  </>
+                ) : (
+                  <>
+                    <span>🎯 Mapear plays de impacto</span>
+                    <span style={{ marginLeft: 2 }}>→</span>
+                  </>
+                )}
+              </div>
             </button>
           );
         })}
       </div>
 
-      {/* CTA bar — sticky-feel quando player picked */}
-      {picked && (
-        <div style={{
-          marginTop: 24,
-          padding: "20px 24px",
-          background: "#1A1A2E",
-          border: "1px solid #2D2D44",
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          flexWrap: "wrap",
-        }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-              Player escolhido
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>
-              {picked.name || `Player ${picked.steamid.slice(-6)}`}
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginLeft: 10 }}>
-                {picked.kills} kills · {picked.headshots} HS
-              </span>
-            </div>
-          </div>
-          <MapearPlaysButton sha={sha} player={picked} />
-        </div>
-      )}
+      {/* 06/05 — bottom CTA bar removido. CTA agora vive INSIDE cada card
+          (Mathieu spec: "era melhor quando estava em cada card"). UX 1-step:
+          click no card = ir direto pro render flow. */}
 
       <p style={{ marginTop: 32, fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
         Render usa POV in-eye do player escolhido (`spec_player` no HLAE).
@@ -293,34 +331,6 @@ export default function DemoRosterClient({ sha }: { sha: string }) {
   );
 }
 
-function MapearPlaysButton({ sha, player }: { sha: string; player: DemoRosterPlayer }) {
-  // Sprint #7 Phase 7.3+ shipped (05/05): redirect pra /demo/[sha]/render
-  // que dispara o flow completo (Ad → score override → highlights → render).
-  // sessionStorage carrega o player pickado pra a render page consumir.
-  const [pending, setPending] = useState(false);
-  return (
-    <button
-      onClick={() => {
-        setPending(true);
-        sessionStorage.setItem("fragreel:demo:intent", JSON.stringify({
-          sha,
-          target_steamid: player.steamid,
-          target_name: player.name,
-          picked_at: Date.now(),
-        }));
-        // Encoda steamid + nome no URL pra deep-link works mesmo se
-        // sessionStorage limpou. nome pode ter espaços/acentos → encodeURIComponent.
-        const params = new URLSearchParams({
-          steamid: player.steamid,
-          name: player.name ?? `Player ${player.steamid.slice(-6)}`,
-        });
-        window.location.href = `/demo/${sha}/render?${params.toString()}`;
-      }}
-      disabled={pending}
-      className="btn-primary"
-      style={{ padding: "12px 24px", fontSize: 14, opacity: pending ? 0.6 : 1 }}
-    >
-      {pending ? "..." : "🎯 Mapear plays de impacto"}
-    </button>
-  );
-}
+// 06/05 — MapearPlaysButton removido. Lógica inline no card click handler
+// (`handlePick` em DemoRosterClient) per Mathieu spec "era melhor quando
+// estava em cada card". 1-step UX em vez de 2-step.

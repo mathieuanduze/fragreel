@@ -17,61 +17,65 @@
   --animate-fade-in:   fade-in 0.4s ease-out;
   --animate-slide-up:  slide-up 0.5s ease-out;
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4,0,0.6,1) infinite;
+}
 
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  @keyframes slide-up {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+/* 06/05 BUG FIX (Mathieu reportou: animação scan-sweep da section AI
+   não estava varrendo). Root cause: @keyframes nested inside @theme {}
+   (Tailwind v4 directive pra design tokens) NÃO vazam pro escopo global
+   CSS. animation: ai-scan-sweep não achava o keyframe → no animation.
+   Mesmo bug afetava @keyframes spin (Spinner não rotacionava) e shimmer.
+   Fix: mover todos os keyframes pra global scope (fora do @theme). */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-  /* 06/05 — Mathieu spec: "Todos os loaders entre páginas precisam ser
-     animados. Por exemplo, quando as demos tão sendo mapeadas, só tem
-     uma ampulheta parada". Adicionados keyframes pro Spinner component
-     compartilhado. */
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-  @keyframes pulse-bg {
-    0%, 100% { opacity: 0.4; }
-    50%      { opacity: 0.85; }
-  }
-  /* Skeleton shimmer pra placeholders de cards/listas */
-  @keyframes shimmer {
-    0%   { background-position: -300px 0; }
-    100% { background-position: 300px 0; }
-  }
+/* Spinner rotation (loaders) */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes pulse-bg {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.85; }
+}
+/* Skeleton shimmer pra placeholders de cards/listas */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
 
-  /* 06/05 — section "FragReel AI": animations pro timeline visual.
-     scan-sweep: barra horizontal varre a timeline (loop infinito).
-     pop-in: kill events aparecem e dão pulse de score.
-     score-float: número +X sobe e fade out (ghost text). */
-  @keyframes ai-scan-sweep {
-    0%   { left: -10%; opacity: 0; }
-    8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { left: 100%; opacity: 0; }
-  }
-  @keyframes ai-event-pop {
-    0%   { transform: scale(0.6) translateY(0); opacity: 0; box-shadow: 0 0 0 rgba(255,107,53,0); }
-    20%  { transform: scale(1.15) translateY(-2px); opacity: 1; box-shadow: 0 0 24px rgba(255,107,53,0.7); }
-    35%  { transform: scale(1) translateY(0); opacity: 1; }
-    95%  { transform: scale(1) translateY(0); opacity: 1; }
-    100% { transform: scale(1) translateY(0); opacity: 0.85; }
-  }
-  @keyframes ai-score-float {
-    0%   { transform: translateY(8px); opacity: 0; }
-    20%  { transform: translateY(-6px); opacity: 1; }
-    80%  { transform: translateY(-22px); opacity: 1; }
-    100% { transform: translateY(-32px); opacity: 0; }
-  }
-  @keyframes ai-glow-pulse {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(255,107,53,0.2), 0 0 28px rgba(255,107,53,0.05); }
-    50%      { box-shadow: 0 0 0 1px rgba(255,107,53,0.45), 0 0 48px rgba(255,107,53,0.18); }
-  }
+/* Section "FragReel AI" timeline animations.
+   scan-sweep: barra varre a timeline left-to-right (loop infinito).
+   event-pop: markers aparecem com pulse + glow.
+   score-float: números +X sobem e fade out (ghost text).
+   glow-pulse: container respira lentamente. */
+@keyframes ai-scan-sweep {
+  0%   { left: -10%; opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+@keyframes ai-event-pop {
+  0%   { transform: scale(0.6) translateY(0); opacity: 0; box-shadow: 0 0 0 rgba(255,107,53,0); }
+  20%  { transform: scale(1.15) translateY(-2px); opacity: 1; box-shadow: 0 0 24px rgba(255,107,53,0.7); }
+  35%  { transform: scale(1) translateY(0); opacity: 1; }
+  95%  { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 0.85; }
+}
+@keyframes ai-score-float {
+  0%   { transform: translateY(8px); opacity: 0; }
+  20%  { transform: translateY(-6px); opacity: 1; }
+  80%  { transform: translateY(-22px); opacity: 1; }
+  100% { transform: translateY(-32px); opacity: 0; }
+}
+@keyframes ai-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255,107,53,0.2), 0 0 28px rgba(255,107,53,0.05); }
+  50%      { box-shadow: 0 0 0 1px rgba(255,107,53,0.45), 0 0 48px rgba(255,107,53,0.18); }
 }
 
 @layer base {
