@@ -57,11 +57,14 @@ export const Intro: React.FC<Props> = ({ match, playerName, mood }) => {
   });
 
   // Stats em cascata (06/05) — mesma cadência do Outro, começando depois
-  // que name+map+score já settled. Stats começam em frame 30 (1s pós-início),
-  // gap 8 frames entre cada (~0.27s). Última stat lands em frame 30+24=54
-  // (~1.8s). Antes do fade out começar (durationInFrames - 15).
-  const statsStart = 30;
-  const statsGap = 8;
+  // que name+map+score já settled.
+  // 06/05 round 3 (Mathieu encurtou intro 5→3.5s pra retention TikTok):
+  //   statsStart 30 → 18 (1.0→0.6s pós-início)
+  //   statsGap   8  → 6  (0.27→0.20s entre cada)
+  // Última stat lands em frame 18+18=36 (~1.2s). Sobra ~2s leitura + 0.3s
+  // fade out (15 frames). Mais ágil mas ainda legível.
+  const statsStart = 18;
+  const statsGap = 6;
 
   // Fade out no último 0.5s
   const fadeOut = interpolate(

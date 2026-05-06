@@ -78,6 +78,19 @@
   50%      { box-shadow: 0 0 0 1px rgba(255,107,53,0.45), 0 0 48px rgba(255,107,53,0.18); }
 }
 
+/* Hero H1 — 06/05 round 3 (Mathieu spec): "Faça com que o título do hero
+   sempre apareça em 3 linhas, faça isso só no desktop, no mobile não
+   precisa". Mobile-first: linhas wrap natural se precisarem. Desktop
+   (≥768px): nowrap garante 3 linhas exatas. */
+.hero-h1-line {
+  display: block;
+}
+@media (min-width: 768px) {
+  .hero-h1-line {
+    white-space: nowrap;
+  }
+}
+
 @layer base {
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }

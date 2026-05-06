@@ -44,13 +44,20 @@ import { Outro } from "./scenes/Outro";
 // vídeo com stats ainda estão muito rápidos". 3s/5s ainda insuficiente pra
 // leitura confortável de player name + map + 4 stats (K/D + HS% + ADR).
 // Bump 2: intro 3.0 → 5.0, outro 5.0 → 7.0.
-//   intro 5s: dá ~2.5s pra ler nome+map, ~2.5s pra absorver os 4 stats
-//   outro 7s: dá ~3s pra stats finais, ~2s pra "crie o seu em fragreel.gg"
-//             registrar como CTA, ~2s de fade out confortável
-// Trade-off: reel +4s vs versão anterior. Ainda dentro Reels/TikTok 90s cap.
-// Per rule_user_feedback_is_universal_spec — feedback de produto = regra
-// de negócio universal, não tweak pra reel específico.
-export const INTRO_SEC = 5.0;
+// 06/05 round 3 (Mathieu pós-render Vitality vs GamerLegion):
+//   "foram tantas idas e vindas em fazer o início durar mais, que agora
+//   ficou longa demais. Encurte um pouco mais a entrada pra reter o
+//   engajamento de quem visualiza."
+// TikTok/Reels engagement curve: hook em < 3s é regra do algoritmo.
+// 5s era leitura confortável MAS sacrificava retention. Compromisso:
+//   intro 5.0 → 3.5: stats Animation cascata começa em ~1s, última stat
+//                    lands em ~1.8s, sobra ~1.2s leitura + 0.5s fade.
+//                    Stat-cascade timing precisa ajustar (Intro.tsx
+//                    statsStart 30 → 18, statsGap 8 → 6 frames).
+//   outro permanece 7.0: outro NÃO tem retention pressure (user já
+//                        consumiu), CTA "crie o seu em fragreel.gg"
+//                        precisa registrar.
+export const INTRO_SEC = 3.5;
 export const OUTRO_SEC = 7.0;
 
 // HIGHLIGHT_VIDEO_SKIP_SEC vive em theme.ts (canonical) pra evitar circular

@@ -83,20 +83,22 @@ export default async function Home() {
             Counter-Strike 2 · Exclusivo
           </div>
 
-          {/* H1 06/05 (round 3 — Mathieu spec: "Faça com que o título do
-              hero sempre apareça em 3 linhas").
-              Layout fixo de 3 linhas via display: block + whiteSpace nowrap
-              per line (impede wrap natural que faria 4+ linhas em viewports
-              narrow). Font escala via clamp(20→64px) pra fit em qualquer
-              tamanho de tela sem overflow horizontal. */}
-          <h1 style={{ fontSize: "clamp(28px, 5.5vw, 64px)", fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.03em", marginBottom: 20 }}>
-            <span style={{ display: "block", whiteSpace: "nowrap" }}>
+          {/* H1 06/05 (round 3 — Mathieu refinou: "faça [3 linhas] só no
+              desktop, no mobile não precisa").
+              Mobile (< 768px): linhas wrap natural se viewport for narrow,
+                pode virar 4+ linhas. OK — mobile typography prioriza fit,
+                não estética rígida.
+              Desktop (≥ 768px): className .hero-h1-line aplica nowrap →
+                3 linhas garantidas via display: block + nowrap.
+              CSS em globals.css. */}
+          <h1 style={{ fontSize: "clamp(32px, 5.5vw, 64px)", fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.03em", marginBottom: 20 }}>
+            <span className="hero-h1-line">
               Transforme suas gameplays
             </span>
-            <span style={{ display: "block", whiteSpace: "nowrap" }}>
+            <span className="hero-h1-line">
               em <span style={{ color: "#FF6B35" }}>Reels virais</span>
             </span>
-            <span style={{ display: "block", whiteSpace: "nowrap" }}>
+            <span className="hero-h1-line">
               em <span style={{ color: "#FF6B35" }}>segundos</span>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>.</span>
             </span>
