@@ -210,16 +210,16 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
   // CT/T alive count + HP em tempo real, estilo placar HLTV). User opt-out
   // pra estilo "puro POV sem HUD overlays".
   const [scoreboardEnabled, setScoreboardEnabled] = useState<boolean>(true);
-  // Sprint #6.1 (05/05) — Kill flash effects. Default OFF (opt-in cinematic
-  // upgrade). Quando ativo, dispara flash branco/colorido a cada kill.
-  // 06/05 — Mathieu reportou: "ao invés de fazer flash nas kills, vamos
-  // chamar de 'estilos visuais' ou algo assim. minha intenção é que apareça
-  // o estilo visual só nas kills esteticamente mais bonitas, pois em todas
-  // as kills, pode ser que fique cansativo." → renomeado UI label pra
-  // "Estilos visuais" + marcado "em breve" + toggle disabled. Aguarda
-  // sprint dedicada de aesthetic kill scoring (AWP no-scope, knife, wallbang,
-  // multi-kill, pistol HS, etc) antes de re-habilitar. Backend code do
-  // flash continua presente — só desligado no UI.
+  // Sprint #6.1 (05/05) → Sprint Aesthetic (06/05) — "Estilos visuais"
+  // sob threshold. Mathieu spec: "minha intenção é que apareça o estilo
+  // visual só nas kills esteticamente mais bonitas". Resolução técnica:
+  // scorer.ts agora computa aesthetic_score + aesthetic_style per-kill;
+  // editor renderiza flash COR-ESPECÍFICA (noscope=dourado, knife=quente,
+  // wallbang=branco x-ray, smoke=azul, blind=branco overpower, flick=
+  // laranja) APENAS pra kills com style set (score >= 25 threshold).
+  // Kills comuns ficam sem efeito. Toggle re-enabled como default OFF —
+  // user opt-in até confirmar que distribuição de styled kills está
+  // calibrada (anti-fadiga test).
   const [killFlashEnabled, setKillFlashEnabled] = useState<boolean>(false);
   // Sprint #6.2 (05/05) — Bomb timer red bar.
   // 06/05 — Mathieu reportou: "Não vi nenhuma barra vermelha de bomb timer".
@@ -1299,23 +1299,18 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
               </button>
             </div>
 
-            {/* Sprint #6.1 — Kill flash effects toggle.
-                06/05 — Mathieu reportou: "vamos chamar de 'estilos visuais'
-                ou algo assim. minha intenção é que apareça o estilo visual
-                só nas kills esteticamente mais bonitas, pois em todas as
-                kills, pode ser que fique cansativo." → toggle disabled "em
-                breve". Backend Remotion code do flash continua presente
-                (HighlightScene killFlashEnabled prop) mas UI bloqueada até
-                sprint dedicada implementar aesthetic kill scoring (AWP
-                no-scope, knife, wallbang, multi-kill, pistol HS) — só
-                kills no top X% recebem o efeito, evitando fatigue. */}
+            {/* Sprint Aesthetic (06/05) — "Estilos visuais" RE-HABILITADO.
+                Scorer agora identifica kills bonitas via aesthetic_score
+                + aesthetic_style (noscope, knife, wallbang, smoke, blind,
+                flick). Editor aplica flash COR-ESPECÍFICA por style.
+                Kills comuns ficam sem efeito (anti-fadiga). Default OFF
+                até calibração validar distribuição. */}
             <div style={{
               marginTop: 12,
               padding: "12px 14px",
               borderRadius: 10,
               background: "#16213E",
               border: "1px solid #2D2D44",
-              opacity: 0.55,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1323,29 +1318,27 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
-                  ✨ Estilos visuais{" "}
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "#FFD700", marginLeft: 4 }}>
-                    EM BREVE
-                  </span>
+                  {killFlashEnabled ? "✨ Estilos visuais ativos" : "✨ Estilos visuais"}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                  Efeitos cinematic (flash, slow-mo, color grade) aplicados só nas kills mais bonitas — AWP no-scope, wallbang, multi-kill. Em desenvolvimento.
+                  {killFlashEnabled
+                    ? "Flash colorido aplicado só nas kills mais bonitas — noscope (dourado), knife (quente), wallbang (branco), smoke (azul), blind (branco)."
+                    : "Aplica efeito visual cinematic só nas kills esteticamente mais bonitas (noscope, knife, wallbang, etc). Kills comuns ficam sem efeito."}
                 </div>
               </div>
               <button
                 type="button"
-                disabled
-                aria-disabled="true"
-                aria-label="Estilos visuais — em breve"
-                title="Em breve: vai aplicar efeitos só nas kills esteticamente mais bonitas pra evitar fatigue."
+                onClick={() => setKillFlashEnabled((v) => !v)}
+                aria-pressed={killFlashEnabled}
+                aria-label="Alternar estilos visuais nas kills bonitas"
                 style={{
                   position: "relative",
                   width: 48,
                   height: 26,
                   borderRadius: 13,
                   border: "none",
-                  background: "#2D2D44",
-                  cursor: "not-allowed",
+                  background: killFlashEnabled ? "#FFD700" : "#2D2D44",
+                  cursor: "pointer",
                   transition: "background 0.15s",
                   flexShrink: 0,
                   padding: 0,
@@ -1354,11 +1347,11 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                 <div style={{
                   position: "absolute",
                   top: 3,
-                  left: 3,
+                  left: killFlashEnabled ? 25 : 3,
                   width: 20,
                   height: 20,
                   borderRadius: "50%",
-                  background: "rgba(255,255,255,0.5)",
+                  background: "white",
                   transition: "left 0.15s",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
                 }} />

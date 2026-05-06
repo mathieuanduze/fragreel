@@ -51,6 +51,15 @@ class KillOut(BaseModel):
     attacker_health: Optional[int] = None  # HP do user nesta kill
     alive_ct_after: Optional[int] = None   # CT-side alive count APÓS essa kill
     alive_t_after: Optional[int] = None    # T-side alive count APÓS essa kill
+    # ── Sprint Aesthetic Kill Scoring (06/05) ─────────────────────────────
+    # Per-kill score técnico/estético + style hint pra editor renderizar
+    # efeito visual cor-específica (noscope=dourado, knife=quente,
+    # wallbang=branco x-ray, smoke=azul, blind=branco overpower, flick=
+    # laranja FragReel). Scorer seta style apenas pra kills com score >=
+    # threshold (anti-fadiga). Highlights legados sem campos = kill comum
+    # (no effect).
+    aesthetic_score: Optional[float] = None  # 0..N, soma de bonuses técnicos
+    aesthetic_style: Optional[str] = None    # noscope|knife|wallbang|smoke|blind|flick|None
 
 
 class HighlightOut(BaseModel):

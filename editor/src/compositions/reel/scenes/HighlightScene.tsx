@@ -21,7 +21,7 @@ import {
   refSourceDurSec,
   resolveAliveAt,
 } from "../../../theme";
-import { Highlight } from "../../../types";
+import { Highlight, Kill } from "../../../types";
 
 type Props = {
   highlight: Highlight;
@@ -141,40 +141,55 @@ export const HighlightScene: React.FC<Props> = ({
     extrapolateRight: "clamp",
   });
 
-  // Sprint #6.1 — Kill flash effect: dispara flash branco intenso em cada
-  // kill timestamp do scene quando killFlashEnabled=true.
+  // Sprint Aesthetic (06/05) — Visual styles SELETIVOS por kill:
+  // Mathieu spec: "minha intenção é que apareça o estilo visual só nas
+  // kills esteticamente mais bonitas, pois em todas as kills, pode ser
+  // que fique cansativo".
   //
-  // 05/05 BUG FIX (Mathieu reportou "não apareceu nada"):
-  // versão original usava interpolate(frame - kFrame, [0, 2, 6], [0.85, 0.5, 0])
-  // com extrapolateLeft: "clamp" → ANTES da kill (delta < 0), output era
-  // CLAMPED pro primeiro valor 0.85 → flash sempre ON ANTES de cada kill,
-  // não NA kill. Math.max() agregava 0.85 sustained → cena toda lavada
-  // de branco antes da primeira kill. Aparentemente o blend mode + screen
-  // mascarava isso? Talvez nem rendered (renderRemotion sometimes ignora
-  // overlays no fundo gradiente).
+  // Mudança vs Sprint #6.1 (kill flash all-kills):
+  //   - Antes: killFlashEnabled = ON → flash em TODA kill.
+  //   - Agora: kills com `aesthetic_style` set recebem flash COR-ESPECÍFICA
+  //     baseado no estilo (noscope=dourado, knife=quente, wallbang=branco,
+  //     smoke=azul, blind=branco overpower, flick=laranja). Kills sem
+  //     style ficam sem efeito visual.
   //
-  // Fix: explicit return 0 quando delta fora do range (pre-kill ou pós-decay).
-  // Plus bumped intensity 0.85 → 0.95 + decay 6 → 12 frames (~400ms @30fps).
-  // Mais visível mas sem ofuscar gameplay.
-  const killFlashIntensity = killFlashEnabled
-    ? Math.max(
-        0,
-        ...killTimings.map((t) => {
-          const kFrame = s2f(t.sceneTime);
-          const delta = frame - kFrame;
-          // Antes da kill ou pós-decay completo: invisible
-          if (delta < 0 || delta > 12) return 0;
-          // Peak no frame da kill, decay rápido inicial + suave depois.
-          // [0, 2, 12] → [0.95, 0.7, 0]: peak 0.95 mantém 1 frame, cai
-          // pra 0.7 em 2 frames (~67ms — instant pulse), decay suave
-          // 0.7 → 0 em 10 frames adicionais (~333ms).
-          return interpolate(delta, [0, 2, 12], [0.95, 0.7, 0], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          });
-        }),
-      )
-    : 0;
+  // Threshold é gerenciado pelo scorer (aesthetic_score >= threshold seta
+  // style). Editor é dumb consumer — só renderiza o que vier.
+  //
+  // Backwards compat: `killFlashEnabled` toggle ainda funciona como
+  // master gate (UI marcado "em breve" mas backend ON quando user re-
+  // enable). Default false → no effect, mesmo com aesthetic_style set.
+  // Quando true → effects renderizados conforme style.
+  const STYLE_COLORS: Record<string, string> = {
+    noscope:  "rgba(255, 215, 0, 0.95)",   // dourado
+    knife:    "rgba(255, 140, 60, 0.85)",  // laranja quente
+    wallbang: "rgba(255, 255, 255, 0.95)", // branco x-ray
+    smoke:    "rgba(120, 180, 255, 0.90)", // azul claro
+    blind:    "rgba(255, 255, 255, 1.0)",  // branco overpower
+    flick:    "rgba(255, 107, 53, 0.90)",  // laranja FragReel
+  };
+
+  // Compute flash intensity + color from active styled kill (max nas
+  // overlapping styled kills, mas raramente overlap em < 12 frames).
+  let killFlashIntensity = 0;
+  let killFlashColor = STYLE_COLORS.flick;
+  if (killFlashEnabled) {
+    for (const t of killTimings) {
+      const style = (t.kill as Kill).aesthetic_style;
+      if (!style) continue; // skip kills sem style
+      const kFrame = s2f(t.sceneTime);
+      const delta = frame - kFrame;
+      if (delta < 0 || delta > 12) continue;
+      const intensity = interpolate(delta, [0, 2, 12], [0.95, 0.7, 0], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+      });
+      if (intensity > killFlashIntensity) {
+        killFlashIntensity = intensity;
+        killFlashColor = STYLE_COLORS[style] ?? STYLE_COLORS.flick;
+      }
+    }
+  }
 
   // Sprint #6.2 — Bomb timer red bar (Major-style). CS2 bomb explode 40s
   // pós-plant. Mostra barra decrescendo do plant até explosion ou defuse.
@@ -480,13 +495,15 @@ export const HighlightScene: React.FC<Props> = ({
         }}
       />
 
-      {/* Sprint #6.1 — Kill flash effect (per-kill flash quando opt-in).
-          Layer separada do flash inicial pra empilhar sem conflito.
-          Cor mood-specific pra evitar flash branco genérico. */}
+      {/* Sprint Aesthetic (06/05) — Style-specific flash, per-kill.
+          Cor vem de `aesthetic_style` do scorer (noscope=dourado,
+          knife=quente, wallbang=branco, smoke=azul, blind=branco
+          overpower, flick=laranja FragReel). Kills sem style não
+          renderizam flash (anti-fadiga). */}
       {killFlashEnabled && killFlashIntensity > 0.001 && (
         <AbsoluteFill
           style={{
-            background: `radial-gradient(circle at center, ${moodDef.color}66 0%, transparent 70%), white`,
+            background: `radial-gradient(circle at center, ${killFlashColor} 0%, transparent 70%)`,
             opacity: killFlashIntensity,
             pointerEvents: "none",
             mixBlendMode: "screen",

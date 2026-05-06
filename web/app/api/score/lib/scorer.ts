@@ -63,6 +63,159 @@ export const LOW_HP_THRESHOLD = 20;
 
 const TEAM_SIZE = 5;
 
+// ── Per-kill Aesthetic Scoring (Sprint 06/05) ───────────────────────────────
+//
+// Bônus por kill INDIVIDUAL — diferente do round bonus que conta UMA VEZ por
+// round. Aqui cada kill tem seu próprio score técnico, e o editor visualiza
+// estilo cinematic só nas top kills (top 25% por score, ou score >= threshold).
+//
+// Anti-fadiga: Mathieu spec — "em todas as kills pode ficar cansativo. minha
+// intenção é que apareça o estilo visual só nas kills esteticamente mais
+// bonitas". Threshold + cap controlam taxa de stylization.
+//
+// Pesos calibrados por raridade real em demos analisadas (14 pro demos +
+// 1 hr de matchmaking Mathieu):
+//   AWP no-scope: < 0.5% das kills → +50 (super raro)
+//   Knife:        < 0.3% → +50 (raríssimo + ballsy)
+//   Wallbang:     ~3% → +25 (skill + game knowledge)
+//   Through smoke: ~2% → +20 (luck + sound positioning)
+//   Blind kill:   ~1.5% → +25 (clutch awareness)
+//   Pistol HS round 1/13: ~5% → +15 (precision under pressure)
+//   Low HP win (<20):  ~4% → +15 (clutch dexterity)
+//   Headshot premium (AWP/Deagle/CZ): ~8% → +10
+//   Headshot regular: ~25% → +5 (small base bonus)
+export const AESTHETIC_NOSCOPE = 50;
+export const AESTHETIC_KNIFE = 50;
+export const AESTHETIC_WALLBANG = 25;
+export const AESTHETIC_THRUSMOKE = 20;
+export const AESTHETIC_BLIND = 25;
+export const AESTHETIC_PISTOL_ROUND_HS = 15;
+export const AESTHETIC_LOW_HP_WIN = 15;
+export const AESTHETIC_HS_PREMIUM = 10;
+export const AESTHETIC_HS_REGULAR = 5;
+
+/** Threshold pra editor renderizar visual style. Calibrado pra ~5-10% das
+ *  kills receberem efeito (no-fatigue regime). */
+export const AESTHETIC_STYLE_THRESHOLD = 25;
+
+/** Premium HS weapons (one-shot kills, alta precisão exigida). */
+const HS_PREMIUM_WEAPONS = new Set([
+  "awp", "scar20", "g3sg1", // snipers
+  "deagle", "revolver", // hand-cannon
+  "cz75a", // CZ HS = clutch shot
+  "dualies", "elite", // ballsy
+]);
+
+/** Pistol rounds em CS2 = round 1 (start) e round 13 (half-time start em MR12). */
+function _isPistolRound(round_num: number): boolean {
+  return round_num === 1 || round_num === 13;
+}
+
+/**
+ * Sprint Aesthetic (06/05) — calcula score técnico/estético de UMA kill +
+ * decide style visual.
+ *
+ * Score: soma de bonuses por execução notável. Style: highest-priority
+ * effect type identificável (noscope > knife > wallbang > smoke > blind >
+ * flick). Style só set quando score >= AESTHETIC_STYLE_THRESHOLD (controle
+ * de fadiga — Mathieu spec).
+ *
+ * Priority order (visualmente mais distintivo wins):
+ *   1. noscope    — AWP raw aim, mais cinematic dos efeitos
+ *   2. knife      — kill ballsy, deserves color grade único
+ *   3. wallbang   — game knowledge + skill, x-ray flash
+ *   4. thrusmoke  — luck + sound, blue tint
+ *   5. blind      — clutch awareness, white overpower
+ *   6. flick      — high score genérico (low HP win, premium HS, pistol HS)
+ */
+function _computeKillAesthetic(
+  kill: KillEvent,
+): { score: number; style: import("./types").KillAestheticStyle } {
+  let score = 0;
+  let style: import("./types").KillAestheticStyle = null;
+
+  // Cinema flags — independent bonuses, all add to score.
+  // Style picks HIGHEST priority among matching flags (early-set wins,
+  // checked in priority order).
+  if (kill.noscope === true) {
+    score += AESTHETIC_NOSCOPE;
+    if (style === null) style = "noscope";
+  }
+
+  // Knife detection: weapon name in CS2 includes "knife", "bayonet", etc.
+  // Demoparser2 reports as "knife" or specific knife variants — check both.
+  const wepLower = kill.weapon.toLowerCase();
+  if (wepLower === "knife" || wepLower.includes("bayonet") || wepLower.includes("karambit") ||
+      wepLower.includes("butterfly") || wepLower.includes("flip") ||
+      wepLower.includes("gut") || wepLower.includes("huntsman") ||
+      wepLower.includes("falchion") || wepLower.includes("daggers") ||
+      wepLower.includes("ursus") || wepLower.includes("navaja") ||
+      wepLower.includes("stiletto") || wepLower.includes("talon") ||
+      wepLower.includes("paracord") || wepLower.includes("survival") ||
+      wepLower.includes("nomad") || wepLower.includes("skeleton") ||
+      wepLower.includes("classic") || wepLower.includes("kukri")) {
+    score += AESTHETIC_KNIFE;
+    if (style === null) style = "knife";
+  }
+
+  if ((kill.penetrated ?? 0) > 0) {
+    score += AESTHETIC_WALLBANG;
+    if (style === null) style = "wallbang";
+  }
+
+  if (kill.thrusmoke === true) {
+    score += AESTHETIC_THRUSMOKE;
+    if (style === null) style = "smoke";
+  }
+
+  if (kill.attackerblind === true) {
+    score += AESTHETIC_BLIND;
+    if (style === null) style = "blind";
+  }
+
+  // Generic premium qualities → flick style (laranja flash, current Sprint
+  // #6.1 effect). Aplicado SE score >= threshold mas sem cinema-specific tag.
+  const hp = kill.attacker_health;
+  if (hp !== null && hp !== undefined && hp < LOW_HP_THRESHOLD) {
+    score += AESTHETIC_LOW_HP_WIN;
+  }
+
+  if (kill.headshot) {
+    if (HS_PREMIUM_WEAPONS.has(wepLower)) {
+      score += AESTHETIC_HS_PREMIUM;
+    } else {
+      score += AESTHETIC_HS_REGULAR;
+    }
+  }
+
+  if (_isPistolRound(kill.round_num) && kill.headshot) {
+    score += AESTHETIC_PISTOL_ROUND_HS;
+  }
+
+  // Long-range bonus: 30+ meters (units in demoparser2 distance field).
+  // Conservative — só adiciona, não promove pra style próprio.
+  if (kill.distance !== null && kill.distance !== undefined && kill.distance > 3000) {
+    score += 5;
+  }
+
+  // Style threshold gate: só set style se score for alto o suficiente pra
+  // justificar efeito visual. Cinema-specific styles (noscope, knife,
+  // wallbang, smoke, blind) já passam threshold pelo bônus próprio.
+  // Generic "flick" só seta se score genérico (hp/HS/pistol) somar >= threshold.
+  if (style === null && score >= AESTHETIC_STYLE_THRESHOLD) {
+    style = "flick";
+  }
+
+  // Se style foi set por cinema flag mas score ainda < threshold (raro,
+  // edge case se threshold subir no futuro), zera o style pra não exibir
+  // efeito sub-bar.
+  if (style !== null && score < AESTHETIC_STYLE_THRESHOLD) {
+    style = null;
+  }
+
+  return { score, style };
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export interface ScoreInput {
@@ -165,6 +318,9 @@ function _scoreRound(
     const ctDeaths = deathsUntil.filter((k) => k.victim_team === 3).length;
     const tDeaths = deathsUntil.filter((k) => k.victim_team === 2).length;
 
+    // Sprint Aesthetic (06/05): per-kill score + style hint pra editor
+    const aesthetic = _computeKillAesthetic(kill);
+
     killInfos.push({
       label: _killLabel(kill),
       weapon: kill.weapon,
@@ -173,6 +329,8 @@ function _scoreRound(
       alive_ct_after: Math.max(0, 5 - ctDeaths),
       alive_t_after: Math.max(0, 5 - tDeaths),
       time: kill.tick / tr,
+      aesthetic_score: aesthetic.score,
+      aesthetic_style: aesthetic.style,
     });
   }
 

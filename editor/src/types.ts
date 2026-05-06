@@ -7,6 +7,18 @@ export type Mood = "eletronica" | "acao" | "heroico" | "chill";
 // Re-exporta pra quem importa só de types.
 export type { Orientation };
 
+/** Sprint Aesthetic Kill Scoring (06/05) — visual style aplicado em cima
+ *  das kills mais bonitas. Editor renderiza efeito específico por tipo:
+ *    - noscope:  AWP sem zoom → flash dourado + zoom suave
+ *    - knife:    knife kill → color grade quente + screen shake leve
+ *    - wallbang: bullet penetrou parede → flash branco + x-ray pulse
+ *    - smoke:    tiro através de smoke → flash azul claro
+ *    - blind:    atacante cego → flash branco overpower
+ *    - flick:    high score genérico → flash laranja (Sprint #6.1 effect)
+ *    - null:     kill comum, sem efeito visual extra
+ */
+export type KillAestheticStyle = "noscope" | "knife" | "wallbang" | "smoke" | "blind" | "flick" | null;
+
 export type Kill = {
   label: string;
   weapon: string;
@@ -24,6 +36,14 @@ export type Kill = {
   attacker_health?: number;
   alive_ct_after?: number;
   alive_t_after?: number;
+  /** Sprint Aesthetic (06/05) — score técnico/estético da kill. Editor
+   *  usa pra threshold de cinematic effect. Highlights legados sem este
+   *  field default 0 (treated as common kill). */
+  aesthetic_score?: number;
+  /** Sprint Aesthetic (06/05) — style hint pro editor. null/undefined =
+   *  kill comum sem efeito. Set pelo scorer quando aesthetic_score >=
+   *  threshold + tipo de execução é identificável. */
+  aesthetic_style?: KillAestheticStyle;
 };
 
 export type Highlight = {

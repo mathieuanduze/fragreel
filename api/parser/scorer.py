@@ -86,6 +86,105 @@ LOW_HP_THRESHOLD = 20
 # returns None gracefully.
 TEAM_SIZE = 5
 
+# ── Per-kill Aesthetic Scoring (Sprint 06/05) ───────────────────────────────
+# Mantém paridade EXATA com web/app/api/score/lib/scorer.ts pra que score
+# local (api_client.py) e score servidor (api/) produzam mesmos
+# aesthetic_style hints → editor renderiza igual em ambos paths.
+AESTHETIC_NOSCOPE = 50
+AESTHETIC_KNIFE = 50
+AESTHETIC_WALLBANG = 25
+AESTHETIC_THRUSMOKE = 20
+AESTHETIC_BLIND = 25
+AESTHETIC_PISTOL_ROUND_HS = 15
+AESTHETIC_LOW_HP_WIN = 15
+AESTHETIC_HS_PREMIUM = 10
+AESTHETIC_HS_REGULAR = 5
+AESTHETIC_STYLE_THRESHOLD = 25
+
+_HS_PREMIUM_WEAPONS = {
+    "awp", "scar20", "g3sg1",
+    "deagle", "revolver",
+    "cz75a",
+    "dualies", "elite",
+}
+
+_KNIFE_TOKENS = (
+    "knife", "bayonet", "karambit", "butterfly", "flip",
+    "gut", "huntsman", "falchion", "daggers",
+    "ursus", "navaja", "stiletto", "talon",
+    "paracord", "survival", "nomad", "skeleton",
+    "classic", "kukri",
+)
+
+
+def _is_pistol_round(round_num: int) -> bool:
+    """Pistol rounds em CS2 = round 1 (start) e round 13 (half-time MR12)."""
+    return round_num == 1 or round_num == 13
+
+
+def _compute_kill_aesthetic(kill) -> tuple[float, Optional[str]]:
+    """Calcula score técnico + style hint pra UMA kill.
+
+    Mantém paridade exata com TS `_computeKillAesthetic`. Style picks
+    HIGHEST priority entre flags matching (priority order: noscope > knife
+    > wallbang > smoke > blind > flick).
+    """
+    score = 0.0
+    style: Optional[str] = None
+
+    if getattr(kill, "noscope", False):
+        score += AESTHETIC_NOSCOPE
+        if style is None:
+            style = "noscope"
+
+    wep_lower = (kill.weapon or "").lower()
+    if any(token in wep_lower for token in _KNIFE_TOKENS):
+        score += AESTHETIC_KNIFE
+        if style is None:
+            style = "knife"
+
+    if (getattr(kill, "penetrated", 0) or 0) > 0:
+        score += AESTHETIC_WALLBANG
+        if style is None:
+            style = "wallbang"
+
+    if getattr(kill, "thrusmoke", False):
+        score += AESTHETIC_THRUSMOKE
+        if style is None:
+            style = "smoke"
+
+    if getattr(kill, "attackerblind", False):
+        score += AESTHETIC_BLIND
+        if style is None:
+            style = "blind"
+
+    hp = getattr(kill, "attacker_health", None)
+    if hp is not None and hp < LOW_HP_THRESHOLD:
+        score += AESTHETIC_LOW_HP_WIN
+
+    if kill.headshot:
+        if wep_lower in _HS_PREMIUM_WEAPONS:
+            score += AESTHETIC_HS_PREMIUM
+        else:
+            score += AESTHETIC_HS_REGULAR
+
+    if _is_pistol_round(getattr(kill, "round_num", 0)) and kill.headshot:
+        score += AESTHETIC_PISTOL_ROUND_HS
+
+    distance = getattr(kill, "distance", None)
+    if distance is not None and distance > 3000:
+        score += 5
+
+    # Generic flick: high score sem cinema-specific tag
+    if style is None and score >= AESTHETIC_STYLE_THRESHOLD:
+        style = "flick"
+
+    # Sub-threshold guard
+    if style is not None and score < AESTHETIC_STYLE_THRESHOLD:
+        style = None
+
+    return score, style
+
 
 # ── Data classes ──────────────────────────────────────────────────────────────
 
@@ -104,6 +203,15 @@ class KillInfo:
     alive_ct_after: Optional[int] = None   # CT-side alive count APÓS essa kill
     alive_t_after: Optional[int] = None    # T-side alive count APÓS essa kill
     time: Optional[float] = None           # tick em segundos (sync no editor)
+    # Sprint Aesthetic Kill Scoring (06/05) — paridade com TS scorer
+    # (web/app/api/score/lib/scorer.ts). Per-kill score técnico/estético +
+    # style hint pra editor renderizar efeito visual cor-específica.
+    # Editor lê aesthetic_style pra decidir se aplica flash (kills sem
+    # style ficam sem efeito → anti-fadiga). aesthetic_score é debug/audit
+    # info — editor decide via style. Highlights legados sem estes campos
+    # tratam como kill comum (no effect).
+    aesthetic_score: Optional[float] = None  # 0..N, soma de bonuses técnicos
+    aesthetic_style: Optional[str] = None    # noscope|knife|wallbang|smoke|blind|flick|None
 
 
 @dataclass
@@ -263,6 +371,9 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
         alive_ct_after = max(0, 5 - ct_deaths)
         alive_t_after = max(0, 5 - t_deaths)
 
+        # Sprint Aesthetic (06/05) — per-kill score + style hint
+        aesthetic_score, aesthetic_style = _compute_kill_aesthetic(kill)
+
         kill_infos.append(KillInfo(
             label=_kill_label(kill),
             weapon=kill.weapon,
@@ -271,6 +382,8 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
             alive_ct_after=alive_ct_after,
             alive_t_after=alive_t_after,
             time=kill.tick / tickrate,
+            aesthetic_score=aesthetic_score,
+            aesthetic_style=aesthetic_style,
         ))
 
     # ── Round-level context bonuses (each fires AT MOST ONCE per round) ───────

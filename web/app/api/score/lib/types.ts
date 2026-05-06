@@ -64,6 +64,26 @@ export interface DemoMeta {
 
 // ── Output do scoring ────────────────────────────────────────────────────────
 
+/** Sprint Aesthetic Kill Scoring (06/05) — visual style aplicado em cima
+ *  de kills mais bonitas. Editor renderiza efeito específico por tipo:
+ *    - noscope: AWP sem zoom (super raro + ballsy)
+ *    - knife:   knife kill (rare + ballsy)
+ *    - wallbang: bullet penetrou parede (penetrated > 0)
+ *    - smoke:   tiro através de smoke (thrusmoke)
+ *    - blind:   atacante cego (attackerblind, flashbang antes)
+ *    - flick:   high score genérico (low HP win, headshot premium, etc)
+ *    - null:    kill comum, sem efeito visual extra
+ *
+ *  Per-style visual mapping (HighlightScene aplica):
+ *    noscope → flash dourado + zoom suave
+ *    knife   → color grade quente + screen shake leve
+ *    wallbang → flash branco rápido + x-ray pulse
+ *    smoke   → flash azul claro
+ *    blind   → flash branco overpoder
+ *    flick   → flash laranja (mesmo do Sprint #6.1 mas só nas top kills)
+ */
+export type KillAestheticStyle = "noscope" | "knife" | "wallbang" | "smoke" | "blind" | "flick" | null;
+
 export interface KillInfo {
   label: string;
   weapon: string;
@@ -74,6 +94,17 @@ export interface KillInfo {
   alive_ct_after?: number | null;
   alive_t_after?: number | null;
   time?: number | null; // tick em segundos
+  /** Sprint Aesthetic (06/05) — score técnico/estético da kill (0-N).
+   *  Não confundir com `Highlight.score` (round score). Per-kill score que
+   *  considera weapon rarity (AWP/knife/pistol HS), execution quality
+   *  (noscope, wallbang, through smoke, blind), state (low HP win,
+   *  long range). Editor usa pra decidir estilo visual + threshold de
+   *  cinematic effect. */
+  aesthetic_score?: number;
+  /** Sprint Aesthetic (06/05) — style hint pro editor renderizar efeito
+   *  visual específico. null = kill comum sem efeito. Set quando
+   *  aesthetic_score cruza threshold + tipo de execução é identificável. */
+  aesthetic_style?: KillAestheticStyle;
 }
 
 export interface AliveEvent {
