@@ -102,12 +102,14 @@ export const HighlightsReel: React.FC<ReelProps> = ({
   selectedRanks,
   mood,
   playerName,
+  orientation,
   musicEnabled,
   scoreboardEnabled,
   killFlashEnabled,
   bombTimerEnabled,
   trackVariantIndex,
   cs2IconsBaseUrl,
+  hudVersion,
 }) => {
   const moodDef = MOODS[mood];
 
@@ -144,6 +146,10 @@ export const HighlightsReel: React.FC<ReelProps> = ({
           killFlashEnabled={killFlashEnabled === true}
           bombTimerEnabled={bombTimerEnabled === true}
           cs2IconsBaseUrl={cs2IconsBaseUrl}
+          hudVersion={hudVersion ?? "v2"}
+          playerName={playerName}
+          match={match}
+          orientation={orientation ?? "vertical"}
         />
       </Sequence>
     );

@@ -21,8 +21,9 @@ import {
   refSourceDurSec,
   resolveAliveAt,
 } from "../../../theme";
-import { Highlight, Kill } from "../../../types";
+import { Highlight, Kill, Match } from "../../../types";
 import { resolveWeaponIconUrl, resolveModifierIconUrl } from "./weaponIcons";
+import { HudV2 } from "./HudV2";
 
 type Props = {
   highlight: Highlight;
@@ -39,6 +40,13 @@ type Props = {
   // Quando set, killfeed renderiza weapon icons (ak47.svg, awp.svg, etc).
   // Undefined / 404 → fallback text-only weapon name (current behavior).
   cs2IconsBaseUrl?: string;
+  // Sprint HUD V2 (06/05) — toggle pro novo HUD Major-style. Default v2.
+  hudVersion?: "v1" | "v2";
+  // V2 precisa playerName + match.score (pra computar CT/T scores) +
+  // orientation. Plumbed via HighlightsReel.
+  playerName?: string;
+  match?: Match;
+  orientation?: import("../../../theme").Orientation;
 };
 
 /**
@@ -58,6 +66,10 @@ export const HighlightScene: React.FC<Props> = ({
   killFlashEnabled = false,
   bombTimerEnabled = false,
   cs2IconsBaseUrl,
+  hudVersion = "v2",
+  playerName = "PLAYER",
+  match,
+  orientation = "vertical",
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames, width, height } = useVideoConfig();
@@ -802,7 +814,7 @@ export const HighlightScene: React.FC<Props> = ({
         );
       })()}
 
-      {showScoreboard && hasScoreboardContext && (
+      {hudVersion === "v1" && showScoreboard && hasScoreboardContext && (
         <div
           style={{
             position: "absolute",
@@ -976,7 +988,7 @@ export const HighlightScene: React.FC<Props> = ({
           OFF (toggle user) ou highlight legado (sem alive_timeline).
           Mantém top-left position pra não conflitar com scoreboard
           centralizado. */}
-      {(!showScoreboard || !hasScoreboardContext) && (
+      {hudVersion === "v1" && (!showScoreboard || !hasScoreboardContext) && (
         <div
           style={{
             position: "absolute",
@@ -1018,11 +1030,10 @@ export const HighlightScene: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Round 4c Fase 1.29 (revisão Mathieu): #N badge VOLTA top-left
-          como separador visual entre rounds. Combinado com fadeOut
-          maior (12 frames, mais visível) marca clearly mudança de
-          highlight. Posicionado no canto pra não conflitar com
-          scoreboard centralizado top-center. */}
+      {/* Round 4c Fase 1.29 — V1 #N rank badge top-left.
+          Sprint HUD V2 (06/05): gated por hudVersion === "v1". V2 substitui
+          por player name + watermark stack na top-left zone (HudV2 component). */}
+      {hudVersion === "v1" && (
       <div
         style={{
           position: "absolute",
@@ -1053,6 +1064,7 @@ export const HighlightScene: React.FC<Props> = ({
       >
         #{highlight.rank}
       </div>
+      )}
 
       {/* Round 4c Fase 1.29 (revisão Mathieu): WATERMARK
           "Vídeo gerado por fragreel.gg" — bottom-right, sutil mas
@@ -1060,14 +1072,10 @@ export const HighlightScene: React.FC<Props> = ({
           reels postados em redes sociais.
           Round 4c Fase 1.36 (Mathieu pós-PASS Round 4c): "watermark
           fragreel.gg tem que ser maior do que o estado atual".
-          fontSizes bumped ~50%, padding +30%, opacity 0.85→0.92.
-          Round 4d 4.1 (Mathieu 29/04, primeiro reel próprio): "watermark
-          ainda muito pequena durante o vídeo". Bump adicional ~50%
-          (vertical 17/20 → 26/30, horizontal 14/17 → 22/26), padding
-          +40%, opacity 0.92→1.0. Watermark é growth channel principal
-          (reels postados em redes) — precisa ser legível em mobile feed
-          a 50% scale. Regra de negócio universal pra TODOS users
-          (rule_user_feedback_is_universal_spec). */}
+          Sprint HUD V2 (06/05): bottom-right watermark gated por
+          hudVersion === "v1". V2 move watermark pra top-left abaixo do
+          player name (HudV2 component). */}
+      {hudVersion === "v1" && (
       <div
         style={{
           position: "absolute",
@@ -1107,8 +1115,12 @@ export const HighlightScene: React.FC<Props> = ({
           fragreel.gg
         </span>
       </div>
+      )}
 
-      {/* Label — bottom (proporcional pra ficar bem em vertical e horizontal) */}
+      {/* V1 Label "3K · Round 14" bottom-left. Sprint HUD V2 (06/05): gated
+          por hudVersion === "v1". V2 não exibe — informação migrou pro
+          scoreboard central (round number entre os times). */}
+      {hudVersion === "v1" && (
       <div
         style={{
           position: "absolute",
@@ -1139,6 +1151,31 @@ export const HighlightScene: React.FC<Props> = ({
           {highlight.label.split(" · ").slice(1).join(" · ")}
         </div>
       </div>
+      )}
+
+      {/* Sprint HUD V2 (06/05) — novo HUD Major-style minimalista quando
+          hudVersion === "v2". Player name + watermark top-left + score
+          com 5-dots alive + round number central. */}
+      {hudVersion === "v2" && match && (
+        <HudV2
+          playerName={playerName}
+          mood={mood}
+          orientation={orientation}
+          roundNum={highlight.round_num}
+          scoreCt={(() => {
+            // Parse match.score "11-3" → CT score
+            const parts = (match.score || "0-0").split("-").map((s) => parseInt(s.trim(), 10) || 0);
+            return parts[0] ?? 0;
+          })()}
+          scoreT={(() => {
+            const parts = (match.score || "0-0").split("-").map((s) => parseInt(s.trim(), 10) || 0);
+            return parts[1] ?? 0;
+          })()}
+          aliveCt={dynamicAliveCt}
+          aliveT={dynamicAliveT}
+          hasAliveTimeline={hasScoreboardContext}
+        />
+      )}
 
       {/*
         Round 4c Fase 1.24 — KILLFEED ACUMULANDO (Mathieu spec: "killfeed

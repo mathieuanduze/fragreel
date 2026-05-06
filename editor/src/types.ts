@@ -176,6 +176,14 @@ export type ReelProps = {
   // `${cs2IconsBaseUrl}/equipment/<weapon>.svg` pra renderizar killfeed.
   // Undefined / 404 → editor cai pra fallback text-only weapon name.
   cs2IconsBaseUrl?: string;
+  // Sprint HUD V2 (06/05) — toggle pro novo HUD Major-style minimalista.
+  // "v1" = legacy (rank #N badge + "3K Round X" + scoreboard antigo +
+  // watermark bottom-right) — preservado integral.
+  // "v2" = novo (player name + watermark top-left + 5-dots score + round
+  // count central) inspirado em cs2-react-hud + GHM (HLTV broadcast style).
+  // Default "v2". User pode reverter via UI toggle se v2 não vingar em
+  // field test.
+  hudVersion?: "v1" | "v2";
 };
 
 export type CardProps = {
