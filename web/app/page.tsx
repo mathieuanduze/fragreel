@@ -83,17 +83,29 @@ export default async function Home() {
             Counter-Strike 2 · Exclusivo
           </div>
 
+          {/* H1 06/05 (Mathieu spec): "Em 3 segundos, o usuário deve
+              entender: Eu coloco meu link/arquivo e saio com um vídeo
+              pronto para o TikTok. Diferenciar do allstargg que é
+              processo manual. Aqui é tudo automático." */}
           <h1 style={{ fontSize: "clamp(40px, 6.5vw, 76px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 20 }}>
-            Seus frags com{" "}
-            <span style={{ color: "#FF6B35" }}>cinematografia</span>
+            Suas demos viram{" "}
+            <span style={{ color: "#FF6B35" }}>reels prontos</span>
             <br />
-            de Major.{" "}
-            <span style={{ color: "rgba(255,255,255,0.3)" }}>De graça.</span>
+            pro TikTok.{" "}
+            <span style={{ color: "rgba(255,255,255,0.3)" }}>Automático.</span>
           </h1>
 
-          <p style={{ fontSize: 18, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, maxWidth: 540, margin: "0 auto 28px" }}>
-            Reel pronto pra postar a partir das suas demos do CS2. Sem upload, sem assinatura.
+          <p style={{ fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, maxWidth: 600, margin: "0 auto 14px" }}>
+            IA detecta seus melhores momentos, edita com cinematografia de Major, exporta em vertical. <strong style={{ color: "#E8E8F0", fontWeight: 700 }}>Sem CapCut, sem AllStar, sem editor manual.</strong>
           </p>
+
+          {/* PC requirement indicator (Mathieu spec 06/05): "Precisa ser
+              claro no mobile e PC que pra gerar fragreel precisa estar
+              logado no PC". Hero = primeiro touchpoint. */}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 26, padding: "7px 14px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#60a5fa", letterSpacing: "0.02em" }}>
+            <span>🖥️</span>
+            Render roda no seu Windows · CS2 lê as demos local
+          </div>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap", marginBottom: 28 }}>
             {STATS.map((s) => (
@@ -104,12 +116,38 @@ export default async function Home() {
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <a href="/download" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 32px", textDecoration: "none" }}>
-              ⬇ Baixar grátis · Windows{versionSuffix}
+          {/* CTA hierarchy (Mathieu spec): primário deve ser MAIS chamativo
+              do que secundários. Antes ambos tinham mesmo padding+fontSize.
+              Agora primário cresce + glow + secondary vira link textual. */}
+          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
+            <a
+              href="/download"
+              download="FragReel.exe"
+              className="btn-primary"
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                padding: "18px 38px",
+                textDecoration: "none",
+                boxShadow: "0 8px 32px rgba(255,107,53,0.45), 0 0 0 1px rgba(255,107,53,0.3)",
+                transform: "scale(1)",
+                transition: "transform 0.15s",
+              }}
+            >
+              ⬇ Baixar grátis pro Windows{versionSuffix}
             </a>
-            <Link href="/login" className="btn-ghost" style={{ fontSize: 16 }}>
-              Entrar com Steam →
+            <Link
+              href="/login"
+              style={{
+                fontSize: 14,
+                color: "rgba(255,255,255,0.55)",
+                textDecoration: "underline",
+                textDecorationColor: "rgba(255,255,255,0.2)",
+                textUnderlineOffset: 4,
+                fontWeight: 500,
+              }}
+            >
+              ou entrar com Steam
             </Link>
           </div>
         </div>

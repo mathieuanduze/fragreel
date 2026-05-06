@@ -12,6 +12,7 @@ import {
 import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import AnalyzeModal from "./AnalyzeModal";
 import UpdateRequiredModal from "./UpdateRequiredModal";
+import Spinner from "./Spinner";
 
 function fmtDate(epoch: number): string {
   return new Date(epoch * 1000).toLocaleDateString("pt-BR", {
@@ -352,14 +353,71 @@ export default function LibraryContent() {
       {/* Sem demos + scan terminado = realmente vazio. Sem demos + scan rolando = placeholder de progresso. */}
       {(!demos || demos.length === 0) && (
         scanDone ? (
-          <div style={{ padding: 28, textAlign: "center", color: "rgba(255,255,255,0.5)", border: "1px dashed #2D2D44", borderRadius: 12 }}>
-            Nenhuma demo encontrada. Jogue uma partida competitiva ou baixe uma demo do HLTV pra começar.
+          // 06/05 — Mathieu spec: empty state precisa estar CLARO sobre
+          // como o user consegue uma demo. Antes era 1-line genérica.
+          // Agora 2 paths explícitos com ícones + numeração.
+          <div style={{
+            padding: "32px 28px",
+            textAlign: "center",
+            border: "1px dashed #2D2D44",
+            borderRadius: 12,
+            background: "rgba(26,26,46,0.4)",
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🎮</div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: "#E8E8F0", margin: "0 0 6px" }}>
+              Nenhuma demo encontrada ainda
+            </h3>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", margin: "0 0 22px", lineHeight: 1.5 }}>
+              FragReel precisa de uma <strong style={{ color: "#FF6B35" }}>demo do CS2</strong> (.dem)
+              pra gerar o reel. Você consegue uma de 2 jeitos:
+            </p>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 12,
+              maxWidth: 640,
+              margin: "0 auto",
+              textAlign: "left",
+            }}>
+              <div style={{ padding: 14, background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", letterSpacing: "0.1em", marginBottom: 6 }}>
+                  OPÇÃO 1 · AUTOMÁTICA
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 4 }}>
+                  Jogue uma matchmaking competitiva
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>
+                  CS2 salva a demo automático em <code style={{ background: "#0D0D1A", padding: "1px 5px", borderRadius: 3, fontSize: 11 }}>csgo/replays/</code>.
+                  FragReel detecta sozinho assim que terminar.
+                </div>
+              </div>
+              <div style={{ padding: 14, background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", letterSpacing: "0.1em", marginBottom: 6 }}>
+                  OPÇÃO 2 · MANUAL
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 4 }}>
+                  Baixe uma demo (HLTV, BLAST)
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>
+                  Salve em <code style={{ background: "#0D0D1A", padding: "1px 5px", borderRadius: 3, fontSize: 11 }}>Downloads</code> ou
+                  <code style={{ background: "#0D0D1A", padding: "1px 5px", borderRadius: 3, fontSize: 11, marginLeft: 4 }}>csgo/replays/</code>.
+                  FragReel acha sozinho.
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: 16, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+              Se já fez isso e não aparece, clica em "Atualizar lista" no topo.
+            </div>
           </div>
         ) : (
-          <div style={{ padding: 28, textAlign: "center", color: "rgba(255,255,255,0.5)", border: "1px dashed #2D2D44", borderRadius: 12 }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
-            Lendo .dem do CS2… isso roda só localmente, nada é enviado.
-          </div>
+          // 06/05 — Mathieu spec: loaders animados (Spinner) + hint sobre
+          // como achar demos (mais chamativo que ampulheta estática).
+          <Spinner
+            block
+            label="Lendo as suas demos do CS2…"
+            sublabel="Isso roda só no seu PC, nada é enviado pra servidor. Pode levar 10-30s na primeira vez (parsing dos .dem)."
+            showBar
+          />
         )
       )}
 

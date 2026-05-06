@@ -16,6 +16,7 @@ import Link from "next/link";
 import MatchClient from "@/app/match/[id]/MatchClient";
 import { scoreDemoForPlayer } from "@/lib/local";
 import type { MatchOut } from "@/lib/api";
+import Spinner from "@/components/Spinner";
 
 interface Props {
   sha: string;
@@ -51,6 +52,12 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
     return (
       <section style={{ paddingTop: 110, paddingBottom: 60, paddingLeft: 24, paddingRight: 24 }}>
         <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
+          {/* 06/05 — Mathieu spec: loaders precisam ser animados.
+              Ring spinner laranja (Spinner component) + shimmer bar.
+              Antes era só shimmer bar — sem indicador visual de "vivo". */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <Spinner size={48} />
+          </div>
           <div className="tag" style={{ marginBottom: 12, color: "#FF6B35" }}>
             Mapeando plays de impacto
           </div>
@@ -62,14 +69,14 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
             Demora 5-15 segundos.
           </p>
 
-          {/* Loading spinner-bar visual */}
+          {/* Shimmer bar (mantido como visual extra de progresso indeterminate) */}
           <div style={{
             width: "100%",
             maxWidth: 400,
             margin: "0 auto",
             height: 4,
             borderRadius: 2,
-            background: "#2D2D44",
+            background: "rgba(255,255,255,0.06)",
             overflow: "hidden",
             position: "relative",
           }}>
@@ -77,11 +84,11 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
               position: "absolute",
               inset: 0,
               background: "linear-gradient(90deg, transparent 0%, #FF6B35 50%, transparent 100%)",
-              animation: "shimmer 1.5s linear infinite",
+              animation: "shimmer-slide 1.5s linear infinite",
             }} />
           </div>
           <style jsx>{`
-            @keyframes shimmer {
+            @keyframes shimmer-slide {
               0% { transform: translateX(-100%); }
               100% { transform: translateX(100%); }
             }

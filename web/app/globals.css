@@ -26,6 +26,24 @@
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+
+  /* 06/05 — Mathieu spec: "Todos os loaders entre páginas precisam ser
+     animados. Por exemplo, quando as demos tão sendo mapeadas, só tem
+     uma ampulheta parada". Adicionados keyframes pro Spinner component
+     compartilhado. */
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  @keyframes pulse-bg {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.85; }
+  }
+  /* Skeleton shimmer pra placeholders de cards/listas */
+  @keyframes shimmer {
+    0%   { background-position: -300px 0; }
+    100% { background-position: 300px 0; }
+  }
 }
 
 @layer base {
