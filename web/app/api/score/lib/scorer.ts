@@ -271,36 +271,44 @@ export function scoreKills(input: ScoreInput): Highlight[] {
 
   const final = scored.slice(0, MAX_HIGHLIGHTS);
 
-  // Sprint #6.5 (06/05) — POV cut selection. Marca top 1-2 kills do reel
-  // inteiro (cross-highlight) com pov_eligible=true. Critérios:
-  //   - aesthetic_style != null (kill já passou threshold)
-  //   - victim_name resolvido (capture.cfg precisa)
-  //   - top 2 por aesthetic_score globalmente, sem repetir vítima
-  // Cap muito agressivo: victim POV é cinematic STATEMENT, não recurso comum.
+  // Sprint #6.5 (06/05) — POV cut selection (paridade com Python scorer.py).
+  // Mathieu spec round 2: "queria que pelo menos 1 fragreel POV saísse a
+  // cada fragreel". 2-tier:
+  //   Tier 1 (preferred): kills com aesthetic_style != null (top estética)
+  //   Tier 2 (fallback):  top por aesthetic_score mesmo sem style
+  // Sempre min 1, max 2 POV cuts no reel inteiro. Garante 1 POV por reel.
   const POV_MAX_CUTS_PER_REEL = 2;
-  const candidates: KillInfo[] = [];
+
+  // Coleta TODAS kills com victim_name resolvido (capture.cfg precisa)
+  const allCandidates: KillInfo[] = [];
   for (const hl of final) {
     for (const k of hl.kills) {
-      if (
-        k.aesthetic_style != null &&
-        k.aesthetic_score != null &&
-        k.victim_name &&
-        k.victim_steamid
-      ) {
-        candidates.push(k);
+      if (k.victim_name && k.victim_steamid && k.aesthetic_score != null) {
+        allCandidates.push(k);
       }
     }
   }
-  candidates.sort((a, b) => (b.aesthetic_score ?? 0) - (a.aesthetic_score ?? 0));
 
-  const seenVictims = new Set<string>();
-  let selected = 0;
-  for (const k of candidates) {
-    if (selected >= POV_MAX_CUTS_PER_REEL) break;
-    if (k.victim_steamid && seenVictims.has(k.victim_steamid)) continue;
-    k.pov_eligible = true;
-    if (k.victim_steamid) seenVictims.add(k.victim_steamid);
-    selected += 1;
+  if (allCandidates.length > 0) {
+    const tier1 = allCandidates
+      .filter((k) => k.aesthetic_style != null)
+      .sort((a, b) => (b.aesthetic_score ?? 0) - (a.aesthetic_score ?? 0));
+    const tier2 = allCandidates
+      .filter((k) => k.aesthetic_style == null)
+      .sort((a, b) => (b.aesthetic_score ?? 0) - (a.aesthetic_score ?? 0));
+
+    const seenVictims = new Set<string>();
+    let selected = 0;
+    for (const tier of [tier1, tier2]) {
+      for (const k of tier) {
+        if (selected >= POV_MAX_CUTS_PER_REEL) break;
+        if (k.victim_steamid && seenVictims.has(k.victim_steamid)) continue;
+        k.pov_eligible = true;
+        if (k.victim_steamid) seenVictims.add(k.victim_steamid);
+        selected += 1;
+      }
+      if (selected >= POV_MAX_CUTS_PER_REEL) break;
+    }
   }
 
   return final;

@@ -318,42 +318,65 @@ def score_kills(parsed: ParsedDemo, player_steamid: Optional[str] = None) -> lis
 
     final = scored[:MAX_HIGHLIGHTS]
 
-    # Sprint #6.5 (06/05) — POV cut selection. Marca top 1-2 kills do reel
-    # inteiro (cross-highlight) com pov_eligible=True. Critérios:
-    #   - aesthetic_style != None (kill já passou threshold de "bonita")
-    #   - victim_name resolvido (sem name → spec_player não funciona, skip)
-    #   - top 2 por aesthetic_score globalmente (sem repetir mesma vítima)
-    # Limit 2: cap muito agressivo, victim POV é cinematic STATEMENT, não
-    # recurso comum. Se top 2 forem na mesma highlight, OK — só 1-2 cuts
-    # no reel inteiro.
+    # Sprint #6.5 (06/05) — POV cut selection.
+    # Mathieu spec round 2 (06/05): "queria que pelo menos 1 fragreel POV
+    # saísse a cada fragreel". Antes só pegava kills com aesthetic_style
+    # setado (threshold 25) → reels "normais" (sem AWP no-scope/wallbang/
+    # etc) saíam SEM POV. Agora 2-tier:
+    #   Tier 1 (preferred): kills com aesthetic_style != None
+    #   Tier 2 (fallback):  top por aesthetic_score mesmo sem style
+    # Sempre min 1, max 2 POV cuts no reel inteiro. Garante 1 POV por reel
+    # (assumindo roster populado + ao menos 1 kill com victim_name).
     POV_MAX_CUTS_PER_REEL = 2
 
-    # Coleta TODAS kills com style + victim_name resolvido, ordena por score
-    candidate_kills: list[KillInfo] = []
+    # Coleta TODAS kills com victim_name resolvido (capture.cfg precisa)
+    all_candidates: list[KillInfo] = []
     for hl in final:
         for k in hl.kills:
-            if (k.aesthetic_style is not None
-                and k.aesthetic_score is not None
-                and k.victim_name
-                and k.victim_steamid):
-                candidate_kills.append(k)
-    candidate_kills.sort(key=lambda k: k.aesthetic_score or 0, reverse=True)
+            if (k.victim_name
+                and k.victim_steamid
+                and k.aesthetic_score is not None):
+                all_candidates.append(k)
 
-    # Marca top N (sem repetir mesmo victim_steamid pra dar variedade)
+    if not all_candidates:
+        log.info("POV cut: no candidate kills com victim_name resolvido — skip")
+        return final
+
+    # Tier 1: kills com aesthetic_style (top tier estética). Sort por score.
+    tier1 = sorted(
+        [k for k in all_candidates if k.aesthetic_style is not None],
+        key=lambda k: k.aesthetic_score or 0,
+        reverse=True,
+    )
+    # Tier 2: kills sem style (fallback pra garantir 1 POV). Sort por score.
+    tier2 = sorted(
+        [k for k in all_candidates if k.aesthetic_style is None],
+        key=lambda k: k.aesthetic_score or 0,
+        reverse=True,
+    )
+
+    # Selection: drena Tier 1 primeiro, depois Tier 2 pra completar até 2.
     seen_victims: set[str] = set()
     selected = 0
-    for k in candidate_kills:
+    for tier_name, tier in [("tier1-styled", tier1), ("tier2-fallback", tier2)]:
+        for k in tier:
+            if selected >= POV_MAX_CUTS_PER_REEL:
+                break
+            if k.victim_steamid in seen_victims:
+                continue
+            k.pov_eligible = True
+            seen_victims.add(k.victim_steamid or "")
+            selected += 1
+            log.info(
+                f"POV cut selected ({tier_name}): kill at tick {k.kill_tick} → "
+                f"victim {k.victim_name!r} (aesthetic_score={k.aesthetic_score}, "
+                f"style={k.aesthetic_style})"
+            )
         if selected >= POV_MAX_CUTS_PER_REEL:
             break
-        if k.victim_steamid in seen_victims:
-            continue
-        k.pov_eligible = True
-        seen_victims.add(k.victim_steamid or "")
-        selected += 1
-        log.info(
-            f"POV cut selected: kill at tick {k.kill_tick} → victim {k.victim_name!r} "
-            f"(aesthetic_score={k.aesthetic_score}, style={k.aesthetic_style})"
-        )
+
+    if selected == 0:
+        log.warning("POV cut: nenhuma kill selecionada (raro — verificar all_candidates)")
 
     return final
 
