@@ -169,6 +169,13 @@ export type ReelProps = {
   // theme.MOODS[mood].tracks lista as opções; resolveMoodTrack(mood, idx)
   // resolve o file. Ignored se musicEnabled=false.
   trackVariantIndex?: number;
+  // Sprint Killfeed Icons (06/05) — base URL servindo SVGs canônicos do
+  // CS2 panorama. Cliente extrai do <CS2>/game/csgo/panorama/images/icons/
+  // pro vendor folder (setup_cs2_icons.py) e copia pra mov_dir antes do
+  // render. URL típica: http://127.0.0.1:<port>/cs2-icons. Editor usa
+  // `${cs2IconsBaseUrl}/equipment/<weapon>.svg` pra renderizar killfeed.
+  // Undefined / 404 → editor cai pra fallback text-only weapon name.
+  cs2IconsBaseUrl?: string;
 };
 
 export type CardProps = {

@@ -107,6 +107,7 @@ export const HighlightsReel: React.FC<ReelProps> = ({
   killFlashEnabled,
   bombTimerEnabled,
   trackVariantIndex,
+  cs2IconsBaseUrl,
 }) => {
   const moodDef = MOODS[mood];
 
@@ -142,6 +143,7 @@ export const HighlightsReel: React.FC<ReelProps> = ({
           showScoreboard={scoreboardEnabled !== false}
           killFlashEnabled={killFlashEnabled === true}
           bombTimerEnabled={bombTimerEnabled === true}
+          cs2IconsBaseUrl={cs2IconsBaseUrl}
         />
       </Sequence>
     );

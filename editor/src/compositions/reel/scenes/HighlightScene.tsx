@@ -22,6 +22,7 @@ import {
   resolveAliveAt,
 } from "../../../theme";
 import { Highlight, Kill } from "../../../types";
+import { resolveWeaponIconUrl, resolveModifierIconUrl } from "./weaponIcons";
 
 type Props = {
   highlight: Highlight;
@@ -34,6 +35,10 @@ type Props = {
   killFlashEnabled?: boolean;
   // Sprint #6.2 (05/05) — bomb timer red bar topo (40s plant→explosion).
   bombTimerEnabled?: boolean;
+  // Sprint Killfeed Icons (06/05) — base URL pros SVGs do CS2 panorama.
+  // Quando set, killfeed renderiza weapon icons (ak47.svg, awp.svg, etc).
+  // Undefined / 404 → fallback text-only weapon name (current behavior).
+  cs2IconsBaseUrl?: string;
 };
 
 /**
@@ -52,6 +57,7 @@ export const HighlightScene: React.FC<Props> = ({
   showScoreboard = true,
   killFlashEnabled = false,
   bombTimerEnabled = false,
+  cs2IconsBaseUrl,
 }) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames, width, height } = useVideoConfig();
@@ -1228,11 +1234,46 @@ export const HighlightScene: React.FC<Props> = ({
                 boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
               }}
             >
-              {/* WEAPON tipograficamente — placeholder até Fase 1.24b SVG
-                  sprites. Cor por categoria garante leitura rápida. */}
-              <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 28 : 32 }}>
-                {k.weapon.toUpperCase()}
-              </span>
+              {/* Sprint Killfeed Icons (06/05) — SVG canônico do CS2
+                  panorama quando cs2IconsBaseUrl set. Filter CSS aplica
+                  weapon-category color (igual antes). Fallback text-only
+                  quando URL undefined OU SVG não existir (browser onError
+                  esconde img + render text como fallback siblings).
+                  Mathieu spec: "minha questão é ele conversar com o que o
+                  usuário já conhece do CS". */}
+              {(() => {
+                const iconUrl = resolveWeaponIconUrl(k.weapon, cs2IconsBaseUrl);
+                if (iconUrl) {
+                  return (
+                    <img
+                      src={iconUrl}
+                      alt={k.weapon.toUpperCase()}
+                      style={{
+                        width: isHorizontal ? 56 : 64,
+                        height: isHorizontal ? 28 : 32,
+                        objectFit: "contain",
+                        // Tint pra cor da categoria — SVG branco do CS2
+                        // panorama é monocromático, filter colore.
+                        filter: `drop-shadow(0 0 0 ${weaponColor}) brightness(0) saturate(100%) ${
+                          weaponColor === "#ff6b35" ? "invert(54%) sepia(89%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)" :
+                          weaponColor === "#fbbf24" ? "invert(81%) sepia(60%) saturate(2400%) hue-rotate(351deg) brightness(99%) contrast(96%)" :
+                          weaponColor === "#60a5fa" ? "invert(67%) sepia(43%) saturate(3001%) hue-rotate(190deg) brightness(99%) contrast(96%)" :
+                          weaponColor === "#a78bfa" ? "invert(63%) sepia(43%) saturate(3001%) hue-rotate(220deg) brightness(99%) contrast(96%)" :
+                          weaponColor === "#4CAF82" ? "invert(58%) sepia(40%) saturate(800%) hue-rotate(110deg) brightness(95%) contrast(91%)" :
+                          weaponColor === "#ff4444" ? "invert(34%) sepia(72%) saturate(7421%) hue-rotate(353deg) brightness(101%) contrast(101%)" :
+                          "invert(100%)"  // default branco
+                        }`,
+                      }}
+                    />
+                  );
+                }
+                // Fallback text-only (legacy behavior — preservado)
+                return (
+                  <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 28 : 32 }}>
+                    {k.weapon.toUpperCase()}
+                  </span>
+                );
+              })()}
               <span
                 style={{
                   color: theme.textDim,
@@ -1244,22 +1285,43 @@ export const HighlightScene: React.FC<Props> = ({
               >
                 #{i + 1}
               </span>
-              {k.headshot && (
-                <span
-                  style={{
-                    marginLeft: 4,
-                    padding: isHorizontal ? "3px 9px" : "4px 10px",
-                    borderRadius: 4,
-                    background: moodDef.color,
-                    color: "white",
-                    fontSize: isHorizontal ? 17 : 20,
-                    fontWeight: 800,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  HS
-                </span>
-              )}
+              {k.headshot && (() => {
+                // HS modifier: SVG icon do panorama (death_notice/headshot.svg)
+                // quando disponível, fallback pro badge "HS" colorido.
+                const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
+                if (hsIcon) {
+                  return (
+                    <img
+                      src={hsIcon}
+                      alt="HEADSHOT"
+                      style={{
+                        width: isHorizontal ? 22 : 26,
+                        height: isHorizontal ? 22 : 26,
+                        objectFit: "contain",
+                        marginLeft: 4,
+                        // Tint pro mood color
+                        filter: "brightness(0) saturate(100%) invert(56%) sepia(85%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
+                      }}
+                    />
+                  );
+                }
+                return (
+                  <span
+                    style={{
+                      marginLeft: 4,
+                      padding: isHorizontal ? "3px 9px" : "4px 10px",
+                      borderRadius: 4,
+                      background: moodDef.color,
+                      color: "white",
+                      fontSize: isHorizontal ? 17 : 20,
+                      fontWeight: 800,
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    HS
+                  </span>
+                );
+              })()}
             </div>
           );
         })}
