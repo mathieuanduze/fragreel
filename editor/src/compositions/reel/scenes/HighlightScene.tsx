@@ -755,31 +755,22 @@ export const HighlightScene: React.FC<Props> = ({
             zIndex: 5,
             opacity: pulseAlpha,
           }}>
-            {/* Label "BOMB" + tempo */}
+            {/* Timer somente — Mathieu spec (06/05): "timer da bomba também
+                está meio amador com o ícone da bomba e escrito bomb. Acho
+                que a barra vermelha sozinha com o counter já tá bom".
+                Removido 💣 + "BOMB" label. Apenas tempo "0:XX" centralizado
+                acima da barra. Cor branco normal, vermelho quando critical
+                (<5s). */}
             <div style={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: 10,
+              fontSize: 18,
+              fontWeight: 900,
+              color: isCritical ? "#FF3B30" : "white",
+              fontVariantNumeric: "tabular-nums",
+              textShadow: "0 1px 4px rgba(0,0,0,0.85)",
               fontFamily: theme.fontDisplay,
+              letterSpacing: "0.05em",
             }}>
-              <span style={{
-                fontSize: 13,
-                fontWeight: 800,
-                color: "#FF3B30",
-                letterSpacing: "0.18em",
-                textShadow: "0 1px 4px rgba(0,0,0,0.7)",
-              }}>
-                💣 BOMB
-              </span>
-              <span style={{
-                fontSize: 18,
-                fontWeight: 900,
-                color: isCritical ? "#FF3B30" : "white",
-                fontVariantNumeric: "tabular-nums",
-                textShadow: "0 1px 4px rgba(0,0,0,0.85)",
-              }}>
-                0:{Math.ceil(bombSecondsLeft).toString().padStart(2, "0")}
-              </span>
+              0:{Math.ceil(bombSecondsLeft).toString().padStart(2, "0")}
             </div>
             {/* Bar — 06/05 bumpada de 6px → 14px pra mais atenção */}
             <div style={{
