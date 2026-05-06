@@ -83,14 +83,23 @@ export default async function Home() {
             Counter-Strike 2 · Exclusivo
           </div>
 
-          {/* H1 06/05 (round 2 — Mathieu preferiu fórmula direta):
-              "Transforme suas gameplays em Reels virais em segundos". */}
-          <h1 style={{ fontSize: "clamp(38px, 6vw, 72px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.03em", marginBottom: 20 }}>
-            Transforme suas gameplays em{" "}
-            <span style={{ color: "#FF6B35" }}>Reels virais</span>
-            <br />
-            em <span style={{ color: "#FF6B35" }}>segundos</span>
-            <span style={{ color: "rgba(255,255,255,0.3)" }}>.</span>
+          {/* H1 06/05 (round 3 — Mathieu spec: "Faça com que o título do
+              hero sempre apareça em 3 linhas").
+              Layout fixo de 3 linhas via display: block + whiteSpace nowrap
+              per line (impede wrap natural que faria 4+ linhas em viewports
+              narrow). Font escala via clamp(20→64px) pra fit em qualquer
+              tamanho de tela sem overflow horizontal. */}
+          <h1 style={{ fontSize: "clamp(28px, 5.5vw, 64px)", fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.03em", marginBottom: 20 }}>
+            <span style={{ display: "block", whiteSpace: "nowrap" }}>
+              Transforme suas gameplays
+            </span>
+            <span style={{ display: "block", whiteSpace: "nowrap" }}>
+              em <span style={{ color: "#FF6B35" }}>Reels virais</span>
+            </span>
+            <span style={{ display: "block", whiteSpace: "nowrap" }}>
+              em <span style={{ color: "#FF6B35" }}>segundos</span>
+              <span style={{ color: "rgba(255,255,255,0.3)" }}>.</span>
+            </span>
           </h1>
 
           <p style={{ fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, maxWidth: 600, margin: "0 auto 14px" }}>
