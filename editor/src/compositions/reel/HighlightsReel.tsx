@@ -14,6 +14,7 @@ import {
   REEL_HIGHLIGHT_BOUNDS,
   clampHighlightSec,
   effectiveSkipSec,
+  effectiveSkipSecSmart,
   effectiveTailSkipSec,
   effectiveSceneEndSec,
   refSourceDurSec,
@@ -35,8 +36,15 @@ import { Outro } from "./scenes/Outro";
 //   era curto demais pra ler 4 stats novos (K/D + HS% + ADR). 3.0s dá
 //   ~1.5s pra cada par de stats antes do fade. Trade aceito vs reel
 //   total ficar 1.5s mais longo.
-export const INTRO_SEC = 1.2;
-export const OUTRO_SEC = 3.0;
+// 05/05 (Mathieu test report): "frame de início com nome do jogador e stats,
+// assim como o frame final que dá o nome do jogador e stats, precisa ficar
+// mais tempo, principalmente pra pessoa ler: crie o seu em fragreel.gg".
+// Bumpado pra dar tempo de leitura confortável:
+//   intro 1.2s → 3.0s (player name + map + stats — ~2s leitura mínima)
+//   outro 3.0s → 5.0s (CTA "crie o seu em fragreel.gg" precisa registrar)
+// Trade-off: reel ~4s mais longo. Ainda dentro Reels/TikTok 90s cap.
+export const INTRO_SEC = 3.0;
+export const OUTRO_SEC = 5.0;
 
 // HIGHLIGHT_VIDEO_SKIP_SEC vive em theme.ts (canonical) pra evitar circular
 // import HighlightScene → HighlightsReel.
@@ -50,11 +58,14 @@ export const OUTRO_SEC = 3.0;
 // Helper effectiveSceneEndSec vive em theme.ts (canonical) — DEVE bater
 // com HighlightScene.availableVideoSec senão freeze edge.
 const highlightDurationSec = (h: Highlight) => {
-  // Round 4c Fase 1.28 — sourceDur baseado em mov-aware refStart (não
-  // round_start). Garante consistency com effectiveSceneEndSec +
-  // HighlightScene.availableVideoSec.
-  const sourceDur = refSourceDurSec(h);
-  const front = effectiveSkipSec(sourceDur);
+  // 05/05 — Round 4d 3.5 V3 fix (plant/defuse cortando em highlights longos).
+  // Antes: front = effectiveSkipSec(sourceDur) (fixo 4s). rawSec = sceneEnd
+  // - front. Quando rawSec > 60 (max), clamp cortava o END → eventos
+  // (plant/defuse) nos últimos 6-15s ficavam fora.
+  // Fix: front = effectiveSkipSecSmart(h) — bump skip pra fit max em
+  // highlights longos, preservando END events. Cuts pre-action walking
+  // em vez de events.
+  const front = effectiveSkipSecSmart(h);
   const sceneEnd = effectiveSceneEndSec(h);
   const rawSec = sceneEnd - front;
   return clampHighlightSec(rawSec, REEL_HIGHLIGHT_BOUNDS);

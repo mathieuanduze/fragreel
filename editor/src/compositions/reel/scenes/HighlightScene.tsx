@@ -14,6 +14,7 @@ import {
   HIGHLIGHT_VIDEO_SKIP_SEC,
   FPS,
   effectiveSkipSec,
+  effectiveSkipSecSmart,
   effectiveTailSkipSec,
   effectiveSceneEndSec,
   refStartSec,
@@ -83,7 +84,10 @@ export const HighlightScene: React.FC<Props> = ({
   // gameplayStartSec (cluster window start), refStart = mov first frame,
   // sourceDur = mov approx duration. Senão fallback round-based.
   const sourceDurSec = refSourceDurSec(highlight);
-  const sceneSkipSec = effectiveSkipSec(sourceDurSec);
+  // 05/05 — Round 4d 3.5 V3 — smart skip pra plant/defuse não cortarem.
+  // Quando scene natural > REEL_BOUNDS.max, smart skip aumenta o front
+  // pra fit max, preservando events no END. Vide theme.ts.
+  const sceneSkipSec = effectiveSkipSecSmart(highlight);
   const sceneEndInSourceSec = effectiveSceneEndSec(highlight);
   const availableVideoSec = Math.max(0.1, sceneEndInSourceSec - sceneSkipSec);
   const gameplayRate = availableVideoSec / sceneDurationSec;

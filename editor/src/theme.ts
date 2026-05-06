@@ -389,6 +389,40 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
   return Math.max(0.5, Math.min(dynamicSceneEnd, upperCap));
 };
 
+/**
+ * 05/05 — Round 4d 3.5 V3 (Mathieu reportou 3ª vez): plant/defuse cortando
+ * em highlights longos (multi-kill + bomb action).
+ *
+ * Root cause final: REEL_HIGHLIGHT_BOUNDS.max=60s clampava o END da scene.
+ * Highlights com mov 70-75s (multi-window cluster + bomb buffer) ficavam
+ * com sceneEnd=70s, rawSec=66s, clamped=60s → últimos 6s (que CONTÊM o
+ * plant/defuse) nunca renderizavam.
+ *
+ * Fix: smart skip. Quando scene natural > max, em vez de cortar END
+ * (events), CORTA O FRONT (walking pre-engagement). Preserva os events
+ * (que são o motivo do highlight existir) sacrificando o pre-action.
+ *
+ * Used by:
+ *   - HighlightsReel.highlightDurationSec (define scene size)
+ *   - HighlightScene.sceneSkipSec (define startFrom do <OffthreadVideo>)
+ *
+ * Returns: skip seconds (front trimmed). Sempre >= effectiveSkipSec(sourceDur).
+ */
+export const effectiveSkipSecSmart = (highlight: _HighlightInput): number => {
+  const sourceDur = refSourceDurSec(highlight);
+  const naturalSkip = effectiveSkipSec(sourceDur);
+  const sceneEnd = effectiveSceneEndSec(highlight);
+  const naturalDur = sceneEnd - naturalSkip;
+  if (naturalDur <= REEL_HIGHLIGHT_BOUNDS.max) {
+    return naturalSkip;
+  }
+  // Scene too long → bump skip pra fit max, preservando END (events).
+  const overshoot = naturalDur - REEL_HIGHLIGHT_BOUNDS.max;
+  // Não pode skip > sceneEnd - min_dur (se não scene fica < min)
+  const maxSkip = Math.max(0, sceneEnd - REEL_HIGHLIGHT_BOUNDS.min);
+  return Math.min(naturalSkip + overshoot, maxSkip);
+};
+
 // Dimensões por orientação. Vertical = TikTok/Reels/Shorts; Horizontal = YouTube/Twitch.
 // Helper único pra evitar 1080/1920 mágicos espalhados pelo código.
 export const DIMENSIONS = {
