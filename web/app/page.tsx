@@ -127,27 +127,33 @@ export default async function Home() {
           gap: 32,
           alignItems: "center",
         }}>
-          {/* LEFT — Video demo placeholder */}
+          {/* LEFT — Video demo (06/05): reel ZyWoo Mirage Vitality vs
+              GamerLegion (Major BLAST 2026 maio). Renderizado em v0.6.21+
+              client após shipping de Sprint #6 (kill flash + bomb timer +
+              soundtracks variadas) + intro/outro 5s/7s + Bug #14 V2 windowed.
+              Vídeo final 1080x1920 vertical, 60fps, ~109s, 54 MB.
+              Hosted em /public/ por simplicidade — TODO: migrar pra R2
+              quando bandwidth da landing começar a importar (P2). */}
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{
-              aspectRatio: "9 / 16",
-              width: "100%",
-              maxWidth: 380,
-              borderRadius: 18,
-              background: "linear-gradient(180deg, #1A1A2E 0%, #16213E 100%)",
-              border: "1px solid #2D2D44",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "rgba(255,255,255,0.25)",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-              boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
-            }}>
-              ▶ Demo em breve
-            </div>
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              poster="/showcase-zywoo-mirage-poster.jpg"
+              style={{
+                aspectRatio: "9 / 16",
+                width: "100%",
+                maxWidth: 380,
+                borderRadius: 18,
+                border: "1px solid #2D2D44",
+                background: "#1A1A2E",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+                objectFit: "cover",
+              }}
+            >
+              <source src="/showcase-zywoo-mirage.mp4" type="video/mp4" />
+            </video>
           </div>
 
           {/* RIGHT — features grid + map pool */}

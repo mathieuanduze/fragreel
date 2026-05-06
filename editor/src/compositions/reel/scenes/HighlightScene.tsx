@@ -509,27 +509,38 @@ export const HighlightScene: React.FC<Props> = ({
           Plus #N rank badge removido (sem utilidade pro user) — espaço
           reaproveitado pra watermark fragreel.gg no top-left (atrai
           outros users a saber como foi gerado). */}
-      {/* Sprint #6.2 — Bomb timer red bar (Major-style). Top center.
-          Fica acima do scoreboard pra não conflitar. Animação smooth via
-          fração calc per-frame. Pulse vermelho intensifica nos últimos 5s. */}
+      {/* Sprint #6.2 — Bomb timer red bar (Major-style).
+          06/05 (Mathieu spec após reel Vitality vs GamerLegion):
+          "Acho que a barra da bomba pode até ficar abaixo do scoreboard,
+          ser um pouco mais grossa, pra chamar um pouco mais de atenção".
+          Mudanças:
+            - top: 22 → 180 (vertical) / 14 → 95 (horizontal): abaixo do
+              scoreboard que tem ~120px altura no vertical (top 60 +
+              padding 14+14 + content 56+gap+17 ≈ 120).
+            - height: 6 → 14: 2.3× mais grossa, mais protagonismo.
+            - barWidth: 600 → 680 (vertical), 520 → 600 (horizontal):
+              ligeiramente mais larga pra balancear com altura nova.
+            - label fontSize: 11 → 13 BOMB, 14 → 18 timer: proporcional
+              à barra.
+          Pulse vermelho intensifica nos últimos 5s (mantido). */}
       {bombBarVisible && (() => {
         const isCritical = bombSecondsLeft < 5;
         const pulseAlpha = isCritical
           ? 0.85 + 0.15 * Math.sin((frame * Math.PI) / 6) // 5Hz pulse
           : 1.0;
-        const barWidth = isHorizontal ? 520 : 600;
+        const barWidth = isHorizontal ? 600 : 680;
         return (
           <div style={{
             position: "absolute",
-            top: isHorizontal ? 14 : 22,
+            top: isHorizontal ? 95 : 180,
             left: "50%",
             transform: "translateX(-50%)",
             width: barWidth,
-            maxWidth: "70%",
+            maxWidth: "78%",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 4,
+            gap: 6,
             pointerEvents: "none",
             zIndex: 5,
             opacity: pulseAlpha,
@@ -538,11 +549,11 @@ export const HighlightScene: React.FC<Props> = ({
             <div style={{
               display: "flex",
               alignItems: "baseline",
-              gap: 8,
+              gap: 10,
               fontFamily: theme.fontDisplay,
             }}>
               <span style={{
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 800,
                 color: "#FF3B30",
                 letterSpacing: "0.18em",
@@ -551,7 +562,7 @@ export const HighlightScene: React.FC<Props> = ({
                 💣 BOMB
               </span>
               <span style={{
-                fontSize: 14,
+                fontSize: 18,
                 fontWeight: 900,
                 color: isCritical ? "#FF3B30" : "white",
                 fontVariantNumeric: "tabular-nums",
@@ -560,15 +571,15 @@ export const HighlightScene: React.FC<Props> = ({
                 0:{Math.ceil(bombSecondsLeft).toString().padStart(2, "0")}
               </span>
             </div>
-            {/* Bar */}
+            {/* Bar — 06/05 bumpada de 6px → 14px pra mais atenção */}
             <div style={{
               width: "100%",
-              height: 6,
-              borderRadius: 3,
-              background: "rgba(0,0,0,0.55)",
-              border: "1px solid rgba(255,59,48,0.4)",
+              height: 14,
+              borderRadius: 7,
+              background: "rgba(0,0,0,0.65)",
+              border: "1px solid rgba(255,59,48,0.5)",
               overflow: "hidden",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+              boxShadow: "0 3px 10px rgba(0,0,0,0.6)",
             }}>
               <div style={{
                 width: `${bombFraction * 100}%`,
@@ -577,7 +588,7 @@ export const HighlightScene: React.FC<Props> = ({
                   ? "linear-gradient(90deg, #FF3B30 0%, #FF6B35 100%)"
                   : "linear-gradient(90deg, #C82018 0%, #FF3B30 100%)",
                 transition: "width 0.05s linear",
-                boxShadow: isCritical ? "0 0 8px rgba(255,59,48,0.7)" : "none",
+                boxShadow: isCritical ? "0 0 12px rgba(255,59,48,0.85)" : "none",
               }} />
             </div>
           </div>
