@@ -1419,61 +1419,13 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
               </button>
             </div>
 
-            {/* Sprint HUD V2 (06/05) — toggle entre HUD V1 (legacy) e V2
-                (novo Major-style). Default v2. User pode reverter pra
-                comparar lado a lado se v2 não vingar em field test. */}
-            <div style={{
-              marginTop: 12,
-              padding: "12px 14px",
-              borderRadius: 10,
-              background: "#16213E",
-              border: "1px solid #2D2D44",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 16,
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 2 }}>
-                  {hudVersion === "v2" ? "🎬 HUD Major-style (V2)" : "📺 HUD clássico (V1)"}
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                  {hudVersion === "v2"
-                    ? "Player name + score com 5-dots alive + round count central. Inspirado em broadcast HLTV/ESL."
-                    : "Layout original: rank #N badge + 'NK Round X' + scoreboard antigo."}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setHudVersion((v) => v === "v2" ? "v1" : "v2")}
-                aria-pressed={hudVersion === "v2"}
-                aria-label="Alternar HUD V1 / V2"
-                style={{
-                  position: "relative",
-                  width: 48,
-                  height: 26,
-                  borderRadius: 13,
-                  border: "none",
-                  background: hudVersion === "v2" ? "#FF6B35" : "#2D2D44",
-                  cursor: "pointer",
-                  transition: "background 0.15s",
-                  flexShrink: 0,
-                  padding: 0,
-                }}
-              >
-                <div style={{
-                  position: "absolute",
-                  top: 3,
-                  left: hudVersion === "v2" ? 25 : 3,
-                  width: 20,
-                  height: 20,
-                  borderRadius: "50%",
-                  background: "white",
-                  transition: "left 0.15s",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                }} />
-              </button>
-            </div>
+            {/* Sprint HUD V2 (06/05) — toggle removido per Mathieu spec
+                round 2: "não precisa desse toggle, só quero que guarde v1
+                na memoria caso queiramos voltar". V1 code preservado em
+                HighlightScene gated por hudVersion === "v1" — pra reverter
+                no futuro, basta mudar default em ReelProps ou hardcodar
+                hudVersion: "v1" no reelProps em MatchClient (linha
+                ~447). User não vê toggle, sempre V2. */}
           </div>
         )}
 

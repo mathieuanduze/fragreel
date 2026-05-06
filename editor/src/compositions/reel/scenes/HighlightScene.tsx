@@ -679,33 +679,36 @@ export const HighlightScene: React.FC<Props> = ({
         </AbsoluteFill>
       )}
 
-      {/* Sprint #6.5 (06/05) — POV VÍTIMA badge overlay.
-          Aparece quando capture switched spec_player pra vítima durante a
-          janela [-0.5s, +0.3s] em volta de kill.pov_eligible. Visual:
-          badge top-center "POV VÍTIMA · <name>" com border vermelho +
-          glow + pulse sutil. Sinaliza editorialmente que o cut é
-          intencional — sem isso, viewer pensaria que CS2 fez auto-director
-          drift. */}
+      {/* Sprint #6.5 round 2 (06/05) — POV cut: HUD desaparece + label "REPLAY".
+          Mathieu spec: "A HUD precisa desaparecer, é um corte, no meio do
+          jogo, pra ver de outro ângulo. fica claro que é um replay pro
+          usuário. Pode até aparecer um 'o Replay' na tela. Aí, quando volta
+          pro jogo 'ao vivo' volta a hud".
+
+          Implementação: durante povActive, gate visibility de HudV2 +
+          killfeed + bomb timer. Mostra label "▶ REPLAY" simples top-center.
+          Pós-window, HUD volta sem fade glitch (HUD entrance spring é
+          frame-aware, vai re-animar suavemente). */}
       {povActive && povBadgeOpacity > 0.01 && (
         <AbsoluteFill style={{ pointerEvents: "none" }}>
           <div
             style={{
               position: "absolute",
-              top: isHorizontal ? 80 : 360, // abaixo do scoreboard + bomb timer
+              top: isHorizontal ? 60 : 100,
               left: "50%",
               transform: "translateX(-50%)",
-              padding: "10px 22px",
-              background: "rgba(220, 38, 38, 0.18)",
-              backdropFilter: "blur(8px)",
+              padding: isHorizontal ? "10px 26px" : "14px 32px",
+              background: "rgba(220, 38, 38, 0.22)",
+              backdropFilter: "blur(10px)",
               border: "2px solid #DC2626",
-              borderRadius: 10,
-              fontSize: isHorizontal ? 18 : 22,
-              fontWeight: 800,
-              letterSpacing: "0.18em",
-              color: "#FFE4E4",
+              borderRadius: 12,
+              fontSize: isHorizontal ? 20 : 26,
+              fontWeight: 900,
+              letterSpacing: "0.24em",
+              color: "#FFFFFF",
               fontFamily: theme.fontDisplay,
-              boxShadow: "0 0 28px rgba(220, 38, 38, 0.55), 0 6px 16px rgba(0,0,0,0.5)",
-              textShadow: "0 0 14px rgba(220, 38, 38, 0.9), 0 2px 6px rgba(0,0,0,0.8)",
+              boxShadow: "0 0 36px rgba(220, 38, 38, 0.7), 0 8px 20px rgba(0,0,0,0.6)",
+              textShadow: "0 0 18px rgba(220, 38, 38, 1.0), 0 2px 8px rgba(0,0,0,0.85)",
               whiteSpace: "nowrap",
               opacity: povBadgeOpacity,
               display: "flex",
@@ -713,11 +716,8 @@ export const HighlightScene: React.FC<Props> = ({
               gap: 10,
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            POV VÍTIMA · {povActive.victimName.toUpperCase()}
+            <span style={{ fontSize: isHorizontal ? 14 : 18, color: "#DC2626" }}>●</span>
+            REPLAY
           </div>
         </AbsoluteFill>
       )}
@@ -750,8 +750,10 @@ export const HighlightScene: React.FC<Props> = ({
               ligeiramente mais larga pra balancear com altura nova.
             - label fontSize: 11 → 13 BOMB, 14 → 18 timer: proporcional
               à barra.
-          Pulse vermelho intensifica nos últimos 5s (mantido). */}
-      {bombBarVisible && (() => {
+          Pulse vermelho intensifica nos últimos 5s (mantido).
+          Sprint #6.5 round 2 (06/05): gate por !povActive — bomb timer
+          some durante POV cut (Mathieu spec "A HUD precisa desaparecer"). */}
+      {bombBarVisible && !povActive && (() => {
         const isCritical = bombSecondsLeft < 5;
         const pulseAlpha = isCritical
           ? 0.85 + 0.15 * Math.sin((frame * Math.PI) / 6) // 5Hz pulse
@@ -1154,8 +1156,10 @@ export const HighlightScene: React.FC<Props> = ({
       )}
 
       {/* Sprint HUD V2 (06/05) — novo HUD Major-style minimalista quando
-          hudVersion === "v2". Player name + watermark top-left + score
-          com 5-dots alive + round number central. */}
+          hudVersion === "v2". Player name + watermark bottom-center + score
+          com 5-dots alive + round number central.
+          Sprint #6.5 round 2 (06/05): hidden=povActive — HUD some durante
+          POV cut pra signalizar replay angle, volta quando livePOV retorna. */}
       {hudVersion === "v2" && match && (
         <HudV2
           playerName={playerName}
@@ -1174,6 +1178,7 @@ export const HighlightScene: React.FC<Props> = ({
           aliveCt={dynamicAliveCt}
           aliveT={dynamicAliveT}
           hasAliveTimeline={hasScoreboardContext}
+          hidden={!!povActive}
         />
       )}
 
@@ -1190,7 +1195,10 @@ export const HighlightScene: React.FC<Props> = ({
         (precisa source — repo killfeed-icons só referencia SVGs do CS2
         game, sem distribuição direta. Considerar SVGs free use ou
         criar próprios pixel-art).
+        Sprint #6.5 round 2 (06/05): killfeed gated por !povActive — some
+        durante POV cut pra dar sensação clara de "replay angle".
       */}
+      {!povActive && (
       <div
         style={{
           position: "absolute",
@@ -1363,6 +1371,7 @@ export const HighlightScene: React.FC<Props> = ({
           );
         })}
       </div>
+      )}
 
       {/* Score interno (highlight.score) é ferramenta interna do FragReel
           pra rankear quais kills viram highlight — NÃO aparece no vídeo. */}

@@ -55,6 +55,10 @@ type HudV2Props = {
   hasAliveTimeline: boolean;
   /** Total rounds máximo no game mode. Default 30 (MR15 competitive). */
   maxRounds?: number;
+  /** Sprint #6.5 POV (06/05) — quando true, HUD desaparece (Mathieu spec:
+   *  "A HUD precisa desaparecer, é um corte, no meio do jogo, pra ver de
+   *  outro ângulo"). Volta visível quando false. */
+  hidden?: boolean;
 };
 
 export const HudV2: React.FC<HudV2Props> = ({
@@ -68,11 +72,20 @@ export const HudV2: React.FC<HudV2Props> = ({
   aliveT,
   hasAliveTimeline,
   maxRounds = DEFAULT_MAX_ROUNDS,
+  hidden = false,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const moodDef = MOODS[mood];
   const isHorizontal = orientation === "horizontal";
+
+  // Sprint #6.5 POV (06/05) — HUD desaparece durante POV cut. Mathieu spec:
+  // "A HUD precisa desaparecer, é um corte, no meio do jogo, pra ver de
+  // outro ângulo. fica claro que é um replay pro usuário". Volta visível
+  // quando hidden=false (POV window terminou).
+  if (hidden) {
+    return null;
+  }
 
   // Spring entrance for the whole HUD (subtle slide-down + fade)
   const entrance = spring({
