@@ -85,6 +85,13 @@ class ParsedDemo:
     # auto-director's pick (random per segment) ao invés do user.
     # Extraído via parse_player_info() ou fallback parse_ticks(["name"]).
     player_name: Optional[str] = None
+    # Sprint #6.5 (06/05) — POV vítima: roster mapping completo de steamid
+    # → in-game name pra TODOS os 10 players. Necessário pra capture.cfg
+    # emitir `spec_player "<victim_name>"` durante janela de POV cut. Antes
+    # só tinha player_name (do user). Now temos lookup pra qualquer
+    # attacker/victim referenciado por kills. Populado via parse_player_info
+    # ou fallback parse_ticks (mesma lógica de player_name resolution).
+    roster_by_steamid: dict[str, str] = field(default_factory=dict)
     # v0.3.1 (A3 do roadmap) — game mode detection robusto. Web mostrava
     # heurística por round count que falhava em casos edge (Premier 13-5
     # mostrava como Wingman). Agora extraído de server_cvar event +
@@ -339,6 +346,32 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
         except Exception as e:
             log.warning(f"Player name lookup failed (non-fatal): {e}")
 
+    # Sprint #6.5 (06/05) — Roster completo: mapa steamid→name pra TODOS
+    # os players. Usado pra resolver victim_name em pov_eligible kills.
+    # Mesma lógica de player_name acima, mas agrega TODOS em vez de só user.
+    roster_by_steamid: dict[str, str] = {}
+    try:
+        info_df = dp.parse_player_info()
+        if not _df_is_empty(info_df):
+            for r in _df_iter_rows(info_df):
+                sid = str(r.get("steamid", "")).strip()
+                nm = str(r.get("name", "")).strip()
+                if sid and nm and sid not in roster_by_steamid:
+                    roster_by_steamid[sid] = nm
+        # Fallback: parse_ticks pode dar mais cobertura em demos onde
+        # parse_player_info vem incompleto (ex: BLAST/HLTV broadcasts).
+        if len(roster_by_steamid) < 10:
+            tick_df = dp.parse_ticks(["name", "steamid"])
+            if not _df_is_empty(tick_df):
+                for r in _df_iter_rows(tick_df):
+                    sid = str(r.get("steamid", "")).strip()
+                    nm = str(r.get("name", "")).strip()
+                    if sid and nm and sid not in roster_by_steamid:
+                        roster_by_steamid[sid] = nm
+        log.info(f"Roster resolved: {len(roster_by_steamid)} players → name mapping")
+    except Exception as e:
+        log.warning(f"Roster lookup failed (non-fatal): {e}")
+
     return ParsedDemo(
         map_name=map_name,
         tickrate=tickrate,
@@ -352,6 +385,7 @@ def parse(demo_path: Path, player_steamid: Optional[str] = None) -> ParsedDemo:
         round_states=round_states,
         player_name=player_name,
         game_mode=game_mode,
+        roster_by_steamid=roster_by_steamid,
     )
 
 

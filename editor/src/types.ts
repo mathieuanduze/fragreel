@@ -44,6 +44,14 @@ export type Kill = {
    *  kill comum sem efeito. Set pelo scorer quando aesthetic_score >=
    *  threshold + tipo de execução é identificável. */
   aesthetic_style?: KillAestheticStyle;
+  /** Sprint #6.5 (06/05) — POV vítima cut. Top 1-2 kills do reel ganham
+   *  true. Capture pipeline emite spec_player switch durante janela
+   *  [-0.5s, +0.3s]. Editor add overlay "POV VÍTIMA" durante a janela
+   *  pra signalizar que é editorial. */
+  pov_eligible?: boolean;
+  victim_steamid?: string;
+  victim_name?: string;
+  kill_tick?: number;
 };
 
 export type Highlight = {

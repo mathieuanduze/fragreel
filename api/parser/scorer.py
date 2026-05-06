@@ -212,6 +212,14 @@ class KillInfo:
     # tratam como kill comum (no effect).
     aesthetic_score: Optional[float] = None  # 0..N, soma de bonuses técnicos
     aesthetic_style: Optional[str] = None    # noscope|knife|wallbang|smoke|blind|flick|None
+    # Sprint #6.5 (06/05) — POV vítima cut. Top 1-2 kills por aesthetic_score
+    # do reel inteiro recebem pov_eligible=True. Capture.cfg emite spec_player
+    # switch durante janela [-0.5s, +0.3s] da kill. Editor adiciona overlay
+    # "POV VÍTIMA" + vignette pra signalizar visual cinematic.
+    pov_eligible: bool = False
+    victim_steamid: Optional[str] = None  # pra capture.cfg resolver victim_name
+    victim_name: Optional[str] = None     # já resolvido via roster — capture.cfg usa direto
+    kill_tick: Optional[int] = None       # tick exato pra capture scheduling
 
 
 @dataclass
@@ -308,7 +316,46 @@ def score_kills(parsed: ParsedDemo, player_steamid: Optional[str] = None) -> lis
     for rank, hl in enumerate(scored, 1):
         hl.rank = rank
 
-    return scored[:MAX_HIGHLIGHTS]
+    final = scored[:MAX_HIGHLIGHTS]
+
+    # Sprint #6.5 (06/05) — POV cut selection. Marca top 1-2 kills do reel
+    # inteiro (cross-highlight) com pov_eligible=True. Critérios:
+    #   - aesthetic_style != None (kill já passou threshold de "bonita")
+    #   - victim_name resolvido (sem name → spec_player não funciona, skip)
+    #   - top 2 por aesthetic_score globalmente (sem repetir mesma vítima)
+    # Limit 2: cap muito agressivo, victim POV é cinematic STATEMENT, não
+    # recurso comum. Se top 2 forem na mesma highlight, OK — só 1-2 cuts
+    # no reel inteiro.
+    POV_MAX_CUTS_PER_REEL = 2
+
+    # Coleta TODAS kills com style + victim_name resolvido, ordena por score
+    candidate_kills: list[KillInfo] = []
+    for hl in final:
+        for k in hl.kills:
+            if (k.aesthetic_style is not None
+                and k.aesthetic_score is not None
+                and k.victim_name
+                and k.victim_steamid):
+                candidate_kills.append(k)
+    candidate_kills.sort(key=lambda k: k.aesthetic_score or 0, reverse=True)
+
+    # Marca top N (sem repetir mesmo victim_steamid pra dar variedade)
+    seen_victims: set[str] = set()
+    selected = 0
+    for k in candidate_kills:
+        if selected >= POV_MAX_CUTS_PER_REEL:
+            break
+        if k.victim_steamid in seen_victims:
+            continue
+        k.pov_eligible = True
+        seen_victims.add(k.victim_steamid or "")
+        selected += 1
+        log.info(
+            f"POV cut selected: kill at tick {k.kill_tick} → victim {k.victim_name!r} "
+            f"(aesthetic_score={k.aesthetic_score}, style={k.aesthetic_style})"
+        )
+
+    return final
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -384,6 +431,14 @@ def _score_round(round_kills: list[Kill], round_num: int, parsed: ParsedDemo) ->
             time=kill.tick / tickrate,
             aesthetic_score=aesthetic_score,
             aesthetic_style=aesthetic_style,
+            # Sprint #6.5 — POV cut metadata. pov_eligible setado em
+            # post-processing pós score_kills (top 1-2 do reel). victim_*
+            # já populados aqui pra capture.cfg ter os dados.
+            victim_steamid=getattr(kill, "victim_steamid", None),
+            victim_name=parsed.roster_by_steamid.get(
+                getattr(kill, "victim_steamid", "") or "",
+            ),
+            kill_tick=kill.tick,
         ))
 
     # ── Round-level context bonuses (each fires AT MOST ONCE per round) ───────

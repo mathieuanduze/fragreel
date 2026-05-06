@@ -55,6 +55,10 @@ interface ScoreRequest {
   };
   player_steamid: string;
   events: ParsedDemoEvents;
+  /** Sprint #6.5 (06/05) — roster steamid → name pra POV cuts.
+   *  Opcional pra back-compat com clients antigos. Sem roster, scorer skip
+   *  pov_eligible (victim_name undefined → capture.cfg não emite switch). */
+  roster?: Record<string, string>;
 }
 
 export async function POST(req: NextRequest) {
@@ -108,6 +112,7 @@ export async function POST(req: NextRequest) {
       events: body.events,
       player_steamid: body.player_steamid,
       tickrate: body.demo_meta.tickrate,
+      roster: body.roster,
     });
   } catch (e) {
     console.error("[/api/score] scoreKills threw", e);

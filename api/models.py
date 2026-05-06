@@ -60,6 +60,11 @@ class KillOut(BaseModel):
     # (no effect).
     aesthetic_score: Optional[float] = None  # 0..N, soma de bonuses técnicos
     aesthetic_style: Optional[str] = None    # noscope|knife|wallbang|smoke|blind|flick|None
+    # ── Sprint #6.5 (06/05) — POV vítima cut ──────────────────────────────
+    pov_eligible: Optional[bool] = None
+    victim_steamid: Optional[str] = None
+    victim_name: Optional[str] = None
+    kill_tick: Optional[int] = None
 
 
 class HighlightOut(BaseModel):

@@ -220,6 +220,38 @@ export const HighlightScene: React.FC<Props> = ({
       )
     : 0;
 
+  // Sprint #6.5 (06/05) — POV vítima window detection.
+  // Quando captura emite spec_player switch durante kill_tick±window, o
+  // gameplay video MUDA pra POV vítima. Editor não controla a câmera, mas
+  // ADICIONA overlay editorial pra signalizar "POV VÍTIMA" — user entende
+  // que o cut é intencional, não bug.
+  // Janela: [-0.5s, +0.3s] em torno da kill com pov_eligible. Match capture
+  // window de capture_script.py POV_PRE_TICKS=32, POST=19 @ 64tps.
+  const POV_PRE_SEC = 0.5;
+  const POV_POST_SEC = 0.3;
+  let povActive: { delta: number; victimName: string } | null = null;
+  for (const t of killTimings) {
+    const k = t.kill as Kill;
+    if (!k.pov_eligible || !k.victim_name) continue;
+    const kFrame = s2f(t.sceneTime);
+    const delta = (frame - kFrame) / FPS; // segundos relativos à kill
+    if (delta >= -POV_PRE_SEC && delta <= POV_POST_SEC) {
+      if (povActive === null || Math.abs(delta) < Math.abs(povActive.delta)) {
+        povActive = { delta, victimName: k.victim_name };
+      }
+    }
+  }
+  // POV badge progress: fade in nos primeiros 100ms da janela, fade out
+  // nos últimos 100ms.
+  const povBadgeOpacity = povActive
+    ? interpolate(
+        povActive.delta,
+        [-POV_PRE_SEC, -POV_PRE_SEC + 0.1, POV_POST_SEC - 0.1, POV_POST_SEC],
+        [0, 1, 1, 0],
+        { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+      )
+    : 0;
+
   // Label popup: spring-style scale + fade
   const labelOpacity = activeStyle
     ? interpolate(activeStyle.delta, [-4, 0, 20, 36], [0, 1, 1, 0], {
@@ -625,6 +657,49 @@ export const HighlightScene: React.FC<Props> = ({
             }}
           >
             {activeStyle.label}
+          </div>
+        </AbsoluteFill>
+      )}
+
+      {/* Sprint #6.5 (06/05) — POV VÍTIMA badge overlay.
+          Aparece quando capture switched spec_player pra vítima durante a
+          janela [-0.5s, +0.3s] em volta de kill.pov_eligible. Visual:
+          badge top-center "POV VÍTIMA · <name>" com border vermelho +
+          glow + pulse sutil. Sinaliza editorialmente que o cut é
+          intencional — sem isso, viewer pensaria que CS2 fez auto-director
+          drift. */}
+      {povActive && povBadgeOpacity > 0.01 && (
+        <AbsoluteFill style={{ pointerEvents: "none" }}>
+          <div
+            style={{
+              position: "absolute",
+              top: isHorizontal ? 80 : 360, // abaixo do scoreboard + bomb timer
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "10px 22px",
+              background: "rgba(220, 38, 38, 0.18)",
+              backdropFilter: "blur(8px)",
+              border: "2px solid #DC2626",
+              borderRadius: 10,
+              fontSize: isHorizontal ? 18 : 22,
+              fontWeight: 800,
+              letterSpacing: "0.18em",
+              color: "#FFE4E4",
+              fontFamily: theme.fontDisplay,
+              boxShadow: "0 0 28px rgba(220, 38, 38, 0.55), 0 6px 16px rgba(0,0,0,0.5)",
+              textShadow: "0 0 14px rgba(220, 38, 38, 0.9), 0 2px 6px rgba(0,0,0,0.8)",
+              whiteSpace: "nowrap",
+              opacity: povBadgeOpacity,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            POV VÍTIMA · {povActive.victimName.toUpperCase()}
           </div>
         </AbsoluteFill>
       )}

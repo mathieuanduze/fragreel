@@ -62,6 +62,11 @@ export interface DemoMeta {
   match_id?: string | null;
 }
 
+/** Sprint #6.5 (06/05) — Roster mapping pra POV cuts.
+ *  Map de steamid → in-game name. Necessário pra scorer popular
+ *  victim_name nos KillInfo (capture.cfg precisa pra spec_player). */
+export type RosterMap = Record<string, string>;
+
 // ── Output do scoring ────────────────────────────────────────────────────────
 
 /** Sprint Aesthetic Kill Scoring (06/05) — visual style aplicado em cima
@@ -105,6 +110,14 @@ export interface KillInfo {
    *  visual específico. null = kill comum sem efeito. Set quando
    *  aesthetic_score cruza threshold + tipo de execução é identificável. */
   aesthetic_style?: KillAestheticStyle;
+  /** Sprint #6.5 (06/05) — POV vítima cut. Top 1-2 kills do reel por
+   *  aesthetic_score recebem true. capture.cfg emite spec_player switch
+   *  durante janela [-0.5s, +0.3s]. Editor pode adicionar overlay
+   *  "POV VÍTIMA" durante a janela. */
+  pov_eligible?: boolean;
+  victim_steamid?: string;
+  victim_name?: string;  // resolvido via roster pelo scorer
+  kill_tick?: number;    // tick exato pra capture scheduling
 }
 
 export interface AliveEvent {

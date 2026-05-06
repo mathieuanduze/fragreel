@@ -222,6 +222,10 @@ export interface ScoreInput {
   events: ParsedDemoEvents;
   player_steamid: string;
   tickrate: number; // pra converter tick → segundos quando demo não traz timestamps
+  /** Sprint #6.5 — roster steamid → name. Opcional pra back-compat com
+   *  callers antigos. Sem roster, POV cuts não são marcados (victim_name
+   *  fica null → scorer skip pov_eligible). */
+  roster?: import("./types").RosterMap;
 }
 
 /**
@@ -232,7 +236,7 @@ export interface ScoreInput {
  * pra aplicar cluster algorithm local (gap=10s, pad=±5s/±3.5s).
  */
 export function scoreKills(input: ScoreInput): Highlight[] {
-  const { events, player_steamid, tickrate } = input;
+  const { events, player_steamid, tickrate, roster } = input;
   const userKills = events.kills.filter(
     (k) => k.attacker_steamid === player_steamid,
   );
@@ -255,7 +259,7 @@ export function scoreKills(input: ScoreInput): Highlight[] {
   const scored: Highlight[] = [];
   for (const [round_num, roundKills] of byRound.entries()) {
     scored.push(
-      _scoreRound(roundKills, round_num, events, roundStateMap, player_steamid, tickrate),
+      _scoreRound(roundKills, round_num, events, roundStateMap, player_steamid, tickrate, roster),
     );
   }
 
@@ -265,7 +269,41 @@ export function scoreKills(input: ScoreInput): Highlight[] {
     scored[i].rank = i + 1;
   }
 
-  return scored.slice(0, MAX_HIGHLIGHTS);
+  const final = scored.slice(0, MAX_HIGHLIGHTS);
+
+  // Sprint #6.5 (06/05) — POV cut selection. Marca top 1-2 kills do reel
+  // inteiro (cross-highlight) com pov_eligible=true. Critérios:
+  //   - aesthetic_style != null (kill já passou threshold)
+  //   - victim_name resolvido (capture.cfg precisa)
+  //   - top 2 por aesthetic_score globalmente, sem repetir vítima
+  // Cap muito agressivo: victim POV é cinematic STATEMENT, não recurso comum.
+  const POV_MAX_CUTS_PER_REEL = 2;
+  const candidates: KillInfo[] = [];
+  for (const hl of final) {
+    for (const k of hl.kills) {
+      if (
+        k.aesthetic_style != null &&
+        k.aesthetic_score != null &&
+        k.victim_name &&
+        k.victim_steamid
+      ) {
+        candidates.push(k);
+      }
+    }
+  }
+  candidates.sort((a, b) => (b.aesthetic_score ?? 0) - (a.aesthetic_score ?? 0));
+
+  const seenVictims = new Set<string>();
+  let selected = 0;
+  for (const k of candidates) {
+    if (selected >= POV_MAX_CUTS_PER_REEL) break;
+    if (k.victim_steamid && seenVictims.has(k.victim_steamid)) continue;
+    k.pov_eligible = true;
+    if (k.victim_steamid) seenVictims.add(k.victim_steamid);
+    selected += 1;
+  }
+
+  return final;
 }
 
 // ── Internals ────────────────────────────────────────────────────────────────
@@ -277,6 +315,7 @@ function _scoreRound(
   roundStateMap: Map<number, RoundState>,
   player_steamid: string,
   tickrate: number,
+  roster?: import("./types").RosterMap,
 ): Highlight {
   const n = roundKills.length;
   const base = BASE_SCORE[Math.min(n, 5)] ?? 1000;
@@ -331,6 +370,11 @@ function _scoreRound(
       time: kill.tick / tr,
       aesthetic_score: aesthetic.score,
       aesthetic_style: aesthetic.style,
+      // Sprint #6.5 — POV cut metadata. pov_eligible setado em
+      // post-processing pós scoreKills (top 1-2 do reel).
+      victim_steamid: kill.victim_steamid,
+      victim_name: roster?.[kill.victim_steamid] ?? undefined,
+      kill_tick: kill.tick,
     });
   }
 
