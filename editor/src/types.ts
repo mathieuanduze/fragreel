@@ -111,6 +111,13 @@ export type Highlight = {
   // legados (pré-Fase 1.27) → editor fallback pro behavior da Fase 1.23
   // (kill-only updates).
   alive_timeline?: AliveEvent[];
+  // Round 7 (07/05 noite tardia) — replay highlight markers.
+  // /render local_api.py insere replay highlights APÓS o original quando
+  // pov_eligible. Editor renderiza esses com label "REPLAY" + efeitos
+  // visuais (saturate desat + vinheta vermelha + border interno) durante
+  // toda a scene (não só durante povActive window).
+  is_replay_highlight?: boolean;
+  replay_victim_name?: string;
 };
 
 export type AliveEvent = {

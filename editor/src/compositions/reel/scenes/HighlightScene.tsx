@@ -238,35 +238,57 @@ export const HighlightScene: React.FC<Props> = ({
       )
     : 0;
 
-  // Sprint #6.5 (07/05 round 6) — POV vítima window expanded.
-  // Mathieu PC test reportou janela 0.8s era confusa (corte no meio de
-  // trocação, user não via kill inteira). Expandido pra 1.6s total
-  // (1.0s pre + 0.6s post). Match capture_script.py POV_PRE_TICKS=64,
-  // POST=38 @ 64tps.
+  // Sprint #6.5 (07/05 round 7) — POV vítima como SEGMENT separado.
+  // Round 6 (mid-segment switch) era confuso. Round 7 spec Mathieu:
+  // "replay POV vir DEPOIS do round" → replay highlights são highlights
+  // separados do match.highlights[] com is_replay_highlight=true.
+  // Pra esses, `povActive` fica TRUE durante TODA a scene (não só
+  // janela 1.6s) → efeito visual + label permanente.
+  const isReplayHighlight = !!highlight.is_replay_highlight;
   const POV_PRE_SEC = 1.0;
   const POV_POST_SEC = 0.6;
   let povActive: { delta: number; victimName: string } | null = null;
-  for (const t of killTimings) {
-    const k = t.kill as Kill;
-    if (!k.pov_eligible || !k.victim_name) continue;
-    const kFrame = s2f(t.sceneTime);
-    const delta = (frame - kFrame) / FPS; // segundos relativos à kill
-    if (delta >= -POV_PRE_SEC && delta <= POV_POST_SEC) {
-      if (povActive === null || Math.abs(delta) < Math.abs(povActive.delta)) {
-        povActive = { delta, victimName: k.victim_name };
+  if (isReplayHighlight) {
+    // Round 7: replay highlight = scene inteira é replay. povActive constante.
+    povActive = {
+      delta: 0,
+      victimName: highlight.replay_victim_name || "victim",
+    };
+  } else {
+    for (const t of killTimings) {
+      const k = t.kill as Kill;
+      if (!k.pov_eligible || !k.victim_name) continue;
+      const kFrame = s2f(t.sceneTime);
+      const delta = (frame - kFrame) / FPS; // segundos relativos à kill
+      if (delta >= -POV_PRE_SEC && delta <= POV_POST_SEC) {
+        if (povActive === null || Math.abs(delta) < Math.abs(povActive.delta)) {
+          povActive = { delta, victimName: k.victim_name };
+        }
       }
     }
   }
-  // POV badge progress: fade in nos primeiros 100ms da janela, fade out
+  // POV badge progress.
+  // Replay highlight: fade in 200ms inicial + fade out 200ms final.
+  // Inline POV cut: fade in nos primeiros 100ms da janela, fade out
   // nos últimos 100ms.
-  const povBadgeOpacity = povActive
-    ? interpolate(
-        povActive.delta,
-        [-POV_PRE_SEC, -POV_PRE_SEC + 0.1, POV_POST_SEC - 0.1, POV_POST_SEC],
-        [0, 1, 1, 0],
-        { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-      )
-    : 0;
+  let povBadgeOpacity = 0;
+  if (isReplayHighlight && povActive) {
+    const sceneSec = frame / FPS;
+    const sceneDurSec = durationInFrames / FPS;
+    povBadgeOpacity = interpolate(
+      sceneSec,
+      [0, 0.2, sceneDurSec - 0.2, sceneDurSec],
+      [0, 1, 1, 0],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+    );
+  } else if (povActive) {
+    povBadgeOpacity = interpolate(
+      povActive.delta,
+      [-POV_PRE_SEC, -POV_PRE_SEC + 0.1, POV_POST_SEC - 0.1, POV_POST_SEC],
+      [0, 1, 1, 0],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+    );
+  }
 
   // Label popup: spring-style scale + fade
   const labelOpacity = activeStyle
@@ -1301,19 +1323,21 @@ export const HighlightScene: React.FC<Props> = ({
                 opacity: enterProgress,
                 display: "flex",
                 alignItems: "center",
-                // Mathieu round 3 (06/05): "tamanho está deixando tudo
-                // muito apertado". Bump gap 14→18 pra respiração.
-                gap: 18,
-                padding: isHorizontal ? "10px 20px" : "12px 24px",
+                // Round 7 (07/05 noite tardia): Mathieu reportou killfeed
+                // "tá saindo muito grande". Bump down: gap 18→12, padding
+                // 10/12 → 7/8, fontSize 26/30 → 18/22 pra proporção mais
+                // CS2 vanilla.
+                gap: 12,
+                padding: isHorizontal ? "7px 14px" : "8px 16px",
                 background: "rgba(0,0,0,0.82)",
                 backdropFilter: "blur(10px)",
-                borderRadius: 6,
-                fontSize: isHorizontal ? 26 : 30,
+                borderRadius: 5,
+                fontSize: isHorizontal ? 18 : 22,
                 fontWeight: 700,
                 color: theme.text,
                 fontFamily: theme.fontDisplay,
-                borderRight: `4px solid ${weaponColor}`,
-                boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
+                borderRight: `3px solid ${weaponColor}`,
+                boxShadow: "0 3px 10px rgba(0,0,0,0.4)",
               }}
             >
               {/* Sprint Killfeed Icons (07/05 round 5) — SVG-only OU text-only,
@@ -1344,13 +1368,12 @@ export const HighlightScene: React.FC<Props> = ({
                 };
                 const filter = filterMap[weaponColor] ?? "invert(100%)";
                 // Killfeed-style container — proporção CS2 vanilla (~56x22)
-                // Round 6 revert (07/05 noite tardia): Mathieu esclareceu
-                // "Não é o killfeed cropado, é a GAMEPLAY". Killfeed icon
-                // já estava OK em round 5 (95×32 validado: "killfeed
-                // funcionou!"). Round 6 bump pra 140×46 era desnecessário.
-                // Volta pro tamanho validado.
-                const cellW = isHorizontal ? 95 : 105;
-                const cellH = isHorizontal ? 32 : 36;
+                // Round 7 (07/05 noite tardia): Mathieu reportou killfeed
+                // "tá saindo muito grande". Reduzi proporcional ao font
+                // (18/22) e padding (7/8). Weapon icon: 95×32 → 70×24
+                // (horizontal), 105×36 → 78×26 (vertical).
+                const cellW = isHorizontal ? 70 : 78;
+                const cellH = isHorizontal ? 24 : 26;
                 return (
                   <div style={{
                     position: "relative",
@@ -1407,7 +1430,7 @@ export const HighlightScene: React.FC<Props> = ({
               <span
                 style={{
                   color: theme.textDim,
-                  fontSize: isHorizontal ? 18 : 22,
+                  fontSize: isHorizontal ? 13 : 16,
                   fontWeight: 700,
                   letterSpacing: "0.1em",
                   fontFamily: theme.fontMono,
@@ -1425,9 +1448,9 @@ export const HighlightScene: React.FC<Props> = ({
                 //   - hsIcon set (bundle hit) → SVG only, no badge text
                 //   - hsIcon null → badge "HS" text only
                 const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
-                // Round 6 revert: match weapon cellH (32/36) — killfeed era OK
-                const cellW = isHorizontal ? 36 : 40;
-                const cellH = isHorizontal ? 32 : 36;
+                // Round 7: proporcional ao weapon (24/26 cellH)
+                const cellW = isHorizontal ? 26 : 30;
+                const cellH = isHorizontal ? 24 : 26;
                 return (
                   <div style={{
                     position: "relative",
