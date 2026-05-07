@@ -1291,44 +1291,45 @@ export const HighlightScene: React.FC<Props> = ({
                   carrega, cobre text. UX: mesmo se SVG missing, weapon
                   name aparece (legacy V1 behavior). */}
               {(() => {
+                // 06/05 round 4 — TEXT IS THE PRIMARY (in flow, defines
+                // container size). Img is ABSOLUTE on top. Quando img
+                // carrega: cobre text. Quando img 404: img display:none
+                // via onError, text já tava lá visível.
+                //
+                // Antes: container width fixed (48-52px), badge HS tinha
+                // width baseado no container do icon → quando img 404
+                // text overflow. Agora text define container = no overflow.
                 const iconUrl = resolveWeaponIconUrl(k.weapon, cs2IconsBaseUrl);
-                const iconWidth = isHorizontal ? 48 : 52;
-                const iconHeight = isHorizontal ? 26 : 30;
-                if (iconUrl) {
-                  return (
-                    <div
-                      style={{
-                        position: "relative",
-                        width: iconWidth,
-                        height: iconHeight,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {/* Text fallback — always rendered behind. Visível
-                          quando img 404 (onError esconde img). */}
-                      <span
-                        aria-hidden
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          color: weaponColor,
-                          fontWeight: 900,
-                          fontSize: isHorizontal ? 22 : 24,
-                          letterSpacing: "0.02em",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          whiteSpace: "nowrap",
-                          textShadow: "0 1px 3px rgba(0,0,0,0.85)",
-                        }}
-                      >
-                        {k.weapon.toUpperCase()}
-                      </span>
-                      {/* Img on top — covers text quando loaded. Hides on
-                          error. Native onError handler (DOM-level, funciona
-                          em Remotion render). */}
+                const filterMap: Record<string, string> = {
+                  "#ff6b35": "invert(54%) sepia(89%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
+                  "#fbbf24": "invert(81%) sepia(60%) saturate(2400%) hue-rotate(351deg) brightness(99%) contrast(96%)",
+                  "#60a5fa": "invert(67%) sepia(43%) saturate(3001%) hue-rotate(190deg) brightness(99%) contrast(96%)",
+                  "#a78bfa": "invert(63%) sepia(43%) saturate(3001%) hue-rotate(220deg) brightness(99%) contrast(96%)",
+                  "#4CAF82": "invert(58%) sepia(40%) saturate(800%) hue-rotate(110deg) brightness(95%) contrast(91%)",
+                  "#ff4444": "invert(34%) sepia(72%) saturate(7421%) hue-rotate(353deg) brightness(101%) contrast(101%)",
+                };
+                const filter = filterMap[weaponColor] ?? "invert(100%)";
+                return (
+                  <div style={{
+                    position: "relative",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}>
+                    {/* Text PRIMARY — in flow, defines container size */}
+                    <span style={{
+                      color: weaponColor,
+                      fontWeight: 900,
+                      fontSize: isHorizontal ? 26 : 28,
+                      letterSpacing: "0.02em",
+                      whiteSpace: "nowrap",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.85)",
+                    }}>
+                      {k.weapon.toUpperCase()}
+                    </span>
+                    {/* Img ABSOLUTE on top — cobre text quando loaded.
+                        onError esconde img → text behind aparece. */}
+                    {iconUrl && (
                       <img
                         src={iconUrl}
                         alt=""
@@ -1336,30 +1337,16 @@ export const HighlightScene: React.FC<Props> = ({
                           (e.currentTarget as HTMLImageElement).style.display = "none";
                         }}
                         style={{
-                          position: "relative",
-                          zIndex: 1,
-                          width: iconWidth,
-                          height: iconHeight,
+                          position: "absolute",
+                          inset: 0,
+                          width: "100%",
+                          height: "100%",
                           objectFit: "contain",
-                          filter: `brightness(0) saturate(100%) ${
-                            weaponColor === "#ff6b35" ? "invert(54%) sepia(89%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)" :
-                            weaponColor === "#fbbf24" ? "invert(81%) sepia(60%) saturate(2400%) hue-rotate(351deg) brightness(99%) contrast(96%)" :
-                            weaponColor === "#60a5fa" ? "invert(67%) sepia(43%) saturate(3001%) hue-rotate(190deg) brightness(99%) contrast(96%)" :
-                            weaponColor === "#a78bfa" ? "invert(63%) sepia(43%) saturate(3001%) hue-rotate(220deg) brightness(99%) contrast(96%)" :
-                            weaponColor === "#4CAF82" ? "invert(58%) sepia(40%) saturate(800%) hue-rotate(110deg) brightness(95%) contrast(91%)" :
-                            weaponColor === "#ff4444" ? "invert(34%) sepia(72%) saturate(7421%) hue-rotate(353deg) brightness(101%) contrast(101%)" :
-                            "invert(100%)"
-                          }`,
+                          filter: `brightness(0) saturate(100%) ${filter}`,
                         }}
                       />
-                    </div>
-                  );
-                }
-                // Fallback text-only (sem cs2IconsBaseUrl, ou client antigo)
-                return (
-                  <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 26 : 28 }}>
-                    {k.weapon.toUpperCase()}
-                  </span>
+                    )}
+                  </div>
                 );
               })()}
               <span
@@ -1374,15 +1361,24 @@ export const HighlightScene: React.FC<Props> = ({
                 #{i + 1}
               </span>
               {k.headshot && (() => {
-                // HS modifier — dual-layer: badge "HS" sempre rendered behind,
-                // img on top com onError fallback. Mesma estratégia do weapon
-                // icon. Quando death_notice/headshot.svg 404, badge HS colorido
-                // aparece (V1 behavior preservado).
+                // 06/05 round 4 (Mathieu reportou: HS tag aparece FORA da
+                // tag principal). Bug do dual-layer anterior: container
+                // width = img size (24-28px) mas badge HS é wider (~30-40px),
+                // overflow.
+                //
+                // Fix: badge IS THE CONTAINER (in flow, define size).
+                // Img absolute on top de inset:0. Quando img loads: cobre
+                // badge. Quando img 404: img display:none → badge aparece.
                 const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
-                const hsBadge = (
-                  <span
-                    style={{
-                      marginLeft: 4,
+                return (
+                  <div style={{
+                    position: "relative",
+                    marginLeft: 4,
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}>
+                    {/* Badge PRIMARY — in flow, defines container size */}
+                    <span style={{
                       padding: isHorizontal ? "3px 9px" : "4px 10px",
                       borderRadius: 4,
                       background: moodDef.color,
@@ -1391,26 +1387,11 @@ export const HighlightScene: React.FC<Props> = ({
                       fontWeight: 800,
                       letterSpacing: "0.05em",
                       whiteSpace: "nowrap",
-                    }}
-                  >
-                    HS
-                  </span>
-                );
-                if (hsIcon) {
-                  return (
-                    <div
-                      style={{
-                        position: "relative",
-                        marginLeft: 4,
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {/* Badge fallback behind */}
-                      <div aria-hidden style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center" }}>
-                        {hsBadge}
-                      </div>
-                      {/* Img on top */}
+                    }}>
+                      HS
+                    </span>
+                    {/* Img absolute on top */}
+                    {hsIcon && (
                       <img
                         src={hsIcon}
                         alt=""
@@ -1418,38 +1399,19 @@ export const HighlightScene: React.FC<Props> = ({
                           (e.currentTarget as HTMLImageElement).style.display = "none";
                         }}
                         style={{
-                          position: "relative",
-                          zIndex: 1,
-                          width: isHorizontal ? 24 : 28,
-                          height: isHorizontal ? 24 : 28,
+                          position: "absolute",
+                          inset: 0,
+                          width: "100%",
+                          height: "100%",
                           objectFit: "contain",
                           filter: "brightness(0) saturate(100%) invert(56%) sepia(85%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
                         }}
                       />
-                    </div>
-                  );
-                }
-                return hsBadge;
-              })()}
-              {/* legacy span removida — ver hsBadge acima */}
-              {false && k.headshot && (() => {
-                return (
-                  <span
-                    style={{
-                      marginLeft: 4,
-                      padding: isHorizontal ? "3px 9px" : "4px 10px",
-                      borderRadius: 4,
-                      background: moodDef.color,
-                      color: "white",
-                      fontSize: isHorizontal ? 17 : 20,
-                      fontWeight: 800,
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    HS
-                  </span>
+                    )}
+                  </div>
                 );
               })()}
+              {/* HS modifier rendering encapsulado acima — dead block removido */}
             </div>
           );
         })}
