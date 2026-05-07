@@ -3,17 +3,23 @@
 /**
  * InstallingClientBanner — Sprint Install Indicator (06/05).
  *
- * Mathieu spec: "Tem como ter um identificador no fragreel, no site que,
- * quando o exe foi baixado e clicado, mostra que está sendo instalado o
- * client?".
+ * Mathieu spec round 2: "seria quando o usuário clica no .exe, não no
+ * download, pq pode fazer o usuário pensar que era só clicar no client".
  *
- * Renderiza banner fixo top quando user clicou em "Baixar" recentemente
- * E client local ainda não respondeu. Some sozinho quando o client vem
- * online (hook clearDownloadClick) ou quando expira a janela de 5min.
+ * Não dá pra detectar click do .exe direto da web (sem beacon dedicado),
+ * MAS dá pra mudar mensageria pra ficar CLARO que user tem ação a tomar.
+ * Banner não diz "Instalando..." nos primeiros 60s — diz "Abra o
+ * FragReel.exe" instrucional. Só vira "Instalando..." quando passou tempo
+ * suficiente sugerindo que user abriu .exe e setup está rolando OU
+ * quando client efetivamente vem online (clearDownloadClick dismiss).
  *
- * Uso:
- *   const status = useClientVersionStatus();
- *   {status.status === "installing" && <InstallingClientBanner secondsElapsed={status.installingForSec ?? 0} />}
+ * Stages:
+ *   0-15s    → "Baixando o FragReel.exe…" (download em curso)
+ *   15-60s   → "Abra o FragReel.exe que foi baixado" (instructive)
+ *              Cor mudada pra azul (info) em vez de laranja (active)
+ *   60-180s  → "Instalando dependências…" (active)
+ *              Volta laranja, assume user abriu .exe
+ *   180-300s → "Quase lá…" (active)
  */
 import Spinner from "./Spinner";
 
@@ -22,25 +28,47 @@ type Props = {
 };
 
 export default function InstallingClientBanner({ secondsElapsed }: Props) {
-  // Stages aproximados pra dar feedback ao user:
-  //   0-30s    → "Baixando o instalador..."
-  //   30-60s   → "Abra o FragReel.exe baixado pra continuar"
-  //   60-180s  → "Instalando dependências..."
-  //   180-300s → "Quase lá... primeira execução pode demorar"
-  let stageLabel = "Baixando o instalador…";
-  let stageHint = "FragReel.exe (~120 MB)";
-  if (secondsElapsed > 30) {
-    stageLabel = "Abra o FragReel.exe baixado";
-    stageHint = "Procure na pasta Downloads e dê duplo clique";
-  }
-  if (secondsElapsed > 60) {
-    stageLabel = "Instalando dependências…";
-    stageHint = "HLAE, Node, ffmpeg, editor (~210 MB no first-run)";
-  }
-  if (secondsElapsed > 180) {
-    stageLabel = "Quase lá…";
-    stageHint = "Primeira execução demora um pouco mais";
-  }
+  // Stage detection
+  const stage =
+    secondsElapsed < 15 ? "downloading"
+    : secondsElapsed < 60 ? "waiting"
+    : secondsElapsed < 180 ? "installing"
+    : "finishing";
+
+  const config = {
+    downloading: {
+      label: "Baixando o FragReel.exe…",
+      hint: "~120 MB · espere o download terminar antes de abrir",
+      color: "#FF6B35",
+      borderColor: "rgba(255, 107, 53, 0.35)",
+      glow: "rgba(255,107,53,0.18)",
+      icon: "active" as const,
+    },
+    waiting: {
+      label: "Agora abra o FragReel.exe pra instalar",
+      hint: "Procure na pasta Downloads e dê duplo clique no arquivo",
+      color: "#60a5fa",
+      borderColor: "rgba(96, 165, 250, 0.4)",
+      glow: "rgba(96,165,250,0.2)",
+      icon: "info" as const,
+    },
+    installing: {
+      label: "Instalando o client…",
+      hint: "HLAE, Node, ffmpeg, editor (~210 MB no first-run)",
+      color: "#FF6B35",
+      borderColor: "rgba(255, 107, 53, 0.35)",
+      glow: "rgba(255,107,53,0.18)",
+      icon: "active" as const,
+    },
+    finishing: {
+      label: "Quase lá…",
+      hint: "First-run demora um pouco mais. Aguenta firme.",
+      color: "#FF6B35",
+      borderColor: "rgba(255, 107, 53, 0.35)",
+      glow: "rgba(255,107,53,0.18)",
+      icon: "active" as const,
+    },
+  }[stage];
 
   return (
     <div
@@ -55,16 +83,42 @@ export default function InstallingClientBanner({ secondsElapsed }: Props) {
         padding: "14px 22px",
         background: "rgba(13, 13, 26, 0.92)",
         backdropFilter: "blur(12px)",
-        border: "1px solid rgba(255, 107, 53, 0.35)",
+        border: `1px solid ${config.borderColor}`,
         borderRadius: 12,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 24px rgba(255,107,53,0.18)",
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 24px ${config.glow}`,
         display: "flex",
         alignItems: "center",
         gap: 14,
-        maxWidth: "min(92vw, 560px)",
+        maxWidth: "min(92vw, 580px)",
       }}
     >
-      <Spinner size={28} color="#FF6B35" />
+      {config.icon === "active" ? (
+        <Spinner size={28} color={config.color} />
+      ) : (
+        // Info icon (download arrow) — comunica "ação do user requerida"
+        // em vez de "ação em curso" do spinner.
+        <div
+          aria-hidden
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            background: `${config.color}22`,
+            border: `2px solid ${config.color}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            animation: "pulse-bg 2s ease-in-out infinite",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={config.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </div>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -75,7 +129,7 @@ export default function InstallingClientBanner({ secondsElapsed }: Props) {
             letterSpacing: "0.01em",
           }}
         >
-          {stageLabel}
+          {config.label}
         </div>
         <div
           style={{
@@ -84,7 +138,7 @@ export default function InstallingClientBanner({ secondsElapsed }: Props) {
             lineHeight: 1.4,
           }}
         >
-          {stageHint} · há {secondsElapsed}s
+          {config.hint}
         </div>
       </div>
     </div>
