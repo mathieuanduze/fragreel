@@ -82,6 +82,8 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
       <div
         ref={scrollRef}
         onClick={(e) => e.stopPropagation()}
+        tabIndex={-1}
+        autoFocus
         style={{
           background: "linear-gradient(180deg, #15151f 0%, #0d0d18 100%)",
           borderRadius: 16,
@@ -89,34 +91,31 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
           width: "100%",
           maxHeight: "90vh",
           overflowY: "auto",
-          padding: "32px 36px",
+          padding: "0",
           border: "1px solid rgba(255, 107, 53, 0.35)",
           boxShadow: "0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(255,107,53,0.15)",
           position: "relative",
+          outline: "none",
         }}
       >
-        {/* Close X */}
-        <button
-          onClick={handleClose}
-          aria-label="Fechar"
+        {/* Header STICKY — confirmação download. Round 4 fix (07/05 noite):
+            Mathieu reportou modal abria com scroll na "etapa 2" mesmo após
+            useEffect scrollTop=0. Solução: header com position sticky no topo
+            do scroll container — mesmo se algo dispara scrollIntoView, o
+            header permanece visível. */}
+        <div
           style={{
-            position: "absolute",
-            top: 14,
-            right: 16,
-            background: "transparent",
-            border: "none",
-            color: "rgba(255,255,255,0.45)",
-            fontSize: 26,
-            cursor: "pointer",
-            padding: 4,
-            lineHeight: 1,
+            position: "sticky",
+            top: 0,
+            background: "linear-gradient(180deg, #15151f 0%, #15151f 92%, rgba(21,21,31,0))",
+            padding: "32px 36px 18px",
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            marginBottom: 8,
           }}
         >
-          ×
-        </button>
-
-        {/* Header — confirmação download */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
           <div
             aria-hidden
             style={{
@@ -135,7 +134,7 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-          <div>
+          <div style={{ flex: 1 }}>
             <h2
               id="smartscreen-title"
               style={{
@@ -152,12 +151,34 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
               FragReel.exe · ~120 MB · pasta Downloads
             </p>
           </div>
+          {/* Close X — DENTRO do sticky header (não absolute) pra não disparar
+              scrollIntoView. Visualmente mantém top-right via flex layout. */}
+          <button
+            onClick={handleClose}
+            aria-label="Fechar"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "rgba(255,255,255,0.45)",
+              fontSize: 26,
+              cursor: "pointer",
+              padding: 4,
+              lineHeight: 1,
+              flexShrink: 0,
+              alignSelf: "flex-start",
+            }}
+          >
+            ×
+          </button>
         </div>
+
+        {/* Conteúdo scrollable com padding lateral */}
+        <div style={{ padding: "0 36px 32px" }}>
 
         {/* Aviso "antes de abrir" */}
         <div
           style={{
-            marginTop: 20,
+            marginTop: 4,
             padding: "14px 16px",
             background: "rgba(255, 193, 7, 0.08)",
             border: "1px solid rgba(255, 193, 7, 0.3)",
@@ -323,6 +344,8 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
         >
           Entendi, ver progresso da instalação
         </button>
+
+        </div>{/* /padded content */}
       </div>
 
       <style jsx global>{`
