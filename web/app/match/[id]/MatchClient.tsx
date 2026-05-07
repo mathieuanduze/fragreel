@@ -197,7 +197,9 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
   // de paredes em spec mode). Default OFF (cinematicamente x-ray distrai
   // do gameplay POV). User opt-in via UI. Web envia `show_xray` no payload
   // pro client converter em cvar `spec_show_xray 1` no capture.cfg.
-  const [xrayEnabled, setXrayEnabled] = useState<boolean>(false);
+  // Round 9 (07/05 noite tardia): Mathieu spec "toggles podem estar todos
+  // on por default". OFF → ON.
+  const [xrayEnabled, setXrayEnabled] = useState<boolean>(true);
   // Round 4c Fase 1.27 — toggle scoreboard top-left. Default ON (mostra
   // CT/T alive count + HP em tempo real, estilo placar HLTV). User opt-out
   // pra estilo "puro POV sem HUD overlays".
@@ -212,7 +214,9 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
   // Kills comuns ficam sem efeito. Toggle re-enabled como default OFF —
   // user opt-in até confirmar que distribuição de styled kills está
   // calibrada (anti-fadiga test).
-  const [killFlashEnabled, setKillFlashEnabled] = useState<boolean>(false);
+  // Round 9 (07/05 noite tardia): Mathieu spec "toggles all on por default".
+  // OFF → ON. Aesthetic distribution já calibrada via scorer threshold ≥25.
+  const [killFlashEnabled, setKillFlashEnabled] = useState<boolean>(true);
   // Sprint #6.2 (05/05) — Bomb timer red bar.
   // 06/05 — Mathieu reportou: "Não vi nenhuma barra vermelha de bomb timer".
   // Default era OFF (opt-in), Mathieu não sabia ativar. Per

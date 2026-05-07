@@ -134,6 +134,69 @@ function fmtKD(k: number, d: number): string {
   return (k / d).toFixed(2);
 }
 
+// Round 9 (07/05 noite tardia) — empty state styles. Paleta unificada
+// laranja CT como ÚNICO accent.
+const cs2Code: React.CSSProperties = {
+  fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+  fontSize: 11,
+  background: "rgba(0,0,0,0.40)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  padding: "1px 6px",
+  borderRadius: 3,
+  color: "rgba(255,255,255,0.75)",
+  letterSpacing: "0.01em",
+};
+
+const stepRow: React.CSSProperties = {
+  display: "flex",
+  gap: 12,
+  alignItems: "flex-start",
+};
+
+const stepNum: React.CSSProperties = {
+  flexShrink: 0,
+  width: 22,
+  height: 22,
+  borderRadius: "50%",
+  background: "rgba(255,107,53,0.14)",
+  border: "1px solid rgba(255,107,53,0.35)",
+  color: "#FF8E53",
+  fontSize: 11,
+  fontWeight: 700,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  marginTop: 2,
+  fontFamily: "ui-monospace, monospace",
+};
+
+const stepTitle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: "rgba(255,255,255,0.92)",
+  marginBottom: 4,
+};
+
+const stepDesc: React.CSSProperties = {
+  fontSize: 12,
+  color: "rgba(255,255,255,0.55)",
+  lineHeight: 1.55,
+};
+
+const pathBox: React.CSSProperties = {
+  marginTop: 8,
+  padding: "8px 12px",
+  background: "rgba(0,0,0,0.35)",
+  border: "1px solid rgba(255,255,255,0.06)",
+  borderRadius: 6,
+  fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+  fontSize: 11,
+  color: "rgba(255,255,255,0.7)",
+  wordBreak: "break-all",
+  letterSpacing: "0.01em",
+  lineHeight: 1.4,
+};
+
 export default function LibraryContent() {
   const router = useRouter();
   const [demos, setDemos] = useState<LocalDemo[] | null>(null);
@@ -393,63 +456,103 @@ export default function LibraryContent() {
         </div>
       )}
 
-      {/* Sem demos + scan terminado = realmente vazio. Sem demos + scan rolando = placeholder de progresso. */}
+      {/* Round 9 (07/05 noite tardia) — Empty state redesign sóbrio.
+          Mathieu reportou: (1) info incorreta — CS2 NÃO salva demo automático
+          em matchmaking competitiva, só Premier. User precisa baixar via
+          "Watch" do CS2 mesmo nas suas próprias matches. (2) path da pasta
+          incompleto. (3) muito carregado visualmente.
+          Redesign: paleta unificada laranja CT (sem cor azul OPÇÃO 2),
+          path absoluto Steam completo, instruções factually correctas. */}
       {(!demos || demos.length === 0) && (
         scanDone ? (
-          // 06/05 — Mathieu spec: empty state precisa estar CLARO sobre
-          // como o user consegue uma demo. Antes era 1-line genérica.
-          // Agora 2 paths explícitos com ícones + numeração.
           <div style={{
-            padding: "32px 28px",
+            padding: "36px 32px",
             textAlign: "center",
-            border: "1px dashed #2D2D44",
+            border: "1px dashed rgba(255,255,255,0.10)",
             borderRadius: 12,
-            background: "rgba(26,26,46,0.4)",
+            background: "rgba(26,26,46,0.30)",
+            maxWidth: 720,
+            margin: "0 auto",
           }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>🎮</div>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: "#E8E8F0", margin: "0 0 6px" }}>
-              Nenhuma demo encontrada ainda
-            </h3>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", margin: "0 0 22px", lineHeight: 1.5 }}>
-              FragReel precisa de uma <strong style={{ color: "#FF6B35" }}>demo do CS2</strong> (.dem)
-              pra gerar o reel. Você consegue uma de 2 jeitos:
-            </p>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 12,
-              maxWidth: 640,
-              margin: "0 auto",
-              textAlign: "left",
+            <h3 style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.92)",
+              margin: "0 0 6px",
+              letterSpacing: "-0.01em",
             }}>
-              <div style={{ padding: 14, background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", letterSpacing: "0.1em", marginBottom: 6 }}>
-                  OPÇÃO 1 · AUTOMÁTICA
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 4 }}>
-                  Jogue uma matchmaking competitiva
-                </div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>
-                  CS2 salva a demo automático em <code style={{ background: "#0D0D1A", padding: "1px 5px", borderRadius: 3, fontSize: 11 }}>csgo/replays/</code>.
-                  FragReel detecta sozinho assim que terminar.
+              Nenhuma demo detectada
+            </h3>
+            <p style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.55)",
+              margin: "0 0 24px",
+              lineHeight: 1.55,
+            }}>
+              FragReel lê demos <code style={cs2Code}>.dem</code> que você baixa pelo próprio CS2.
+              Assim que uma demo nova aparecer na pasta, ela vai listar aqui automaticamente.
+            </p>
+
+            {/* Step-by-step instructions (factually correct) */}
+            <div style={{
+              textAlign: "left",
+              maxWidth: 560,
+              margin: "0 auto 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}>
+              <div style={stepRow}>
+                <div style={stepNum}>1</div>
+                <div style={{ flex: 1 }}>
+                  <div style={stepTitle}>Abra o CS2 → Watch</div>
+                  <div style={stepDesc}>
+                    Clique em <strong style={{ color: "rgba(255,255,255,0.85)" }}>Your Matches</strong> pra
+                    ver suas partidas recentes (Premier, Competitive, Wingman). Pra demos pro, vá em <strong style={{ color: "rgba(255,255,255,0.85)" }}>HLTV.org</strong> ou <strong style={{ color: "rgba(255,255,255,0.85)" }}>CSGOStats.gg</strong>.
+                  </div>
                 </div>
               </div>
-              <div style={{ padding: 14, background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", letterSpacing: "0.1em", marginBottom: 6 }}>
-                  OPÇÃO 2 · MANUAL
+              <div style={stepRow}>
+                <div style={stepNum}>2</div>
+                <div style={{ flex: 1 }}>
+                  <div style={stepTitle}>Baixe a demo da partida</div>
+                  <div style={stepDesc}>
+                    No CS2, clique no botão <strong style={{ color: "rgba(255,255,255,0.85)" }}>Download</strong> da match
+                    desejada. CS2 salva automaticamente em:
+                  </div>
+                  <div style={pathBox}>
+                    <code style={cs2Code}>...\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\replays\</code>
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8E8F0", marginBottom: 4 }}>
-                  Baixe uma demo (HLTV, BLAST)
-                </div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>
-                  Salve em <code style={{ background: "#0D0D1A", padding: "1px 5px", borderRadius: 3, fontSize: 11 }}>Downloads</code> ou
-                  <code style={{ background: "#0D0D1A", padding: "1px 5px", borderRadius: 3, fontSize: 11, marginLeft: 4 }}>csgo/replays/</code>.
-                  FragReel acha sozinho.
+              </div>
+              <div style={stepRow}>
+                <div style={stepNum}>3</div>
+                <div style={{ flex: 1 }}>
+                  <div style={stepTitle}>Aguarde a detecção automática</div>
+                  <div style={stepDesc}>
+                    FragReel monitora a pasta. Em segundos, a demo nova aparece aqui — sem refresh.
+                    Se demorar, clique em <strong style={{ color: "rgba(255,255,255,0.85)" }}>Re-escanear demos</strong> no topo.
+                  </div>
                 </div>
               </div>
             </div>
-            <div style={{ marginTop: 16, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-              Se já fez isso e não aparece, clica em "Atualizar lista" no topo.
+
+            {/* Hint discreto sobre upload manual */}
+            <div style={{
+              marginTop: 14,
+              padding: "10px 14px",
+              fontSize: 11,
+              color: "rgba(255,255,255,0.45)",
+              background: "rgba(255,255,255,0.025)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 8,
+              maxWidth: 560,
+              margin: "14px auto 0",
+              lineHeight: 1.5,
+            }}>
+              <strong style={{ color: "rgba(255,255,255,0.7)" }}>Upload manual:</strong> drag-and-drop
+              de <code style={cs2Code}>.dem</code> direto na página em breve. Por enquanto, mova o arquivo
+              pra pasta <code style={cs2Code}>csgo/replays/</code> e re-escaneie.
             </div>
           </div>
         ) : (
