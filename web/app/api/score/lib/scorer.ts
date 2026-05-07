@@ -368,6 +368,10 @@ function _scoreRound(
     // Sprint Aesthetic (06/05): per-kill score + style hint pra editor
     const aesthetic = _computeKillAesthetic(kill);
 
+    // 07/05 PC diag fix: campos null EXPLÍCITOS em vez de undefined,
+    // pra JSON.stringify NÃO strippar (undefined vira chave-ausente,
+    // null vira "key": null e fica no payload). Permite client diag
+    // distinguir "scorer não emitiu" vs "scorer emitiu null".
     killInfos.push({
       label: _killLabel(kill),
       weapon: kill.weapon,
@@ -376,14 +380,17 @@ function _scoreRound(
       alive_ct_after: Math.max(0, 5 - ctDeaths),
       alive_t_after: Math.max(0, 5 - tDeaths),
       time: kill.tick / tr,
+      // Sprint Aesthetic — score sempre emitido (numero, never undefined)
       aesthetic_score: aesthetic.score,
-      aesthetic_style: aesthetic.style,
-      // Sprint #6.5 — POV cut metadata. pov_eligible setado em
-      // post-processing pós scoreKills (top 1-2 do reel).
-      victim_steamid: kill.victim_steamid,
-      victim_name: roster?.[kill.victim_steamid] ?? undefined,
-      kill_tick: kill.tick,
-    });
+      aesthetic_style: aesthetic.style,  // null se kill comum
+      // Sprint #6.5 — pov metadata. pov_eligible default false (only top
+      // 1-2 do reel viram true em post-processing). victim_steamid/name/
+      // kill_tick sempre emitidos (null se not available).
+      pov_eligible: false,
+      victim_steamid: kill.victim_steamid || null,
+      victim_name: (roster && kill.victim_steamid && roster[kill.victim_steamid]) || null,
+      kill_tick: kill.tick ?? null,
+    } as KillInfo);
   }
 
   // Round-level context (each fires AT MOST ONCE per round)

@@ -42,7 +42,10 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 const SCHEMA_VERSION = "1";
-const SCORER_VERSION = "v0.3.1-port-1";
+// 07/05 — bump SCORER_VERSION pra Sprint #6.5 + Aesthetic. Client api_client.py
+// loga isso pra detectar deploy stale (response com versão antiga = Vercel
+// cache hit serving old code).
+const SCORER_VERSION = "v0.6.5-aesthetic-pov";
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ScoreRequest {
