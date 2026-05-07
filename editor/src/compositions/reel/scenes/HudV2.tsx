@@ -109,7 +109,15 @@ export const HudV2: React.FC<HudV2Props> = ({
   const bottomCenter = (
     <div style={{
       position: "absolute",
-      bottom: isHorizontal ? 80 : 240,
+      // Mathieu spec round 4 (06/05): "tem bastante espaço na parte de
+      // baixo onde está o nome do player e o watermark, pode puxar isso
+      // mais pra baixo". Antes bottom 240 (vertical) deixava ~150-200px
+      // empty acima da TikTok safe area. Agora bottom 130 = stack quase
+      // colado no bottom edge, mantém ~120px clearance pra TikTok action
+      // bar quando reel for postado lá (controls tipicamente ~150px
+      // bottom). Trade-off conservador: postado em TikTok, action bar
+      // pode tocar ligeiramente o stack — Mathieu monitora se acontecer.
+      bottom: isHorizontal ? 50 : 130,
       left: "50%",
       transform: `translateX(-50%) translateY(${(1 - entrance) * 20}px)`,
       opacity: entrance,
