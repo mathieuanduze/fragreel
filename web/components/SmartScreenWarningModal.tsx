@@ -454,27 +454,39 @@ function SmartScreenMockup({ highlight }: { highlight: "more-info" | "run-anyway
   );
 }
 
-/** Setinha laranja apontando pro elemento destacado. */
+/** Setinha amarela apontando pra BAIXO acima do elemento destacado.
+ *
+ * Round 2 fix (07/05 noite): seta horizontal posicionada à direita do
+ * botão "Executar assim mesmo" parecia apontar pro botão VIZINHO ("Não
+ * executar") porque eles estão lado-a-lado. Solução: seta vertical acima
+ * apontando pra baixo — sem ambiguidade. */
 function ArrowPointer() {
   return (
     <div
       aria-hidden
       style={{
         position: "absolute",
-        right: -34,
-        top: "50%",
-        transform: "translateY(-50%)",
-        animation: "arrow-bounce 1.4s ease-in-out infinite",
+        left: "50%",
+        bottom: "100%",
+        transform: "translateX(-50%)",
+        marginBottom: 4,
+        animation: "arrow-bounce-v 1.4s ease-in-out infinite",
         pointerEvents: "none",
       }}
     >
-      <svg width="28" height="20" viewBox="0 0 28 20" fill="none">
-        <path d="M2 10 L22 10 M22 10 L16 4 M22 10 L16 16" stroke="#FFC107" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" transform="rotate(180 14 10)" />
+      <svg width="20" height="28" viewBox="0 0 20 28" fill="none">
+        <path
+          d="M10 2 L10 22 M10 22 L4 16 M10 22 L16 16"
+          stroke="#FFC107"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
       <style jsx global>{`
-        @keyframes arrow-bounce {
-          0%, 100% { transform: translateY(-50%) translateX(0); }
-          50% { transform: translateY(-50%) translateX(-4px); }
+        @keyframes arrow-bounce-v {
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(-4px); }
         }
       `}</style>
     </div>
