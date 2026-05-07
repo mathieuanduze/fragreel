@@ -238,15 +238,13 @@ export const HighlightScene: React.FC<Props> = ({
       )
     : 0;
 
-  // Sprint #6.5 (06/05) — POV vítima window detection.
-  // Quando captura emite spec_player switch durante kill_tick±window, o
-  // gameplay video MUDA pra POV vítima. Editor não controla a câmera, mas
-  // ADICIONA overlay editorial pra signalizar "POV VÍTIMA" — user entende
-  // que o cut é intencional, não bug.
-  // Janela: [-0.5s, +0.3s] em torno da kill com pov_eligible. Match capture
-  // window de capture_script.py POV_PRE_TICKS=32, POST=19 @ 64tps.
-  const POV_PRE_SEC = 0.5;
-  const POV_POST_SEC = 0.3;
+  // Sprint #6.5 (07/05 round 6) — POV vítima window expanded.
+  // Mathieu PC test reportou janela 0.8s era confusa (corte no meio de
+  // trocação, user não via kill inteira). Expandido pra 1.6s total
+  // (1.0s pre + 0.6s post). Match capture_script.py POV_PRE_TICKS=64,
+  // POST=38 @ 64tps.
+  const POV_PRE_SEC = 1.0;
+  const POV_POST_SEC = 0.6;
   let povActive: { delta: number; victimName: string } | null = null;
   for (const t of killTimings) {
     const k = t.kill as Kill;
@@ -679,47 +677,79 @@ export const HighlightScene: React.FC<Props> = ({
         </AbsoluteFill>
       )}
 
-      {/* Sprint #6.5 round 2 (06/05) — POV cut: HUD desaparece + label "REPLAY".
-          Mathieu spec: "A HUD precisa desaparecer, é um corte, no meio do
-          jogo, pra ver de outro ângulo. fica claro que é um replay pro
-          usuário. Pode até aparecer um 'o Replay' na tela. Aí, quando volta
-          pro jogo 'ao vivo' volta a hud".
-
-          Implementação: durante povActive, gate visibility de HudV2 +
-          killfeed + bomb timer. Mostra label "▶ REPLAY" simples top-center.
-          Pós-window, HUD volta sem fade glitch (HUD entrance spring é
-          frame-aware, vai re-animar suavemente). */}
+      {/* Sprint #6.5 round 6 (07/05 noite tardia) — POV cut: efeito visual
+          cinematográfico + label REPLAY.
+          Mathieu PC test reportou que o POV cut "parecia continuidade" sem
+          efeitos. Round 6 spec: fade/desat/vinheta vermelha pra deixar
+          claro que é um REPLAY editorial.
+          Camadas:
+          1. Backdrop filter saturate(0.55) + contrast(1.08): desatura
+             mantendo definição, dá feel "memória / replay"
+          2. Vinheta vermelha radial nas bordas
+          3. Border interno vermelho pulsante (4-6px solid c/ glow)
+          4. Label "● REPLAY" top-center (mantido do round 2)
+          Tudo gated por povBadgeOpacity pra fade-in/out suave nos
+          transições (~100ms cada lado). */}
       {povActive && povBadgeOpacity > 0.01 && (
-        <AbsoluteFill style={{ pointerEvents: "none" }}>
-          <div
+        <>
+          {/* Layer 1: desaturate + contrast bump (replay feel) */}
+          <AbsoluteFill
             style={{
-              position: "absolute",
-              top: isHorizontal ? 60 : 100,
-              left: "50%",
-              transform: "translateX(-50%)",
-              padding: isHorizontal ? "10px 26px" : "14px 32px",
-              background: "rgba(220, 38, 38, 0.22)",
-              backdropFilter: "blur(10px)",
-              border: "2px solid #DC2626",
-              borderRadius: 12,
-              fontSize: isHorizontal ? 20 : 26,
-              fontWeight: 900,
-              letterSpacing: "0.24em",
-              color: "#FFFFFF",
-              fontFamily: theme.fontDisplay,
-              boxShadow: "0 0 36px rgba(220, 38, 38, 0.7), 0 8px 20px rgba(0,0,0,0.6)",
-              textShadow: "0 0 18px rgba(220, 38, 38, 1.0), 0 2px 8px rgba(0,0,0,0.85)",
-              whiteSpace: "nowrap",
-              opacity: povBadgeOpacity,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
+              pointerEvents: "none",
+              backdropFilter: `saturate(${1 - 0.45 * povBadgeOpacity}) contrast(${1 + 0.08 * povBadgeOpacity})`,
+              WebkitBackdropFilter: `saturate(${1 - 0.45 * povBadgeOpacity}) contrast(${1 + 0.08 * povBadgeOpacity})`,
             }}
-          >
-            <span style={{ fontSize: isHorizontal ? 14 : 18, color: "#DC2626" }}>●</span>
-            REPLAY
-          </div>
-        </AbsoluteFill>
+          />
+          {/* Layer 2: vinheta vermelha radial */}
+          <AbsoluteFill
+            style={{
+              pointerEvents: "none",
+              background:
+                "radial-gradient(ellipse at center, transparent 40%, rgba(220, 38, 38, 0.22) 95%, rgba(120, 0, 0, 0.45) 100%)",
+              opacity: povBadgeOpacity,
+            }}
+          />
+          {/* Layer 3: border interno pulsante (frame-of-replay) */}
+          <AbsoluteFill
+            style={{
+              pointerEvents: "none",
+              border: `${isHorizontal ? 5 : 7}px solid rgba(220, 38, 38, 0.85)`,
+              boxShadow: "inset 0 0 80px rgba(220, 38, 38, 0.35), inset 0 0 200px rgba(0, 0, 0, 0.25)",
+              opacity: povBadgeOpacity,
+            }}
+          />
+          {/* Layer 4: label "● REPLAY" top-center */}
+          <AbsoluteFill style={{ pointerEvents: "none" }}>
+            <div
+              style={{
+                position: "absolute",
+                top: isHorizontal ? 60 : 100,
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: isHorizontal ? "10px 26px" : "14px 32px",
+                background: "rgba(220, 38, 38, 0.22)",
+                backdropFilter: "blur(10px)",
+                border: "2px solid #DC2626",
+                borderRadius: 12,
+                fontSize: isHorizontal ? 20 : 26,
+                fontWeight: 900,
+                letterSpacing: "0.24em",
+                color: "#FFFFFF",
+                fontFamily: theme.fontDisplay,
+                boxShadow: "0 0 36px rgba(220, 38, 38, 0.7), 0 8px 20px rgba(0,0,0,0.6)",
+                textShadow: "0 0 18px rgba(220, 38, 38, 1.0), 0 2px 8px rgba(0,0,0,0.85)",
+                whiteSpace: "nowrap",
+                opacity: povBadgeOpacity,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: isHorizontal ? 14 : 18, color: "#DC2626" }}>●</span>
+              REPLAY
+            </div>
+          </AbsoluteFill>
+        </>
       )}
 
       {/* Gradient overlay top + bottom */}
@@ -1307,13 +1337,19 @@ export const HighlightScene: React.FC<Props> = ({
                 };
                 const filter = filterMap[weaponColor] ?? "invert(100%)";
                 // Killfeed-style container — proporção CS2 vanilla (~56x22)
-                // Round 5 fix (07/05 noite tardia): Mathieu reportou weapon
-                // icon "muito cropado, só dá pra ver a ponta do cano". Container
-                // 60×24 era pequeno demais pro detalhe do SVG. Aumentar pra
-                // ~95×32 + padding interno dá ar suficiente pro icon mostrar
-                // a arma inteira (proporção CS2 killfeed real).
-                const cellW = isHorizontal ? 95 : 105;
-                const cellH = isHorizontal ? 32 : 36;
+                // Round 6 fix (07/05 noite tardia): Round 5 (95×32) ainda
+                // parecia "só ponta do cano" pro Mathieu. SVGs do lexogrine
+                // têm viewBox 678×222 (~3:1 aspect), 95×32 = 2.97:1 deveria
+                // bater, mas em prática path é desenhado em pequenas
+                // coordenadas dentro do viewBox → SVG visível ocupa só
+                // fração do container.
+                //
+                // Solução: bump significativo pra 140×46 (horizontal) /
+                // 155×52 (vertical) — mantém aspect 3:1 mas com ~50% mais
+                // resolução visível. Sem padding interno (estava comendo
+                // espaço útil).
+                const cellW = isHorizontal ? 140 : 155;
+                const cellH = isHorizontal ? 46 : 52;
                 return (
                   <div style={{
                     position: "relative",
@@ -1322,7 +1358,6 @@ export const HighlightScene: React.FC<Props> = ({
                     justifyContent: "center",
                     width: cellW,
                     height: cellH,
-                    padding: "3px 6px",
                     boxSizing: "border-box",
                     flexShrink: 0,
                   }}>
@@ -1388,10 +1423,9 @@ export const HighlightScene: React.FC<Props> = ({
                 //   - hsIcon set (bundle hit) → SVG only, no badge text
                 //   - hsIcon null → badge "HS" text only
                 const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
-                // Proporção match com weapon icon (Round 5 fix): mesmo height
-                // cellH e padding pra HS aparecer no mesmo tamanho visual
-                const cellW = isHorizontal ? 36 : 40;
-                const cellH = isHorizontal ? 32 : 36;
+                // Round 6: match weapon cellH (46/52) pra paridade visual.
+                const cellW = isHorizontal ? 50 : 56;
+                const cellH = isHorizontal ? 46 : 52;
                 return (
                   <div style={{
                     position: "relative",
@@ -1401,7 +1435,6 @@ export const HighlightScene: React.FC<Props> = ({
                     justifyContent: "center",
                     width: cellW,
                     height: cellH,
-                    padding: "3px 4px",
                     boxSizing: "border-box",
                     flexShrink: 0,
                   }}>
