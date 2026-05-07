@@ -28,7 +28,7 @@
  * SVG/HTML inline pra (a) não depender de assets externos, (b) sempre
  * carregar mesmo em conexão ruim, (c) ter aspecto consistente entre Win10/11.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { setSmartScreenOptOut } from "@/lib/installState";
 
 type Props = {
@@ -38,6 +38,22 @@ type Props = {
 export default function SmartScreenWarningModal({ onClose }: Props) {
   const [faqOpen, setFaqOpen] = useState(false);
   const [optOut, setOptOut] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Round 3 fix (07/05 noite): Mathieu reportou modal abre scrollado direto
+  // na "etapa 2", topo não visível. Causa provável: aria-modal="true" + role
+  // dialog disparam auto-focus em alguns browsers, e o close X (position
+  // absolute, fora do flow) força scrollIntoView no scrollable container.
+  // Fix: força scrollTop = 0 no mount + após próximo frame (cobre layout
+  // shift assíncrono pós-fadeIn).
+  useEffect(() => {
+    const reset = () => {
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    };
+    reset();
+    const raf = requestAnimationFrame(reset);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const handleClose = () => {
     if (optOut) setSmartScreenOptOut(true);
@@ -64,6 +80,7 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
       onClick={handleClose}
     >
       <div
+        ref={scrollRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "linear-gradient(180deg, #15151f 0%, #0d0d18 100%)",
