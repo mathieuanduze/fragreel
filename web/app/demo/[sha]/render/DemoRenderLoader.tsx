@@ -143,7 +143,17 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
           )}
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             {is404 && (
-              <a href="/download" download="FragReel.exe" className="btn-primary" style={{ padding: "10px 22px", fontSize: 13, textDecoration: "none" }}>
+              <a
+                href="/download"
+                download="FragReel.exe"
+                onClick={() => {
+                  // Sprint Install Indicator (06/05) — banner aparece após
+                  // click. Lazy import pra não bundlar em SSR.
+                  import("@/lib/installState").then(m => m.markDownloadClicked());
+                }}
+                className="btn-primary"
+                style={{ padding: "10px 22px", fontSize: 13, textDecoration: "none" }}
+              >
                 ⬇ Baixar v0.6.16+
               </a>
             )}

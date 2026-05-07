@@ -1,6 +1,7 @@
 import Nav from "@/components/Nav";
 import Link from "next/link";
 import { getLatestClientVersion } from "@/lib/server/getLatestClientVersion";
+import DownloadButton from "@/components/DownloadButton";
 
 const MAPS = [
   { id: "de_dust2",    name: "Dust2" },
@@ -129,22 +130,19 @@ export default async function Home() {
               do que secundários. Antes ambos tinham mesmo padding+fontSize.
               Agora primário cresce + glow + secondary vira link textual. */}
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
-            <a
-              href="/download"
-              download="FragReel.exe"
+            <DownloadButton
               className="btn-primary"
               style={{
                 fontSize: 18,
                 fontWeight: 700,
                 padding: "18px 38px",
-                textDecoration: "none",
                 boxShadow: "0 8px 32px rgba(255,107,53,0.45), 0 0 0 1px rgba(255,107,53,0.3)",
                 transform: "scale(1)",
                 transition: "transform 0.15s",
               }}
             >
               ⬇ Baixar grátis pro Windows{versionSuffix}
-            </a>
+            </DownloadButton>
             <Link
               href="/login"
               style={{
@@ -608,9 +606,9 @@ export default async function Home() {
         <h2 style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-0.02em", marginBottom: 24 }}>
           Pronto?
         </h2>
-        <a href="/download" download="FragReel.exe" className="btn-primary" style={{ fontSize: 16, padding: "14px 36px", textDecoration: "none" }}>
+        <DownloadButton className="btn-primary" style={{ fontSize: 16, padding: "14px 36px" }}>
           ⬇ Baixar grátis{versionSuffix}
-        </a>
+        </DownloadButton>
         <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
           Windows 10/11 · CS2 instalado · Login Steam
         </p>

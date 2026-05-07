@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getUser, logout, type SessionUser } from "@/lib/session";
 import ClientStatusChip from "./ClientStatusChip";
+import InstallingClientBanner from "./InstallingClientBanner";
+import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 // Settings modal escondido em v0.2.7 — UX de "escolher pasta" estava
 // confusa porque só redireciona o output FINAL (.mov/.mp4), não os TGAs
 // intermediários (vários GB ainda capturam no drive do CS2). Vamos
@@ -20,6 +22,10 @@ export default function Nav() {
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  // Sprint Install Indicator (06/05) — Mathieu spec: mostrar banner quando
+  // user clicou em "Baixar" + client local ainda offline. Hook returns
+  // status="installing" + segundos elapsed pra UX progressiva.
+  const clientStatus = useClientVersionStatus();
   // const [settingsOpen, setSettingsOpen] = useState(false);  // ver comentário no import
 
   useEffect(() => {
@@ -46,6 +52,13 @@ export default function Nav() {
   const initials    = displayName.slice(0, 2).toUpperCase();
 
   return (
+    <>
+      {/* Sprint Install Indicator (06/05) — banner global quando user
+          clicou em "Baixar" + client offline. Some sozinho quando client
+          vem online OU expira janela 5min. */}
+      {clientStatus.status === "installing" && (
+        <InstallingClientBanner secondsElapsed={clientStatus.installingForSec ?? 0} />
+      )}
     <nav
       style={{
         position: "fixed",
@@ -200,5 +213,6 @@ export default function Nav() {
         <SettingsModal onClose={() => setSettingsOpen(false)} />
       )} */}
     </nav>
+    </>
   );
 }

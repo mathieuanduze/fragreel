@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLatestClientVersion } from "@/lib/useLatestClientVersion";
 import { triggerClientUpdate, pingLocalClient, getLocalClientVersion } from "@/lib/local";
 import { isOutdated } from "@/lib/version-compare";
+import { markDownloadClicked } from "@/lib/installState";
 
 type Props = {
   /** Versão que o usuário tem rodando agora (ou null se desconhecida). */
@@ -253,6 +254,7 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
           <a
             href="/download"
             download="FragReel.exe"
+            onClick={() => markDownloadClicked()}
             style={{
               display: "block",
               background: "linear-gradient(135deg, #FF6B35, #FF8E53)",
