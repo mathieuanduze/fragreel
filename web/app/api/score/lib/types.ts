@@ -118,6 +118,11 @@ export interface KillInfo {
   victim_steamid?: string;
   victim_name?: string;  // resolvido via roster pelo scorer
   kill_tick?: number;    // tick exato pra capture scheduling
+  /** Round 8 (07/05 noite tardia) — distância attacker→victim em units CS2.
+   *  Mathieu spec: "deixamos os replays só pras kills que são de muita
+   *  distância?". Scorer usa pra filtro pov_eligible. Editor pode mostrar
+   *  como label "X metros" no replay scene. */
+  distance?: number | null;
 }
 
 export interface AliveEvent {

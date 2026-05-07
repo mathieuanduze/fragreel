@@ -271,38 +271,45 @@ export function scoreKills(input: ScoreInput): Highlight[] {
 
   const final = scored.slice(0, MAX_HIGHLIGHTS);
 
-  // Sprint #6.5 (07/05 round 5) — POV cut eligibility PER-HIGHLIGHT.
+  // Sprint #6.5 (07/05 round 8) — POV vítima APENAS pra LONG-DISTANCE kills.
   //
-  // Round 4 (wide marking por threshold global) ainda quebrou em campo:
-  // PC test 07/05 noite reportou 3 kills eligible mas kills_in_segment=0.
-  // Demo "Vitality M1 Mirage" tinha apenas 3 kills passando threshold ≥20,
-  // todas em highlights ranks 4-10. User com default top 3 selection →
-  // 0 POV cuts.
+  // Mathieu spec round 8: "deixamos os replays só pras kills que são de
+  // muita distância? que são as mais impressionantes?". Concordância:
+  // POV vítima em spray-down de 5m não adiciona contexto, mas em AWP
+  // cross-map a 30m+ é cinematografia pura — user vê de onde a bala veio.
   //
-  // Round 5 fix: marca pov_eligible em TOP 1 kill aestheticamente best
-  // DE CADA highlight (1 candidata por round). Garante que QUALQUER
-  // highlight selecionado tem ≥1 candidata pra POV cut, independente
-  // do score absoluto da kill (mesmo round "fraco" ainda tem 1 best).
-  // Local /render faz top-2 selection final entre os eligible_in_segment.
+  // Threshold: POV_DISTANCE_MIN_UNITS = 1500 (~30 metros em CS2). Cobre:
+  //   - AWP de mid pra long em maps grandes (Mirage B-long, Inferno apartments
+  //     pra A-site, Dust2 long, Anubis B-tunnel)
+  //   - Rifle cross-map em A-mains de Anubis/Vertigo/Ancient
+  //   - Wallbangs de longe (cobertos pelo aesthetic_style anyway)
+  // Exclui: spray-downs em corredor, headshots de pistola em close-range.
   //
-  // Tradeoff: pode marcar kills com aesthetic_score baixo em rounds
-  // fracos. Mitigated por preferência de tier1 (aesthetic_style) no /render.
+  // Trade-off: rounds inteiros sem nenhuma kill long-distance ficam SEM
+  // replay (esperado). User vê reel fluido sem cortes redundantes.
+  const POV_DISTANCE_MIN_UNITS = 1500;
+
   for (const hl of final) {
     if (!hl.kills || hl.kills.length === 0) continue;
-    // Coleta candidates: kills com victim resolvido (necessário pra
-    // capture.cfg emitir spec_player switch)
-    const candidates = hl.kills.filter(
-      (k) => k.victim_name && k.victim_steamid,
-    );
+    // Coleta candidates: kills com victim resolvido + long-distance
+    const candidates = hl.kills.filter((k) => {
+      if (!k.victim_name || !k.victim_steamid) return false;
+      const dist = k.distance ?? 0;
+      return dist >= POV_DISTANCE_MIN_UNITS;
+    });
     if (candidates.length === 0) continue;
-    // Sort: tier1 (has aesthetic_style) primeiro, depois aesthetic_score desc
+    // Sort: maior distance primeiro (mais impressionante), tiebreak por
+    // aesthetic_style (no-scope, wallbang, etc) > aesthetic_score
     candidates.sort((a, b) => {
+      const distA = a.distance ?? 0;
+      const distB = b.distance ?? 0;
+      if (distB !== distA) return distB - distA;
       const styleA = a.aesthetic_style != null ? 0 : 1;
       const styleB = b.aesthetic_style != null ? 0 : 1;
       if (styleA !== styleB) return styleA - styleB;
       return (b.aesthetic_score ?? 0) - (a.aesthetic_score ?? 0);
     });
-    // Top 1 do highlight vira eligible
+    // Top 1 do highlight vira eligible (kill mais distante do round)
     candidates[0].pov_eligible = true;
   }
 
@@ -385,6 +392,8 @@ function _scoreRound(
       victim_steamid: kill.victim_steamid || null,
       victim_name: (roster && kill.victim_steamid && roster[kill.victim_steamid]) || null,
       kill_tick: kill.tick ?? null,
+      // Round 8 (07/05) — distance pra filtro pov_eligible
+      distance: kill.distance ?? null,
     } as KillInfo);
   }
 
