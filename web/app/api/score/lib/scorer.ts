@@ -278,16 +278,18 @@ export function scoreKills(input: ScoreInput): Highlight[] {
   // POV vítima em spray-down de 5m não adiciona contexto, mas em AWP
   // cross-map a 30m+ é cinematografia pura — user vê de onde a bala veio.
   //
-  // Threshold: POV_DISTANCE_MIN_UNITS = 1500 (~30 metros em CS2). Cobre:
-  //   - AWP de mid pra long em maps grandes (Mirage B-long, Inferno apartments
-  //     pra A-site, Dust2 long, Anubis B-tunnel)
-  //   - Rifle cross-map em A-mains de Anubis/Vertigo/Ancient
-  //   - Wallbangs de longe (cobertos pelo aesthetic_style anyway)
-  // Exclui: spray-downs em corredor, headshots de pistola em close-range.
+  // Threshold: POV_DISTANCE_MIN_UNITS = 800 (~15 metros em CS2). Round 10
+  // (07/05 noite tardia): Mathieu não tinha demo com kill 1500u+ pra
+  // testar UX → baixou pra 800u temporariamente pra qualquer demo de
+  // matchmaking ter POV cuts. Calibrar definitivo (1200u? 1500u?) baseado
+  // em feedback de campo após validar feel da replay scene.
   //
-  // Trade-off: rounds inteiros sem nenhuma kill long-distance ficam SEM
-  // replay (esperado). User vê reel fluido sem cortes redundantes.
-  const POV_DISTANCE_MIN_UNITS = 1500;
+  // Cobre em 800u:
+  //   - Engagement de mid em qualquer map (mid window Mirage, mid Inferno)
+  //   - AWP holds em ângulos médios (não precisa cross-map)
+  //   - Rifle peek out-of-position em qualquer site
+  // Exclui: spray-down em corredor (< 5m), headshot pistola point-blank.
+  const POV_DISTANCE_MIN_UNITS = 800;
 
   for (const hl of final) {
     if (!hl.kills || hl.kills.length === 0) continue;
