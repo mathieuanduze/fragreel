@@ -35,6 +35,48 @@ function fmtRelative(epoch: number): string {
   return fmtDate(epoch);
 }
 
+/** Sprint Demo Expiry Badge (06/05) — semáforo Valve.
+ *  Mathieu spec (v0.3 TODO Inventário Ponto 2): demos do Steam matchmaking
+ *  expiram na Valve em 7-14 dias. User precisa saber se ainda dá pra
+ *  re-baixar (em outra máquina ou se perder file local).
+ *
+ *  Janela:
+ *    age < 5 dias  → green: "Disponível"
+ *    age 5-12 dias → yellow: "Expira em ~X dias"
+ *    age > 13 dias → red: "Provavelmente expirou na Valve"
+ *
+ *  MVP: heurística baseada em mtime do file local. Não faz HEAD request
+ *  no Valve CDN ainda — Sprint dedicado depois (precisa do dem.url
+ *  original que scanner não captura hoje). Heurística é boa o suficiente
+ *  pq janela varia 7-14d e nossa estimativa fica nesse range.
+ */
+type ExpiryStatus = "green" | "yellow" | "red";
+function expiryStatus(epoch: number): {
+  status: ExpiryStatus;
+  label: string;
+  days: number;
+} {
+  const ageDays = Math.floor((Date.now() - epoch * 1000) / 86_400_000);
+  if (ageDays < 5) {
+    return { status: "green", label: "Disponível na Valve", days: ageDays };
+  }
+  if (ageDays < 13) {
+    const remaining = Math.max(1, 13 - ageDays);
+    return {
+      status: "yellow",
+      label: `Expira em ~${remaining} dia${remaining > 1 ? "s" : ""}`,
+      days: ageDays,
+    };
+  }
+  return { status: "red", label: "Provavelmente expirou na Valve", days: ageDays };
+}
+
+const EXPIRY_COLORS: Record<ExpiryStatus, { bg: string; border: string; text: string }> = {
+  green:  { bg: "rgba(91,227,143,0.12)",  border: "rgba(91,227,143,0.45)",  text: "#5be38f" },
+  yellow: { bg: "rgba(251,191,36,0.12)",  border: "rgba(251,191,36,0.45)",  text: "#fbbf24" },
+  red:    { bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.45)",  text: "#ff6b35" },
+};
+
 // "de_dust2" -> "Dust 2", "de_mirage" -> "Mirage"
 function prettyMap(raw: string): string {
   const cleaned = raw.replace(/^de_/, "");
@@ -471,33 +513,72 @@ export default function LibraryContent() {
                   position: "absolute", inset: 0,
                   background: "linear-gradient(180deg, rgba(19,19,31,0.2) 0%, rgba(19,19,31,0.95) 100%)",
                 }} />
-                <div style={{
-                  position: "absolute", top: 10, left: 12, right: 12,
-                  display: "flex", justifyContent: "flex-end", alignItems: "flex-start",
-                }}>
-                  {/* v0.3.1 (Sprint A2 follow-up, Mathieu 25/04): badge de
-                      game mode (Premier/Wingman/Casual) removida — por hora
-                      tudo é competitivo, tag adiciona ruído visual sem
-                      semântica útil. Detection no server (parser.game_mode)
-                      mantida pra quando voltar a fazer sentido (multi-mode
-                      support, separação Premier/MM no flow de discovery, etc).
-                      Lado direito do card mantém timestamp + indicador
-                      isProcessed. */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                    {/* v0.3.1 (Sprint A2): badge "FragReel pronto" removida.
-                       Pivot v0.2.x pro modelo on-demand removeu o conceito —
-                       não existe mais "FragReel pré-renderizado", todo render
-                       é local sob demanda. `isProcessed` continua significando
-                       "demo já analisada pelo server (highlights extraídos)" —
-                       UX disso fica na border-color + helper text abaixo. */}
-                    <span
-                      title={new Date(d.mtime * 1000).toLocaleString("pt-BR")}
-                      style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}
-                    >
-                      {fmtRelative(d.mtime)}
-                    </span>
-                  </div>
-                </div>
+                {/* Sprint Demo Expiry (06/05) — Mathieu spec round 4:
+                    "tem a informação hoje em dia, mas ela fica muito
+                    pequena". Date agora é PROMINENTE no top-right + badge
+                    semáforo Valve embaixo. */}
+                {(() => {
+                  const exp = expiryStatus(d.mtime);
+                  const palette = EXPIRY_COLORS[exp.status];
+                  return (
+                    <div style={{
+                      position: "absolute", top: 10, left: 12, right: 12,
+                      display: "flex", justifyContent: "flex-end", alignItems: "flex-start",
+                    }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                        {/* DATE: bumpado fontSize 11 → 14, fontWeight 400 → 700,
+                            pra Mathieu poder ler de relance. */}
+                        <span
+                          title={new Date(d.mtime * 1000).toLocaleString("pt-BR")}
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "rgba(255,255,255,0.92)",
+                            background: "rgba(0,0,0,0.55)",
+                            padding: "4px 10px",
+                            borderRadius: 6,
+                            backdropFilter: "blur(6px)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            letterSpacing: "0.01em",
+                          }}
+                        >
+                          {fmtRelative(d.mtime)}
+                        </span>
+                        {/* EXPIRY BADGE: semáforo Valve baseado em mtime age.
+                            🟢 Disponível, 🟡 Expira em X dias, 🔴 Expirou.
+                            HEAD requests pra Valve CDN: backlog Sprint dedicado. */}
+                        <span
+                          title={`Demo de ${exp.days}d atrás · janela Valve ~7-14d`}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: palette.text,
+                            background: palette.bg,
+                            border: `1px solid ${palette.border}`,
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            letterSpacing: "0.04em",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            backdropFilter: "blur(6px)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <span style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: palette.text,
+                            boxShadow: `0 0 6px ${palette.text}`,
+                            flexShrink: 0,
+                          }} />
+                          {exp.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div style={{
                   position: "absolute", bottom: 10, left: 14,
                   fontWeight: 800, fontSize: 20, color: "#E8E8F0",
