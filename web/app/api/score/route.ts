@@ -45,7 +45,7 @@ const SCHEMA_VERSION = "1";
 // 07/05 — bump SCORER_VERSION pra Sprint #6.5 + Aesthetic. Client api_client.py
 // loga isso pra detectar deploy stale (response com versão antiga = Vercel
 // cache hit serving old code).
-const SCORER_VERSION = "v0.6.5-aesthetic-pov";
+const SCORER_VERSION = "v0.6.5-aesthetic-pov-wide";
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ScoreRequest {
