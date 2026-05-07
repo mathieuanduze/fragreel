@@ -1279,26 +1279,23 @@ export const HighlightScene: React.FC<Props> = ({
                 boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
               }}
             >
-              {/* Sprint Killfeed Icons (06/05) — SVG canônico do CS2
-                  panorama. Mathieu round 3 (06/05): "imagens svg estão
-                  quebradas, como se não existisse o arquivo". Provável
-                  filename mismatch entre demoparser2 weapon string e CS2
-                  panorama icon filename.
+              {/* Sprint Killfeed Icons (07/05 round 5) — SVG-only OU text-only,
+                  nunca dual-layer. Mathieu print 07/05 mostrou texto "AK47"
+                  visível ATRÁS do SVG laranja porque dual-layer anterior
+                  deixava o texto in-flow definindo container size enorme
+                  (~120-150px wide pelo fontSize 26-28), e o SVG objectFit:contain
+                  centrado deixava bordas laterais do texto expostas.
 
-                  Fix defensive: dual-layer rendering. Text fallback SEMPRE
-                  rendered behind. Img on top via z-index. Quando img 404,
-                  onError esconde img → text aparece no lugar. Quando img
-                  carrega, cobre text. UX: mesmo se SVG missing, weapon
-                  name aparece (legacy V1 behavior). */}
+                  Fix definitivo: container size FIXED (killfeed-style ~56x22),
+                  e renderiza UMA OU OUTRA coisa baseado em resolveWeaponIconUrl:
+                  - iconUrl set (bundle hit) → SVG only, sem text
+                  - iconUrl null (mapping miss) → text only, fontSize reduzido
+                    pra caber no container fixo
+
+                  Como agora bundlamos via staticFile (v0.6.38), iconUrl raramente
+                  vai ser null. onError mantido por defensividade contra
+                  edge-case de path corrompido em build. */}
               {(() => {
-                // 06/05 round 4 — TEXT IS THE PRIMARY (in flow, defines
-                // container size). Img is ABSOLUTE on top. Quando img
-                // carrega: cobre text. Quando img 404: img display:none
-                // via onError, text já tava lá visível.
-                //
-                // Antes: container width fixed (48-52px), badge HS tinha
-                // width baseado no container do icon → quando img 404
-                // text overflow. Agora text define container = no overflow.
                 const iconUrl = resolveWeaponIconUrl(k.weapon, cs2IconsBaseUrl);
                 const filterMap: Record<string, string> = {
                   "#ff6b35": "invert(54%) sepia(89%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
@@ -1309,43 +1306,57 @@ export const HighlightScene: React.FC<Props> = ({
                   "#ff4444": "invert(34%) sepia(72%) saturate(7421%) hue-rotate(353deg) brightness(101%) contrast(101%)",
                 };
                 const filter = filterMap[weaponColor] ?? "invert(100%)";
+                // Killfeed-style container — proporção CS2 vanilla (~56x22)
+                const cellW = isHorizontal ? 60 : 64;
+                const cellH = isHorizontal ? 24 : 26;
                 return (
                   <div style={{
                     position: "relative",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    width: cellW,
+                    height: cellH,
+                    flexShrink: 0,
                   }}>
-                    {/* Text PRIMARY — in flow, defines container size */}
-                    <span style={{
-                      color: weaponColor,
-                      fontWeight: 900,
-                      fontSize: isHorizontal ? 26 : 28,
-                      letterSpacing: "0.02em",
-                      whiteSpace: "nowrap",
-                      textShadow: "0 1px 3px rgba(0,0,0,0.85)",
-                    }}>
-                      {k.weapon.toUpperCase()}
-                    </span>
-                    {/* Img ABSOLUTE on top — cobre text quando loaded.
-                        onError esconde img → text behind aparece. */}
-                    {iconUrl && (
+                    {iconUrl ? (
+                      // SVG path (default) — bundle hit. No text behind.
                       <img
                         src={iconUrl}
                         alt=""
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                          // Defensive: se SVG falhar mesmo bundled, esconde
+                          // img e renderiza weapon name pequeno como fallback.
+                          const img = e.currentTarget as HTMLImageElement;
+                          img.style.display = "none";
+                          const sib = img.nextElementSibling as HTMLElement | null;
+                          if (sib) sib.style.display = "inline";
                         }}
                         style={{
-                          position: "absolute",
-                          inset: 0,
-                          width: "100%",
-                          height: "100%",
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                          width: "auto",
+                          height: "auto",
                           objectFit: "contain",
                           filter: `brightness(0) saturate(100%) ${filter}`,
                         }}
                       />
-                    )}
+                    ) : null}
+                    {/* Text fallback — só visível quando iconUrl null OU
+                        quando img onError dispara (display:inline forçado).
+                        fontSize reduzido pra caber em cellW × cellH. */}
+                    <span style={{
+                      display: iconUrl ? "none" : "inline",
+                      color: weaponColor,
+                      fontWeight: 900,
+                      fontSize: isHorizontal ? 13 : 14,
+                      letterSpacing: "0.02em",
+                      whiteSpace: "nowrap",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.85)",
+                      lineHeight: 1,
+                    }}>
+                      {k.weapon.toUpperCase()}
+                    </span>
                   </div>
                 );
               })()}
@@ -1361,53 +1372,65 @@ export const HighlightScene: React.FC<Props> = ({
                 #{i + 1}
               </span>
               {k.headshot && (() => {
-                // 06/05 round 4 (Mathieu reportou: HS tag aparece FORA da
-                // tag principal). Bug do dual-layer anterior: container
-                // width = img size (24-28px) mas badge HS é wider (~30-40px),
-                // overflow.
+                // Sprint Killfeed Icons (07/05 round 5) — paridade com weapon
+                // icon: SVG-only OU badge-only, nunca dual-layer. Print do
+                // Mathieu mostrou "HS" badge com SVG sobreposto exibindo
+                // letras "HS" ao redor do ícone laranja.
                 //
-                // Fix: badge IS THE CONTAINER (in flow, define size).
-                // Img absolute on top de inset:0. Quando img loads: cobre
-                // badge. Quando img 404: img display:none → badge aparece.
+                // Container fixo killfeed-style. Render condicional:
+                //   - hsIcon set (bundle hit) → SVG only, no badge text
+                //   - hsIcon null → badge "HS" text only
                 const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
+                const cellW = isHorizontal ? 28 : 32;
+                const cellH = isHorizontal ? 24 : 26;
                 return (
                   <div style={{
                     position: "relative",
                     marginLeft: 4,
                     display: "inline-flex",
                     alignItems: "center",
+                    justifyContent: "center",
+                    width: cellW,
+                    height: cellH,
+                    flexShrink: 0,
                   }}>
-                    {/* Badge PRIMARY — in flow, defines container size */}
-                    <span style={{
-                      padding: isHorizontal ? "3px 9px" : "4px 10px",
-                      borderRadius: 4,
-                      background: moodDef.color,
-                      color: "white",
-                      fontSize: isHorizontal ? 17 : 20,
-                      fontWeight: 800,
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}>
-                      HS
-                    </span>
-                    {/* Img absolute on top */}
-                    {hsIcon && (
+                    {hsIcon ? (
                       <img
                         src={hsIcon}
                         alt=""
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                          // Defensive fallback se SVG bundle path corrompido
+                          const img = e.currentTarget as HTMLImageElement;
+                          img.style.display = "none";
+                          const sib = img.nextElementSibling as HTMLElement | null;
+                          if (sib) sib.style.display = "inline-flex";
                         }}
                         style={{
-                          position: "absolute",
-                          inset: 0,
-                          width: "100%",
-                          height: "100%",
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                          width: "auto",
+                          height: "auto",
                           objectFit: "contain",
                           filter: "brightness(0) saturate(100%) invert(56%) sepia(85%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
                         }}
                       />
-                    )}
+                    ) : null}
+                    {/* Badge fallback — só visível quando hsIcon null OU
+                        quando img onError dispara. */}
+                    <span style={{
+                      display: hsIcon ? "none" : "inline-flex",
+                      padding: isHorizontal ? "3px 7px" : "3px 8px",
+                      borderRadius: 4,
+                      background: moodDef.color,
+                      color: "white",
+                      fontSize: isHorizontal ? 13 : 14,
+                      fontWeight: 800,
+                      letterSpacing: "0.05em",
+                      whiteSpace: "nowrap",
+                      lineHeight: 1,
+                    }}>
+                      HS
+                    </span>
                   </div>
                 );
               })()}
