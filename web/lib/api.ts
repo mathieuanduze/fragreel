@@ -11,6 +11,16 @@ export interface KillOut {
   weapon: string;
   headshot: boolean;
   hp: number;
+  // Round 8 (07/05 noite tardia) — POV vítima eligibility. Quando true,
+  // /render local_api.py vai gerar replay scene após o highlight original
+  // (single-pass com demo_gototick rewind + spec_player victim).
+  // Setado pelo scorer.ts pra top 1 kill long-distance (>=1500u) por highlight.
+  // Usado pelo MatchClient pra mostrar badge "KILL POV" no card.
+  pov_eligible?: boolean;
+  victim_name?: string | null;
+  victim_steamid?: string | null;
+  kill_tick?: number | null;
+  distance?: number | null;
 }
 
 // Situações de clutch detectadas server-side em v0.3.0-alpha (outcome-based:
@@ -57,6 +67,12 @@ export interface HighlightOut {
   // inteiros"). Null em highlights legados.
   bomb_action_tick?: number | null;
   bomb_action_timestamp?: number | null;
+  // Round 8 (07/05 noite tardia) — replay highlight markers. /render
+  // local_api.py insere highlights extras com is_replay_highlight=true
+  // após o parent original. MatchClient pode pular ou estilizar diferente.
+  is_replay_highlight?: boolean;
+  replay_victim_name?: string | null;
+  replay_distance?: number | null;
 }
 
 export interface MatchStats {

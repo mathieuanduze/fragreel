@@ -19,7 +19,13 @@
  */
 
 const KEY = "fragreel:downloadClickedAt";
-const SMARTSCREEN_KEY = "fragreel:smartscreenWarningSeen";
+// Round 8 fix (07/05 noite tardia): Mathieu reportou que modal não
+// aparecia mesmo sem marcar opt-out. Causa: flag setada em rounds
+// anteriores (markSmartScreenSeen do design "one-time forever") ficou
+// no localStorage e isSmartScreenOptedOut() retornava true. Bump v2
+// pra ignorar flag stale + começar do zero. User só fica opt-out se
+// MARCAR explicitamente o checkbox em SmartScreenWarningModal v2.
+const SMARTSCREEN_KEY = "fragreel:smartscreenOptOut_v2";
 const INSTALL_WINDOW_MS = 5 * 60 * 1000; // 5min
 
 /**

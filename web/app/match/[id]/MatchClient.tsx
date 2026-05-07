@@ -50,19 +50,17 @@ function killIcon(weapon: string, headshot: boolean): string {
   return "🔫";
 }
 
-// Cor do badge da kill — destaca knife/awp/HS sobre kills "normais"
-function killBadgeStyle(weapon: string, headshot: boolean): { bg: string; border: string; color: string } {
+// Round 8 redesign (07/05 noite tardia): paleta unificada, sem cores
+// específicas por arma/HS. Kill chips agora usam apenas greyscale +
+// laranja CT pra destacar knife (kill clean). AWP e HS deixam de ter
+// cores distintas — informação fica no texto/icon.
+function killBadgeStyle(weapon: string, _headshot: boolean): { bg: string; border: string; color: string } {
   const w = weapon.toLowerCase();
   if (w.includes("knife") || w === "bayonet" || w.includes("karambit")) {
-    return { bg: "rgba(255,107,53,0.14)", border: "rgba(255,107,53,0.45)", color: "#FF6B35" };
+    // Knife = kill clean → único caso com accent laranja
+    return { bg: "rgba(255,107,53,0.10)", border: "rgba(255,107,53,0.30)", color: "#FF8E53" };
   }
-  if (w.includes("awp")) {
-    return { bg: "rgba(167,139,250,0.14)", border: "rgba(167,139,250,0.45)", color: "#a78bfa" };
-  }
-  if (headshot) {
-    return { bg: "rgba(251,191,36,0.12)", border: "rgba(251,191,36,0.40)", color: "#fbbf24" };
-  }
-  return { bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" };
+  return { bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.7)" };
 }
 
 // Sprint #6.4 — variants per mood. Espelhar editor/src/theme.ts MOODS[mood].tracks.
@@ -104,61 +102,55 @@ function fmt(sec: number) {
 //
 // Cores reaproveitam paleta dos badges contextuais inline.
 
-interface HeroBadge { icon: string; label: string; fg: string; }
+// Round 8 redesign (07/05 noite tardia): hero badge agora é texto-only,
+// sem emoji. Paleta unificada: ACE/highlights premium em laranja CT,
+// resto em greyscale. Substitui cores específicas (azul, dourado,
+// vermelho) por hierarquia de tom único — premium fica saturado, normal
+// fica subtle.
+interface HeroBadge {
+  label: string;
+  isPremium: boolean; // true = highlight notável (ACE, clutch, defuse, RWK, multikill)
+}
 
 function heroBadgeFor(h: HighlightOut): HeroBadge {
   const nKills = h.kills.length;
-  if (nKills >= 5) {
-    return { icon: "🔥", label: "ACE", fg: "#FF6B35" };
-  }
-  if (h.clutch_situation) {
-    return { icon: "⚡", label: `${h.clutch_situation}\nCLUTCH`, fg: "#FFC857" };
-  }
-  if (h.bomb_action === "defuse") {
-    return { icon: "💣", label: "DEFUSE", fg: "#5D9CEC" };
-  }
-  if (h.bomb_action === "plant_won") {
-    return { icon: "💣", label: "PLANT", fg: "#E8A855" };
-  }
-  if (nKills === 4) {
-    return { icon: "💀", label: "QUAD KILL", fg: "#FF6B35" };
-  }
-  if (nKills === 3) {
-    return { icon: "💀", label: "TRIPLE KILL", fg: "#FF8C5A" };
-  }
-  if (h.is_round_winning_kill) {
-    return { icon: "★", label: "RWK\nROUND CLOSER", fg: "#FF6B35" };
-  }
-  if (nKills === 1 && h.kills[0]?.headshot) {
-    return { icon: "🎯", label: "HEADSHOT", fg: "rgba(255,255,255,0.85)" };
-  }
-  if (nKills === 2) {
-    return { icon: "💀", label: "DOUBLE", fg: "rgba(255,255,255,0.75)" };
-  }
-  return { icon: "🎯", label: "KILL", fg: "rgba(255,255,255,0.65)" };
+  if (nKills >= 5) return { label: "ACE", isPremium: true };
+  if (h.clutch_situation) return { label: `${h.clutch_situation} CLUTCH`, isPremium: true };
+  if (h.bomb_action === "defuse") return { label: "DEFUSE", isPremium: true };
+  if (h.bomb_action === "plant_won") return { label: "PLANT", isPremium: true };
+  if (nKills === 4) return { label: "QUAD KILL", isPremium: true };
+  if (nKills === 3) return { label: "TRIPLE KILL", isPremium: true };
+  if (h.is_round_winning_kill) return { label: "ROUND CLOSER", isPremium: true };
+  if (nKills === 2) return { label: "DOUBLE", isPremium: false };
+  if (nKills === 1 && h.kills[0]?.headshot) return { label: "HEADSHOT", isPremium: false };
+  return { label: "KILL", isPremium: false };
 }
 
+// Round 8: thumbnail agora monocromático. Premium highlights ganham
+// gradient subtle laranja, normais ficam neutral dark.
 function heroBadgeBg(h: HighlightOut): string {
-  // Background subtle, do escuro pra cor do badge — gradiente vertical
   const hero = heroBadgeFor(h);
-  if (hero.fg.startsWith("rgba")) {
-    return "linear-gradient(135deg, #131325, #0D0D1A)";  // neutro
-  }
-  // Opaca → 12% transparency overlay
-  return `linear-gradient(135deg, ${hero.fg}18, #0D0D1A 75%)`;
+  return hero.isPremium
+    ? "linear-gradient(135deg, rgba(255,107,53,0.10), #0D0D1A 70%)"
+    : "linear-gradient(135deg, #1A1A28, #0D0D1A)";
 }
 
 function heroBadgeBorder(h: HighlightOut): string {
   const hero = heroBadgeFor(h);
-  if (hero.fg.startsWith("rgba")) return "#2D2D44";
-  return `${hero.fg}40`;
+  return hero.isPremium ? "rgba(255,107,53,0.20)" : "rgba(255,255,255,0.08)";
 }
 
-function heroBadgeAccent(h: HighlightOut): string {
-  // Border quando o card está selecionado — versão mais opaca da cor do hero
-  const hero = heroBadgeFor(h);
-  if (hero.fg.startsWith("rgba")) return "rgba(255,107,53,0.3)";
-  return `${hero.fg}80`;
+function heroBadgeAccent(_h: HighlightOut): string {
+  // Border quando selecionado — sempre laranja CT consistente
+  return "rgba(255,107,53,0.45)";
+}
+
+// Round 8 — detecta se highlight tem alguma kill com pov_eligible
+// (replay scene será gerada). Usado pra mostrar badge "KILL POV"
+// com tooltip explicativo.
+function hasPovEligibleKill(h: HighlightOut): boolean {
+  if (h.is_replay_highlight) return false; // próprio replay não conta
+  return (h.kills || []).some((k) => k.pov_eligible === true);
 }
 
 /**
@@ -823,23 +815,80 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             </div>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {match.highlights.map((h) => {
+          {/* Round 8 redesign (07/05): cards mais sóbrios. Paleta unificada
+              (laranja CT como ÚNICO accent), 1 tag contextual max, POV badge
+              novo com tooltip pra kills aestheticamente notáveis. Replay
+              highlights (gerados pelo /render) são pulados — eles são
+              intercalados automaticamente, user não precisa selecionar. */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {match.highlights
+              .filter((h) => !h.is_replay_highlight)
+              .map((h) => {
               const on = selected.has(h.rank);
+              const hasPov = hasPovEligibleKill(h);
+              // Tag contextual ÚNICA (priority desc): clutch > defuse > plant > RWK
+              const contextTag = h.clutch_situation
+                ? { label: `${h.clutch_situation} CLUTCH`, hint: `Ficou em ${h.clutch_situation} e ${h.won_round ? "venceu" : "perdeu"} o round` }
+                : h.bomb_action === "defuse"
+                  ? { label: "DEFUSE", hint: "Defusou a bomba neste round" }
+                  : h.bomb_action === "plant_won"
+                    ? { label: "PLANT", hint: "Plantou a bomba e o time venceu o round" }
+                    : h.is_round_winning_kill
+                      ? { label: "ROUND CLOSER", hint: "Última kill do round foi sua" }
+                      : null;
+              const hsCount = h.kills.filter((k) => k.headshot).length;
               return (
-                <div key={h.rank} className="card" style={{ display: "grid", gridTemplateColumns: "auto auto 1fr auto", gap: 16, alignItems: "center", padding: "12px 20px", borderColor: on ? "rgba(255,107,53,0.2)" : undefined, opacity: on ? 1 : 0.5, transition: "opacity 0.15s" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 7, background: h.rank === 1 ? "#FF6B35" : "#2D2D44", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
-                    #{h.rank}
+                <div
+                  key={h.rank}
+                  className="card"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "auto auto 1fr auto",
+                    gap: 16,
+                    alignItems: "center",
+                    padding: "14px 18px",
+                    borderColor: on ? "rgba(255,107,53,0.30)" : "rgba(255,255,255,0.06)",
+                    opacity: on ? 1 : 0.55,
+                    transition: "opacity 0.15s, border-color 0.15s",
+                  }}
+                >
+                  {/* Rank — paleta neutra, sem destaque pro #1 */}
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 6,
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      color: "rgba(255,255,255,0.6)",
+                      flexShrink: 0,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {h.rank}
                   </div>
 
-                  {/* v0.3.1 (Sprint A1) — Badge proeminente substitui thumbnail.
-                      Mathieu feedback 25/04: thumbnails prometiam vídeo que não
-                      existia (demo só vira video após render). Substituído por
-                      badge da jogada principal (Ace > Clutch > Defuse > Plant >
-                      Multikill > RWK > HS > Solo) + duração no canto.
-                      Mantém clip_url path: SE vídeo existir (caso futuro pós-render),
-                      mostra preview; senão badge contextual. */}
-                  <div style={{ width: 142, height: 80, borderRadius: 8, overflow: "hidden", flexShrink: 0, position: "relative", background: heroBadgeBg(h), border: on ? `1px solid ${heroBadgeAccent(h)}` : `1px solid ${heroBadgeBorder(h)}` }}>
+                  {/* Hero thumbnail — paleta unificada (premium = laranja sutil,
+                      normal = neutral). Sem emoji, só label texto. */}
+                  <div
+                    style={{
+                      width: 124,
+                      height: 70,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      flexShrink: 0,
+                      position: "relative",
+                      background: heroBadgeBg(h),
+                      border: on
+                        ? `1px solid ${heroBadgeAccent(h)}`
+                        : `1px solid ${heroBadgeBorder(h)}`,
+                    }}
+                  >
                     {h.clip_url ? (
                       <video
                         src={h.clip_url}
@@ -848,127 +897,231 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                         playsInline
                         preload="metadata"
                         onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
-                        onMouseLeave={(e) => { const v = e.currentTarget as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                        onMouseLeave={(e) => {
+                          const v = e.currentTarget as HTMLVideoElement;
+                          v.pause();
+                          v.currentTime = 0;
+                        }}
                       />
                     ) : (
                       <>
-                        {/* Map name no canto top — discreto, contexto */}
-                        <div style={{ position: "absolute", top: 6, left: 8, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>{match.map.replace("de_","")}</div>
-                        {/* HERO badge — icon + tag dominante centralized */}
+                        {/* Map name top-left — discreto */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: 6,
+                            left: 8,
+                            fontSize: 9,
+                            fontWeight: 600,
+                            letterSpacing: "0.08em",
+                            color: "rgba(255,255,255,0.35)",
+                            textTransform: "uppercase",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {match.map.replace("de_", "")}
+                        </div>
+                        {/* Hero label — texto centralizado, paleta unificada */}
                         {(() => {
                           const hero = heroBadgeFor(h);
                           return (
-                            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: hero.fg, padding: "8px 4px 14px" }}>
-                              <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 2 }}>{hero.icon}</div>
-                              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", textAlign: "center", lineHeight: 1.1 }}>{hero.label}</div>
+                            <div
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: hero.isPremium ? "#FF8E53" : "rgba(255,255,255,0.65)",
+                                padding: "0 8px",
+                                fontSize: hero.label.length > 8 ? 11 : 13,
+                                fontWeight: 700,
+                                letterSpacing: "0.06em",
+                                textAlign: "center",
+                                lineHeight: 1.1,
+                              }}
+                            >
+                              {hero.label}
                             </div>
                           );
                         })()}
                       </>
                     )}
-                    {/* Duração no canto bottom-right (preserved from thumbnail design) */}
-                    <div style={{ position: "absolute", bottom: 6, right: 8, fontSize: 10, fontWeight: 600, color: "white", fontFamily: "monospace", background: "rgba(0,0,0,0.6)", padding: "1px 5px", borderRadius: 3 }}>{Math.round(h.end - h.start)}s</div>
+                    {/* Duração — bottom-right, monospace subtle */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: 5,
+                        right: 7,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: "rgba(255,255,255,0.85)",
+                        fontFamily: "monospace",
+                        background: "rgba(0,0,0,0.55)",
+                        padding: "1px 5px",
+                        borderRadius: 3,
+                      }}
+                    >
+                      {Math.round(h.end - h.start)}s
+                    </div>
                   </div>
 
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {/* Info column — label + tag única + POV badge */}
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 14,
+                        marginBottom: 6,
+                        color: "rgba(255,255,255,0.92)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
                       {h.label}
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", background: "#FF6B3515", padding: "2px 8px", borderRadius: 4 }}>{h.score} pts</span>
-                      <span
-                        title="Total de kills nesse highlight"
-                        style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
-                      >
-                        💀 {h.kills.length}
+                      {/* Single context tag — paleta unificada laranja CT */}
+                      {contextTag && (
+                        <span
+                          title={contextTag.hint}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: "#FF8E53",
+                            background: "rgba(255,107,53,0.10)",
+                            border: "1px solid rgba(255,107,53,0.25)",
+                            padding: "2px 8px",
+                            borderRadius: 3,
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          {contextTag.label}
+                        </span>
+                      )}
+                      {/* POV badge — kill aestheticamente notável tem replay scene */}
+                      {hasPov && (
+                        <span
+                          title="Uma kill desse highlight foi tão impressionante (long-distance, 30m+) que vai ganhar um REPLAY do POV da vítima — você verá de onde a bala veio."
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: "#FFB088",
+                            background: "rgba(220,38,38,0.10)",
+                            border: "1px solid rgba(220,38,38,0.30)",
+                            padding: "2px 8px",
+                            borderRadius: 3,
+                            letterSpacing: "0.05em",
+                            cursor: "help",
+                          }}
+                        >
+                          KILL POV
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Stats compactos — sem emoji, sem "pts" */}
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "rgba(255,255,255,0.45)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        marginBottom: h.narrative ? 6 : 0,
+                        fontFamily: "monospace",
+                        letterSpacing: "0.02em",
+                      }}
+                    >
+                      <span>
+                        {h.kills.length} kill{h.kills.length !== 1 ? "s" : ""}
                       </span>
-                      {/* v0.3.0-alpha badges contextuais. Server expõe em `HighlightOut`;
-                          demos antigas parseadas por scorer pre-v0.3 retornam undefined
-                          e nenhum badge aparece (fallback gracioso). Ordem de prioridade:
-                          clutch > bomb > RWK — reflete o valor narrativo decrescente. */}
-                      {h.clutch_situation && (
-                        <span
-                          title={`Ficou em ${h.clutch_situation} e ${h.won_round ? "venceu" : "perdeu"} o round`}
-                          style={{ fontSize: 11, fontWeight: 700, color: "#FFC857", background: "rgba(255,200,87,0.12)", border: "1px solid rgba(255,200,87,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
-                        >
-                          ⚡ {h.clutch_situation} Clutch
+                      {hsCount > 0 && (
+                        <span>
+                          {hsCount} HS
                         </span>
                       )}
-                      {h.bomb_action === "defuse" && (
-                        <span
-                          title="Defusou a bomba neste round"
-                          style={{ fontSize: 11, fontWeight: 700, color: "#5D9CEC", background: "rgba(93,156,236,0.12)", border: "1px solid rgba(93,156,236,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
-                        >
-                          💣 Defuse
-                        </span>
-                      )}
-                      {h.bomb_action === "plant_won" && (
-                        <span
-                          title="Plantou a bomba e o time venceu o round"
-                          style={{ fontSize: 11, fontWeight: 700, color: "#E8A855", background: "rgba(232,168,85,0.12)", border: "1px solid rgba(232,168,85,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
-                        >
-                          💣 Plant
-                        </span>
-                      )}
-                      {h.is_round_winning_kill && (
-                        <span
-                          title="A última kill do round foi sua (Round-Winning Kill)"
-                          style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", background: "rgba(255,107,53,0.12)", border: "1px solid rgba(255,107,53,0.35)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}
-                        >
-                          ★ RWK
-                        </span>
-                      )}
+                      <span>{fmt(h.start)} — {fmt(h.end)}</span>
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {h.kills.map((k, i) => {
-                        const icon = killIcon(k.weapon, k.headshot);
-                        const s = killBadgeStyle(k.weapon, k.headshot);
-                        return (
-                          <span
-                            key={i}
-                            title={`${k.weapon}${k.headshot ? " · headshot" : ""} · vítima a ${k.hp} HP`}
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              padding: "3px 8px",
-                              borderRadius: 5,
-                              background: s.bg,
-                              border: `1px solid ${s.border}`,
-                              color: s.color,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              lineHeight: 1.4,
-                            }}
-                          >
-                            <span style={{ fontSize: 12 }}>{icon}</span>
-                            {k.label}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    {/* v0.3.1 (Sprint A4) — narrative PT-BR ao lado das tags.
-                        Aparece abaixo dos kill chips, em texto secundário pra
-                        casual users entenderem sem decorar jargão das tags em
-                        inglês. Null em demos legacy parseadas pré-v0.3.1 →
-                        omitido (graceful degradation). */}
+
+                    {/* Narrative PT-BR — não-italic agora, color quieter */}
                     {h.narrative && (
-                      <div style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                        color: "rgba(255,255,255,0.65)",
-                        fontStyle: "italic",
-                      }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          lineHeight: 1.5,
+                          color: "rgba(255,255,255,0.55)",
+                        }}
+                      >
                         {h.narrative}
+                      </div>
+                    )}
+
+                    {/* Kill chips — visíveis só quando highlight selected
+                        (reduz clutter visual quando user só está scrollando) */}
+                    {on && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                        {h.kills.map((k, i) => {
+                          const icon = killIcon(k.weapon, k.headshot);
+                          const s = killBadgeStyle(k.weapon, k.headshot);
+                          return (
+                            <span
+                              key={i}
+                              title={`${k.weapon}${k.headshot ? " · HS" : ""} · vítima a ${k.hp} HP`}
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: "2px 7px",
+                                borderRadius: 4,
+                                background: s.bg,
+                                border: `1px solid ${s.border}`,
+                                color: s.color,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              <span style={{ fontSize: 11 }}>{icon}</span>
+                              {k.label}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>{fmt(h.start)} — {fmt(h.end)}</span>
-                    <button onClick={() => toggle(h.rank)} style={{ width: 44, height: 24, borderRadius: 12, background: on ? "#FF6B35" : "#2D2D44", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}>
-                      <span style={{ position: "absolute", top: 3, left: on ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
-                    </button>
-                  </div>
+                  {/* Toggle — single accent color */}
+                  <button
+                    onClick={() => toggle(h.rank)}
+                    aria-label={`${on ? "Desselecionar" : "Selecionar"} highlight ${h.rank}`}
+                    style={{
+                      width: 38,
+                      height: 22,
+                      borderRadius: 11,
+                      background: on ? "#FF6B35" : "rgba(255,255,255,0.10)",
+                      border: "none",
+                      cursor: "pointer",
+                      position: "relative",
+                      transition: "background 0.2s",
+                      flexShrink: 0,
+                      padding: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 3,
+                        left: on ? 19 : 3,
+                        width: 16,
+                        height: 16,
+                        borderRadius: "50%",
+                        background: "white",
+                        transition: "left 0.2s",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                      }}
+                    />
+                  </button>
                 </div>
               );
             })}
@@ -1221,7 +1374,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                   height: 26,
                   borderRadius: 13,
                   border: "none",
-                  background: xrayEnabled ? "#a78bfa" : "#2D2D44",
+                  background: xrayEnabled ? "#FF6B35" : "rgba(255,255,255,0.10)",
                   cursor: "pointer",
                   transition: "background 0.15s",
                   flexShrink: 0,
@@ -1282,7 +1435,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                   height: 26,
                   borderRadius: 13,
                   border: "none",
-                  background: scoreboardEnabled ? "#4CAF82" : "#2D2D44",
+                  background: scoreboardEnabled ? "#FF6B35" : "rgba(255,255,255,0.10)",
                   cursor: "pointer",
                   transition: "background 0.15s",
                   flexShrink: 0,
@@ -1343,7 +1496,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                   height: 26,
                   borderRadius: 13,
                   border: "none",
-                  background: killFlashEnabled ? "#FFD700" : "#2D2D44",
+                  background: killFlashEnabled ? "#FF6B35" : "rgba(255,255,255,0.10)",
                   cursor: "pointer",
                   transition: "background 0.15s",
                   flexShrink: 0,
@@ -1398,7 +1551,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                   height: 26,
                   borderRadius: 13,
                   border: "none",
-                  background: bombTimerEnabled ? "#FF3B30" : "#2D2D44",
+                  background: bombTimerEnabled ? "#FF6B35" : "rgba(255,255,255,0.10)",
                   cursor: "pointer",
                   transition: "background 0.15s",
                   flexShrink: 0,
