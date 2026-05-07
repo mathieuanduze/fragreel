@@ -95,12 +95,17 @@ export const HudV2: React.FC<HudV2Props> = ({
   });
 
   // ── Bottom-Center: Player name + watermark ────────────────────────────
-  // Mathieu spec round 2 (06/05): "mantenha o player name no bottom center
-  // e embaixo do player o watermark". Stack centralizado bottom (acima da
-  // safe area do TikTok/Reels que tipicamente tem 150-200px de UI controls
-  // bottom, então bottom: 240 vertical / 80 horizontal pra ficar visível
-  // mas não overlap com app UI).
-  // Animação: slide-up entry (vs slide-down do top-left antes).
+  // Mathieu spec round 3 (06/05): "O nome do player tá muito solto na tela,
+  // precisaria de uma estilização em volta para ficar com cara de hud.
+  // Watermark fragreel MUITO pequena. Pode voltar pra versão que era antes,
+  // só coloca ela centralizada embaixo do nome".
+  //
+  // Mudanças:
+  //   - Container HUD-style igual o top scoreboard (bg + blur + border +
+  //     shadow). Player name não fica "solto", vira widget.
+  //   - Watermark fontSize bumpado de volta pro tamanho antes (V1 bottom-
+  //     right tinha 30px vertical) — agora 30px também aqui, centralizado.
+  //   - Player name mantém 52px (estava bom Mathieu disse).
   const bottomCenter = (
     <div style={{
       position: "absolute",
@@ -108,11 +113,18 @@ export const HudV2: React.FC<HudV2Props> = ({
       left: "50%",
       transform: `translateX(-50%) translateY(${(1 - entrance) * 20}px)`,
       opacity: entrance,
+      pointerEvents: "none",
+      // Container HUD-style — igual top scoreboard
+      padding: isHorizontal ? "10px 28px" : "14px 36px",
+      background: "rgba(0,0,0,0.78)",
+      backdropFilter: "blur(10px)",
+      borderRadius: 12,
+      border: `1px solid ${moodDef.color}40`,
+      boxShadow: `0 6px 24px rgba(0,0,0,0.5), 0 0 28px ${moodDef.color}25`,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       gap: 4,
-      pointerEvents: "none",
     }}>
       <div style={{
         fontSize: isHorizontal ? 40 : 52,
@@ -126,12 +138,13 @@ export const HudV2: React.FC<HudV2Props> = ({
         {playerName.toUpperCase()}
       </div>
       <div style={{
-        fontSize: isHorizontal ? 16 : 20,
-        fontWeight: 700,
+        fontSize: isHorizontal ? 24 : 30,
+        fontWeight: 900,
         color: moodDef.color,
-        letterSpacing: "0.06em",
+        letterSpacing: "-0.01em",
         fontFamily: theme.fontDisplay,
         textShadow: "0 2px 8px rgba(0,0,0,0.85)",
+        lineHeight: 1,
       }}>
         fragreel.gg
       </div>
@@ -146,20 +159,18 @@ export const HudV2: React.FC<HudV2Props> = ({
 
   const renderDots = (alive: number, color: string, mirror: boolean = false) => {
     const dots = Array.from({ length: 5 }, (_, i) => {
-      // Para CT (esquerda): dots fill da DIREITA pra esquerda (player ativo perto
-      // do centro). Para T (direita): dots fill da ESQUERDA pra direita.
-      const dotIndex = mirror ? i : 4 - i; // mirror controla direção
+      const dotIndex = mirror ? i : 4 - i;
       const isAlive = dotIndex < alive;
       return (
         <div
           key={i}
           style={{
-            width: isHorizontal ? 10 : 12,
-            height: isHorizontal ? 10 : 12,
+            width: isHorizontal ? 14 : 14,   // bumpado pra mais visível
+            height: isHorizontal ? 14 : 14,
             borderRadius: "50%",
             background: isAlive ? color : "rgba(255,255,255,0.15)",
             border: isAlive ? "none" : `1px solid rgba(255,255,255,0.2)`,
-            boxShadow: isAlive ? `0 0 8px ${color}88` : "none",
+            boxShadow: isAlive ? `0 0 10px ${color}99` : "none",
             transition: "background 200ms ease, box-shadow 200ms ease",
           }}
         />
@@ -168,7 +179,7 @@ export const HudV2: React.FC<HudV2Props> = ({
     return (
       <div style={{
         display: "flex",
-        gap: isHorizontal ? 5 : 6,
+        gap: isHorizontal ? 7 : 7,
         alignItems: "center",
       }}>
         {dots}
@@ -176,22 +187,26 @@ export const HudV2: React.FC<HudV2Props> = ({
     );
   };
 
+  // Mathieu round 3 spec: "ele pode ser até maior em tamanho, principalmente
+  // na horizontal". Bump fontSizes/padding/gaps especialmente horizontal
+  // (era pequeno demais pra widescreen). Vertical bump menor pra não
+  // dominar mobile feed.
   const topCenter = (
     <div style={{
       position: "absolute",
-      top: isHorizontal ? 32 : 60,
+      top: isHorizontal ? 36 : 60,
       left: "50%",
       transform: `translateX(-50%) translateY(${(1 - entrance) * -16}px)`,
       opacity: entrance,
       display: "flex",
       alignItems: "center",
-      gap: isHorizontal ? 14 : 18,
-      padding: isHorizontal ? "10px 18px" : "14px 22px",
+      gap: isHorizontal ? 22 : 22,
+      padding: isHorizontal ? "16px 28px" : "16px 26px",
       background: "rgba(0,0,0,0.78)",
       backdropFilter: "blur(10px)",
-      borderRadius: 12,
+      borderRadius: 14,
       border: `1px solid rgba(255,255,255,0.10)`,
-      boxShadow: "0 6px 24px rgba(0,0,0,0.5)",
+      boxShadow: "0 6px 28px rgba(0,0,0,0.55)",
     }}>
       {/* CT dots (left side, fill from right—players live closer to center) */}
       {renderDots(effectiveAliveCt, TEAM_CT_COLOR, false)}
@@ -201,21 +216,21 @@ export const HudV2: React.FC<HudV2Props> = ({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 2,
-        minWidth: isHorizontal ? 36 : 44,
+        gap: 4,
+        minWidth: isHorizontal ? 56 : 56,
       }}>
         <div style={{
-          fontSize: isHorizontal ? 11 : 13,
+          fontSize: isHorizontal ? 16 : 16,
           fontWeight: 800,
           color: TEAM_CT_COLOR,
-          letterSpacing: "0.18em",
+          letterSpacing: "0.2em",
           fontFamily: theme.fontDisplay,
           lineHeight: 1,
         }}>
           CT
         </div>
         <div style={{
-          fontSize: isHorizontal ? 28 : 34,
+          fontSize: isHorizontal ? 42 : 42,
           fontWeight: 900,
           color: theme.text,
           fontFamily: theme.fontMono,
@@ -230,23 +245,23 @@ export const HudV2: React.FC<HudV2Props> = ({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 2,
-        padding: isHorizontal ? "0 10px" : "0 14px",
+        gap: 4,
+        padding: isHorizontal ? "0 18px" : "0 16px",
         borderLeft: "1px solid rgba(255,255,255,0.15)",
         borderRight: "1px solid rgba(255,255,255,0.15)",
       }}>
         <div style={{
-          fontSize: isHorizontal ? 9 : 11,
+          fontSize: isHorizontal ? 13 : 13,
           fontWeight: 700,
           color: theme.textMuted,
-          letterSpacing: "0.18em",
+          letterSpacing: "0.2em",
           fontFamily: theme.fontDisplay,
           lineHeight: 1,
         }}>
           ROUND
         </div>
         <div style={{
-          fontSize: isHorizontal ? 18 : 22,
+          fontSize: isHorizontal ? 26 : 26,
           fontWeight: 800,
           color: theme.text,
           fontFamily: theme.fontMono,
@@ -257,9 +272,9 @@ export const HudV2: React.FC<HudV2Props> = ({
           {roundNum}
           <span style={{
             color: theme.textMuted,
-            fontSize: isHorizontal ? 13 : 16,
+            fontSize: isHorizontal ? 18 : 18,
             fontWeight: 600,
-            marginLeft: 1,
+            marginLeft: 2,
           }}>
             /{maxRounds}
           </span>
@@ -271,21 +286,21 @@ export const HudV2: React.FC<HudV2Props> = ({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 2,
-        minWidth: isHorizontal ? 36 : 44,
+        gap: 4,
+        minWidth: isHorizontal ? 56 : 56,
       }}>
         <div style={{
-          fontSize: isHorizontal ? 11 : 13,
+          fontSize: isHorizontal ? 16 : 16,
           fontWeight: 800,
           color: TEAM_T_COLOR,
-          letterSpacing: "0.18em",
+          letterSpacing: "0.2em",
           fontFamily: theme.fontDisplay,
           lineHeight: 1,
         }}>
           T
         </div>
         <div style={{
-          fontSize: isHorizontal ? 28 : 34,
+          fontSize: isHorizontal ? 42 : 42,
           fontWeight: 900,
           color: theme.text,
           fontFamily: theme.fontMono,

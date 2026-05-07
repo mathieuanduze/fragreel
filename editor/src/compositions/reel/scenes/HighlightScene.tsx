@@ -1264,10 +1264,10 @@ export const HighlightScene: React.FC<Props> = ({
                 opacity: enterProgress,
                 display: "flex",
                 alignItems: "center",
-                gap: 14,
-                // Round 4c Fase 1.29 (Mathieu spec: "killfeed pode estar
-                // maior só"). Padding + font sizes bumped ~50%.
-                padding: isHorizontal ? "9px 18px" : "11px 22px",
+                // Mathieu round 3 (06/05): "tamanho está deixando tudo
+                // muito apertado". Bump gap 14→18 pra respiração.
+                gap: 18,
+                padding: isHorizontal ? "10px 20px" : "12px 24px",
                 background: "rgba(0,0,0,0.82)",
                 backdropFilter: "blur(10px)",
                 borderRadius: 6,
@@ -1280,41 +1280,84 @@ export const HighlightScene: React.FC<Props> = ({
               }}
             >
               {/* Sprint Killfeed Icons (06/05) — SVG canônico do CS2
-                  panorama quando cs2IconsBaseUrl set. Filter CSS aplica
-                  weapon-category color (igual antes). Fallback text-only
-                  quando URL undefined OU SVG não existir (browser onError
-                  esconde img + render text como fallback siblings).
-                  Mathieu spec: "minha questão é ele conversar com o que o
-                  usuário já conhece do CS". */}
+                  panorama. Mathieu round 3 (06/05): "imagens svg estão
+                  quebradas, como se não existisse o arquivo". Provável
+                  filename mismatch entre demoparser2 weapon string e CS2
+                  panorama icon filename.
+
+                  Fix defensive: dual-layer rendering. Text fallback SEMPRE
+                  rendered behind. Img on top via z-index. Quando img 404,
+                  onError esconde img → text aparece no lugar. Quando img
+                  carrega, cobre text. UX: mesmo se SVG missing, weapon
+                  name aparece (legacy V1 behavior). */}
               {(() => {
                 const iconUrl = resolveWeaponIconUrl(k.weapon, cs2IconsBaseUrl);
+                const iconWidth = isHorizontal ? 48 : 52;
+                const iconHeight = isHorizontal ? 26 : 30;
                 if (iconUrl) {
                   return (
-                    <img
-                      src={iconUrl}
-                      alt={k.weapon.toUpperCase()}
+                    <div
                       style={{
-                        width: isHorizontal ? 56 : 64,
-                        height: isHorizontal ? 28 : 32,
-                        objectFit: "contain",
-                        // Tint pra cor da categoria — SVG branco do CS2
-                        // panorama é monocromático, filter colore.
-                        filter: `drop-shadow(0 0 0 ${weaponColor}) brightness(0) saturate(100%) ${
-                          weaponColor === "#ff6b35" ? "invert(54%) sepia(89%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)" :
-                          weaponColor === "#fbbf24" ? "invert(81%) sepia(60%) saturate(2400%) hue-rotate(351deg) brightness(99%) contrast(96%)" :
-                          weaponColor === "#60a5fa" ? "invert(67%) sepia(43%) saturate(3001%) hue-rotate(190deg) brightness(99%) contrast(96%)" :
-                          weaponColor === "#a78bfa" ? "invert(63%) sepia(43%) saturate(3001%) hue-rotate(220deg) brightness(99%) contrast(96%)" :
-                          weaponColor === "#4CAF82" ? "invert(58%) sepia(40%) saturate(800%) hue-rotate(110deg) brightness(95%) contrast(91%)" :
-                          weaponColor === "#ff4444" ? "invert(34%) sepia(72%) saturate(7421%) hue-rotate(353deg) brightness(101%) contrast(101%)" :
-                          "invert(100%)"  // default branco
-                        }`,
+                        position: "relative",
+                        width: iconWidth,
+                        height: iconHeight,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
-                    />
+                    >
+                      {/* Text fallback — always rendered behind. Visível
+                          quando img 404 (onError esconde img). */}
+                      <span
+                        aria-hidden
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          color: weaponColor,
+                          fontWeight: 900,
+                          fontSize: isHorizontal ? 22 : 24,
+                          letterSpacing: "0.02em",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          whiteSpace: "nowrap",
+                          textShadow: "0 1px 3px rgba(0,0,0,0.85)",
+                        }}
+                      >
+                        {k.weapon.toUpperCase()}
+                      </span>
+                      {/* Img on top — covers text quando loaded. Hides on
+                          error. Native onError handler (DOM-level, funciona
+                          em Remotion render). */}
+                      <img
+                        src={iconUrl}
+                        alt=""
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                        style={{
+                          position: "relative",
+                          zIndex: 1,
+                          width: iconWidth,
+                          height: iconHeight,
+                          objectFit: "contain",
+                          filter: `brightness(0) saturate(100%) ${
+                            weaponColor === "#ff6b35" ? "invert(54%) sepia(89%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)" :
+                            weaponColor === "#fbbf24" ? "invert(81%) sepia(60%) saturate(2400%) hue-rotate(351deg) brightness(99%) contrast(96%)" :
+                            weaponColor === "#60a5fa" ? "invert(67%) sepia(43%) saturate(3001%) hue-rotate(190deg) brightness(99%) contrast(96%)" :
+                            weaponColor === "#a78bfa" ? "invert(63%) sepia(43%) saturate(3001%) hue-rotate(220deg) brightness(99%) contrast(96%)" :
+                            weaponColor === "#4CAF82" ? "invert(58%) sepia(40%) saturate(800%) hue-rotate(110deg) brightness(95%) contrast(91%)" :
+                            weaponColor === "#ff4444" ? "invert(34%) sepia(72%) saturate(7421%) hue-rotate(353deg) brightness(101%) contrast(101%)" :
+                            "invert(100%)"
+                          }`,
+                        }}
+                      />
+                    </div>
                   );
                 }
-                // Fallback text-only (legacy behavior — preservado)
+                // Fallback text-only (sem cs2IconsBaseUrl, ou client antigo)
                 return (
-                  <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 28 : 32 }}>
+                  <span style={{ color: weaponColor, fontWeight: 900, fontSize: isHorizontal ? 26 : 28 }}>
                     {k.weapon.toUpperCase()}
                   </span>
                 );
@@ -1331,25 +1374,65 @@ export const HighlightScene: React.FC<Props> = ({
                 #{i + 1}
               </span>
               {k.headshot && (() => {
-                // HS modifier: SVG icon do panorama (death_notice/headshot.svg)
-                // quando disponível, fallback pro badge "HS" colorido.
+                // HS modifier — dual-layer: badge "HS" sempre rendered behind,
+                // img on top com onError fallback. Mesma estratégia do weapon
+                // icon. Quando death_notice/headshot.svg 404, badge HS colorido
+                // aparece (V1 behavior preservado).
                 const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
+                const hsBadge = (
+                  <span
+                    style={{
+                      marginLeft: 4,
+                      padding: isHorizontal ? "3px 9px" : "4px 10px",
+                      borderRadius: 4,
+                      background: moodDef.color,
+                      color: "white",
+                      fontSize: isHorizontal ? 17 : 20,
+                      fontWeight: 800,
+                      letterSpacing: "0.05em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    HS
+                  </span>
+                );
                 if (hsIcon) {
                   return (
-                    <img
-                      src={hsIcon}
-                      alt="HEADSHOT"
+                    <div
                       style={{
-                        width: isHorizontal ? 22 : 26,
-                        height: isHorizontal ? 22 : 26,
-                        objectFit: "contain",
+                        position: "relative",
                         marginLeft: 4,
-                        // Tint pro mood color
-                        filter: "brightness(0) saturate(100%) invert(56%) sepia(85%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
+                        display: "flex",
+                        alignItems: "center",
                       }}
-                    />
+                    >
+                      {/* Badge fallback behind */}
+                      <div aria-hidden style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center" }}>
+                        {hsBadge}
+                      </div>
+                      {/* Img on top */}
+                      <img
+                        src={hsIcon}
+                        alt=""
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                        style={{
+                          position: "relative",
+                          zIndex: 1,
+                          width: isHorizontal ? 24 : 28,
+                          height: isHorizontal ? 24 : 28,
+                          objectFit: "contain",
+                          filter: "brightness(0) saturate(100%) invert(56%) sepia(85%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
+                        }}
+                      />
+                    </div>
                   );
                 }
+                return hsBadge;
+              })()}
+              {/* legacy span removida — ver hsBadge acima */}
+              {false && k.headshot && (() => {
                 return (
                   <span
                     style={{
