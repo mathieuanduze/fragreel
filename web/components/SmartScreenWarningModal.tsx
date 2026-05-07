@@ -29,6 +29,7 @@
  * carregar mesmo em conexão ruim, (c) ter aspecto consistente entre Win10/11.
  */
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { setSmartScreenOptOut } from "@/lib/installState";
 
 type Props = {
@@ -38,7 +39,13 @@ type Props = {
 export default function SmartScreenWarningModal({ onClose }: Props) {
   const [faqOpen, setFaqOpen] = useState(false);
   const [optOut, setOptOut] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Mount detection pra createPortal funcionar com SSR (Next.js).
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Round 3 fix (07/05 noite): Mathieu reportou modal abre scrollado direto
   // na "etapa 2", topo não visível. Causa provável: aria-modal="true" + role
@@ -53,14 +60,30 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
     reset();
     const raf = requestAnimationFrame(reset);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [mounted]);
 
   const handleClose = () => {
     if (optOut) setSmartScreenOptOut(true);
     onClose();
   };
 
-  return (
+  // Round 5 fix (07/05 noite tarde): Mathieu reportou "popup parece ancorado
+  // no topo da página" — modal não centrado no viewport quando aberto pelo
+  // chip do header.
+  //
+  // Root cause: o Nav tem `backdrop-filter: blur(12px)`. Spec CSS Containment:
+  // backdrop-filter cria um NOVO containing block pra descendants com
+  // position:fixed (Chrome/Safari, mas não Firefox). Como o chip do header
+  // (ClientStatusChip) renderiza dentro do Nav, o DownloadButton + modal
+  // ficam dentro do containing block do Nav (60px de altura no topo). Modal
+  // "fixed inset:0" vira relativo a esse 60px → fica grudado no topo.
+  //
+  // Fix: createPortal pro document.body. Modal renderiza fora de qualquer
+  // ancestor com backdrop-filter/transform/filter/etc → position:fixed
+  // funciona relativo ao viewport como esperado.
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -354,7 +377,8 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
           to { opacity: 1; }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
