@@ -25,11 +25,20 @@ const INSTALL_WINDOW_MS = 5 * 60 * 1000; // 5min
 /**
  * Set flag de download click. Chamado pelos onClick dos botões "Baixar"
  * espalhados pela LP + outros lugares. Idempotente.
+ *
+ * 07/05 fix: dispara `storage` event no mesmo tab pra forçar re-render
+ * IMEDIATO de Nav (que lê isWithinInstallWindow via useClientVersionStatus).
+ * Default browser só dispara `storage` em OUTRAS tabs — sem isso, Nav
+ * só re-renderiza no próximo tick do hook (até 1.5s). Mathieu reportou
+ * 07/05 que click no chip do header não mostrava banner — era latência
+ * de poll, não bug de lógica.
  */
 export function markDownloadClicked(): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(KEY, String(Date.now()));
+    // Force same-tab listeners pra atualizar imediato
+    window.dispatchEvent(new StorageEvent("storage", { key: KEY }));
   } catch {
     // localStorage pode falhar em private mode / disabled — graceful skip
   }
@@ -66,26 +75,34 @@ export function clearDownloadClick(): void {
 }
 
 /**
- * SmartScreen warning modal — Sprint Ship Unsigned (07/05).
+ * SmartScreen warning modal — Sprint Ship Unsigned (07/05, refinado round 2).
  *
  * Mathieu spec pós-rejeição SignPath: como ship é unsigned por
  * enquanto, user vai topar com SmartScreen ao abrir o .exe. Modal
- * one-time educa sobre o flow "Mais informações → Executar mesmo assim"
+ * educa sobre o flow "Mais informações → Executar mesmo assim"
  * + tranquiliza ("estamos em fase beta") + FAQ.
  *
- * Aparece UMA VEZ por device (flag persistente no localStorage). Não
- * limpa em clearDownloadClick — instruções são úteis em re-install.
+ * **Round 2 (07/05 noite)**: Mathieu reportou que modal não apareceu no
+ * teste de campo — flag `smartscreenWarningSeen` tinha sido setada em
+ * teste anterior. Refactor: modal aparece SEMPRE por padrão (porque é
+ * info importante toda vez que user re-instala). Opt-out explícito via
+ * checkbox "Não mostrar novamente" que seta `smartscreenOptOut`. Mais
+ * conservador: prefer mostrar info redundante a esconder por flag stale.
  */
-export function markSmartScreenSeen(): void {
+export function setSmartScreenOptOut(optOut: boolean): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(SMARTSCREEN_KEY, "1");
+    if (optOut) {
+      window.localStorage.setItem(SMARTSCREEN_KEY, "1");
+    } else {
+      window.localStorage.removeItem(SMARTSCREEN_KEY);
+    }
   } catch {
     // ignore
   }
 }
 
-export function hasSeenSmartScreenWarning(): boolean {
+export function isSmartScreenOptedOut(): boolean {
   if (typeof window === "undefined") return false;
   try {
     return window.localStorage.getItem(SMARTSCREEN_KEY) === "1";

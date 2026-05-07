@@ -126,12 +126,25 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
     const onFocus = () => tick();
     window.addEventListener("focus", onFocus);
 
+    // Round 2 fix (07/05 noite): markDownloadClicked / clearDownloadClick
+    // disparam StorageEvent no MESMO tab pra forçar re-render imediato
+    // (default browser só dispara em outras tabs). Sem isso, Nav levava
+    // até 1.5s pra mostrar banner após click — Mathieu reportou issue.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "fragreel:downloadClickedAt" || e.key === null) {
+        // Force re-render do hook lendo flag atualizada
+        setInstallSecondsTick((n) => n + 1);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
     return () => {
       alive = false;
       clearInterval(id);
       clearInterval(fastId);
       clearInterval(installSecondsId);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervalMs]);

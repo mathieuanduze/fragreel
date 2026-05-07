@@ -22,7 +22,7 @@
  *   </DownloadButton>
  */
 import { ReactNode, CSSProperties, useState } from "react";
-import { markDownloadClicked, hasSeenSmartScreenWarning } from "@/lib/installState";
+import { markDownloadClicked, isSmartScreenOptedOut } from "@/lib/installState";
 import SmartScreenWarningModal from "./SmartScreenWarningModal";
 
 type Props = {
@@ -50,9 +50,11 @@ export default function DownloadButton({
         style={{ textDecoration: "none", ...style }}
         onClick={() => {
           markDownloadClicked();
-          // Modal abre apenas na primeira vez — em re-downloads, user já
-          // sabe o flow do SmartScreen.
-          if (!hasSeenSmartScreenWarning()) {
+          // Modal aparece SEMPRE por padrão — opt-out explícito via
+          // checkbox no modal (round 2 fix 07/05: flag stale escondia
+          // info crítica em campo). Mathieu pode marcar "não mostrar
+          // novamente" se preferir.
+          if (!isSmartScreenOptedOut()) {
             setShowModal(true);
           }
         }}

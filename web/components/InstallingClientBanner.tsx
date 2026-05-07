@@ -20,11 +20,24 @@
  */
 import Spinner from "./Spinner";
 import type { InstallStatus } from "@/lib/local";
+import { clearDownloadClick } from "@/lib/installState";
 
 type Props = {
   secondsElapsed: number;
   installStatus?: InstallStatus | null;
 };
+
+/**
+ * Round 2 fix (07/05 noite): X dismiss button — Mathieu reportou banner
+ * persistia em novas tabs por toda a janela 5min. Agora user fecha quando
+ * quer (chama clearDownloadClick → flag some → banner não reaparece em
+ * outras tabs do mesmo navegador). storage event do clear notifica Nav.
+ */
+function dismissBanner() {
+  clearDownloadClick();
+  // Notifica useClientVersionStatus pra re-render imediato no mesmo tab
+  window.dispatchEvent(new StorageEvent("storage", { key: "fragreel:downloadClickedAt" }));
+}
 
 export default function InstallingClientBanner({ secondsElapsed, installStatus }: Props) {
   // Modo REAL: client respondeu, mostra phase_label sem progress bars.
@@ -146,7 +159,35 @@ export default function InstallingClientBanner({ secondsElapsed, installStatus }
           {config.hint}
         </div>
       </div>
+      <DismissBtn />
     </div>
+  );
+}
+
+/** X button — chama clearDownloadClick + dispara storage event pra Nav re-render */
+function DismissBtn() {
+  return (
+    <button
+      onClick={dismissBanner}
+      aria-label="Dispensar"
+      title="Dispensar"
+      style={{
+        background: "transparent",
+        border: "none",
+        color: "rgba(255,255,255,0.4)",
+        fontSize: 18,
+        cursor: "pointer",
+        padding: "4px 6px",
+        marginLeft: 4,
+        lineHeight: 1,
+        flexShrink: 0,
+        transition: "color 0.15s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.85)")}
+      onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
+    >
+      ×
+    </button>
   );
 }
 
@@ -194,6 +235,7 @@ function InstallingBannerReal({ status }: { status: InstallStatus }) {
           {status.phase_label} · {Math.round(status.elapsed_sec)}s
         </div>
       </div>
+      <DismissBtn />
     </div>
   );
 }

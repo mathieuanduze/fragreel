@@ -18,14 +18,18 @@
  *   5. CTA "Entendi, ver progresso da instalação" → fecha modal
  *
  * Trigger: DownloadButton chama setShow(true) APÓS markDownloadClicked().
- * Persistência: flag em localStorage (markSmartScreenSeen) — não reaparece.
+ * Persistência (round 2 — 07/05 noite): modal aparece SEMPRE por padrão.
+ * Checkbox "Não mostrar novamente" seta opt-out via setSmartScreenOptOut(true).
+ * Decisão posterior ao Mathieu reportar que flag implicit one-time tinha
+ * mascarado info crítica em teste de campo (modal nunca apareceu pq alguma
+ * sessão anterior tinha "fechado" sem expor o user à info).
  *
- * Decisão: NÃO usa screenshots reais do SmartScreen — usa mockups SVG/HTML
- * inline pra (a) não depender de assets externos, (b) sempre carregar
- * mesmo em conexão ruim, (c) ter aspecto consistente entre Win10/Win11.
+ * Decisão design: NÃO usa screenshots reais do SmartScreen — usa mockups
+ * SVG/HTML inline pra (a) não depender de assets externos, (b) sempre
+ * carregar mesmo em conexão ruim, (c) ter aspecto consistente entre Win10/11.
  */
 import { useState } from "react";
-import { markSmartScreenSeen } from "@/lib/installState";
+import { setSmartScreenOptOut } from "@/lib/installState";
 
 type Props = {
   onClose: () => void;
@@ -33,9 +37,10 @@ type Props = {
 
 export default function SmartScreenWarningModal({ onClose }: Props) {
   const [faqOpen, setFaqOpen] = useState(false);
+  const [optOut, setOptOut] = useState(false);
 
   const handleClose = () => {
-    markSmartScreenSeen();
+    if (optOut) setSmartScreenOptOut(true);
     onClose();
   };
 
@@ -253,11 +258,39 @@ export default function SmartScreenWarningModal({ onClose }: Props) {
           </div>
         )}
 
+        {/* Opt-out checkbox */}
+        <label
+          style={{
+            marginTop: 18,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            cursor: "pointer",
+            userSelect: "none",
+            padding: "8px 4px",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={optOut}
+            onChange={(e) => setOptOut(e.target.checked)}
+            style={{
+              width: 16,
+              height: 16,
+              accentColor: "#FF6B35",
+              cursor: "pointer",
+            }}
+          />
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+            Não mostrar novamente neste navegador
+          </span>
+        </label>
+
         {/* CTA */}
         <button
           onClick={handleClose}
           style={{
-            marginTop: 24,
+            marginTop: 8,
             width: "100%",
             padding: "14px 20px",
             background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
