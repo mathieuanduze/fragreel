@@ -1307,8 +1307,13 @@ export const HighlightScene: React.FC<Props> = ({
                 };
                 const filter = filterMap[weaponColor] ?? "invert(100%)";
                 // Killfeed-style container — proporção CS2 vanilla (~56x22)
-                const cellW = isHorizontal ? 60 : 64;
-                const cellH = isHorizontal ? 24 : 26;
+                // Round 5 fix (07/05 noite tardia): Mathieu reportou weapon
+                // icon "muito cropado, só dá pra ver a ponta do cano". Container
+                // 60×24 era pequeno demais pro detalhe do SVG. Aumentar pra
+                // ~95×32 + padding interno dá ar suficiente pro icon mostrar
+                // a arma inteira (proporção CS2 killfeed real).
+                const cellW = isHorizontal ? 95 : 105;
+                const cellH = isHorizontal ? 32 : 36;
                 return (
                   <div style={{
                     position: "relative",
@@ -1317,6 +1322,8 @@ export const HighlightScene: React.FC<Props> = ({
                     justifyContent: "center",
                     width: cellW,
                     height: cellH,
+                    padding: "3px 6px",
+                    boxSizing: "border-box",
                     flexShrink: 0,
                   }}>
                     {iconUrl ? (
@@ -1335,8 +1342,8 @@ export const HighlightScene: React.FC<Props> = ({
                         style={{
                           maxWidth: "100%",
                           maxHeight: "100%",
-                          width: "auto",
-                          height: "auto",
+                          width: "100%",
+                          height: "100%",
                           objectFit: "contain",
                           filter: `brightness(0) saturate(100%) ${filter}`,
                         }}
@@ -1381,8 +1388,10 @@ export const HighlightScene: React.FC<Props> = ({
                 //   - hsIcon set (bundle hit) → SVG only, no badge text
                 //   - hsIcon null → badge "HS" text only
                 const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
-                const cellW = isHorizontal ? 28 : 32;
-                const cellH = isHorizontal ? 24 : 26;
+                // Proporção match com weapon icon (Round 5 fix): mesmo height
+                // cellH e padding pra HS aparecer no mesmo tamanho visual
+                const cellW = isHorizontal ? 36 : 40;
+                const cellH = isHorizontal ? 32 : 36;
                 return (
                   <div style={{
                     position: "relative",
@@ -1392,6 +1401,8 @@ export const HighlightScene: React.FC<Props> = ({
                     justifyContent: "center",
                     width: cellW,
                     height: cellH,
+                    padding: "3px 4px",
+                    boxSizing: "border-box",
                     flexShrink: 0,
                   }}>
                     {hsIcon ? (
@@ -1408,8 +1419,8 @@ export const HighlightScene: React.FC<Props> = ({
                         style={{
                           maxWidth: "100%",
                           maxHeight: "100%",
-                          width: "auto",
-                          height: "auto",
+                          width: "100%",
+                          height: "100%",
                           objectFit: "contain",
                           filter: "brightness(0) saturate(100%) invert(56%) sepia(85%) saturate(2400%) hue-rotate(346deg) brightness(99%) contrast(101%)",
                         }}

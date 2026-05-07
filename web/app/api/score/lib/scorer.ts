@@ -271,31 +271,39 @@ export function scoreKills(input: ScoreInput): Highlight[] {
 
   const final = scored.slice(0, MAX_HIGHLIGHTS);
 
-  // Sprint #6.5 (07/05 round 4) — POV cut eligibility WIDE MARKING.
+  // Sprint #6.5 (07/05 round 5) — POV cut eligibility PER-HIGHLIGHT.
   //
-  // Original (rounds 1-3): marcava cap global 2 kills aestheticas do reel
-  // inteiro. Bug em campo (Mathieu PC test 07/05): user selecionava
-  // default top 3 highlights, mas as 2 kills marcadas eligible podiam estar
-  // em highlights ranks 4-10 (não selecionados). Local_api filter
-  // `kills_in_segment` rejeitava → 0 POV cuts emitidos.
+  // Round 4 (wide marking por threshold global) ainda quebrou em campo:
+  // PC test 07/05 noite reportou 3 kills eligible mas kills_in_segment=0.
+  // Demo "Vitality M1 Mirage" tinha apenas 3 kills passando threshold ≥20,
+  // todas em highlights ranks 4-10. User com default top 3 selection →
+  // 0 POV cuts.
   //
-  // Fix: marca pov_eligible em TODAS kills com aesthetic_style != null OU
-  // aesthetic_score >= POV_ELIGIBLE_MIN_SCORE. Sem cap global. Local_api
-  // (/render) faz a seleção FINAL: top 2 entre as eligible que CAEM nos
-  // segments do user, dedupe por victim. Garante POV cuts independentes
-  // do que user seleciona — desde que pelo menos 1 highlight selecionado
-  // tenha 1 kill aestheticamente decent.
-  const POV_ELIGIBLE_MIN_SCORE = 20; // threshold conservador (aesthetic ≥25 já é "style", abaixo só kills excepcionais por score puro)
-
+  // Round 5 fix: marca pov_eligible em TOP 1 kill aestheticamente best
+  // DE CADA highlight (1 candidata por round). Garante que QUALQUER
+  // highlight selecionado tem ≥1 candidata pra POV cut, independente
+  // do score absoluto da kill (mesmo round "fraco" ainda tem 1 best).
+  // Local /render faz top-2 selection final entre os eligible_in_segment.
+  //
+  // Tradeoff: pode marcar kills com aesthetic_score baixo em rounds
+  // fracos. Mitigated por preferência de tier1 (aesthetic_style) no /render.
   for (const hl of final) {
-    for (const k of hl.kills) {
-      if (!k.victim_name || !k.victim_steamid) continue;
-      const score = k.aesthetic_score ?? 0;
-      const hasStyle = k.aesthetic_style != null;
-      if (hasStyle || score >= POV_ELIGIBLE_MIN_SCORE) {
-        k.pov_eligible = true;
-      }
-    }
+    if (!hl.kills || hl.kills.length === 0) continue;
+    // Coleta candidates: kills com victim resolvido (necessário pra
+    // capture.cfg emitir spec_player switch)
+    const candidates = hl.kills.filter(
+      (k) => k.victim_name && k.victim_steamid,
+    );
+    if (candidates.length === 0) continue;
+    // Sort: tier1 (has aesthetic_style) primeiro, depois aesthetic_score desc
+    candidates.sort((a, b) => {
+      const styleA = a.aesthetic_style != null ? 0 : 1;
+      const styleB = b.aesthetic_style != null ? 0 : 1;
+      if (styleA !== styleB) return styleA - styleB;
+      return (b.aesthetic_score ?? 0) - (a.aesthetic_score ?? 0);
+    });
+    // Top 1 do highlight vira eligible
+    candidates[0].pov_eligible = true;
   }
 
   return final;
