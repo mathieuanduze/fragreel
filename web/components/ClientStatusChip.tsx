@@ -1,6 +1,7 @@
 "use client";
 
 import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
+import DownloadButton from "./DownloadButton";
 
 /**
  * Chip de status no header. 4 estados:
@@ -63,10 +64,7 @@ export default function ClientStatusChip() {
 
   if (status === "outdated") {
     return (
-      <a
-        href="/download"
-        download="FragReel.exe"
-        title={`Atualize do ${local ?? "?"} para ${required}`}
+      <DownloadButton
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -78,21 +76,17 @@ export default function ClientStatusChip() {
           color: "#FFC107",
           background: "rgba(255,193,7,0.10)",
           border: "1px solid rgba(255,193,7,0.45)",
-          textDecoration: "none",
         }}
       >
         <span style={{ fontSize: 13, lineHeight: 1 }}>⚠</span>
         Atualizar · {local ?? "?"} → {required}
-      </a>
+      </DownloadButton>
     );
   }
 
   // offline → CTA pra baixar
   return (
-    <a
-      href="/download"
-      download="FragReel.exe"
-      title="Baixar o FragReel client (Windows)"
+    <DownloadButton
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -104,11 +98,10 @@ export default function ClientStatusChip() {
         color: "#FF6B35",
         background: "rgba(255,107,53,0.10)",
         border: "1px solid rgba(255,107,53,0.45)",
-        textDecoration: "none",
       }}
     >
       <span style={{ fontSize: 13, lineHeight: 1 }}>⬇</span>
       Baixar client · {required}
-    </a>
+    </DownloadButton>
   );
 }

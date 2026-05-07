@@ -19,6 +19,7 @@
  */
 
 const KEY = "fragreel:downloadClickedAt";
+const SMARTSCREEN_KEY = "fragreel:smartscreenWarningSeen";
 const INSTALL_WINDOW_MS = 5 * 60 * 1000; // 5min
 
 /**
@@ -61,6 +62,35 @@ export function clearDownloadClick(): void {
     window.localStorage.removeItem(KEY);
   } catch {
     // ignore
+  }
+}
+
+/**
+ * SmartScreen warning modal — Sprint Ship Unsigned (07/05).
+ *
+ * Mathieu spec pós-rejeição SignPath: como ship é unsigned por
+ * enquanto, user vai topar com SmartScreen ao abrir o .exe. Modal
+ * one-time educa sobre o flow "Mais informações → Executar mesmo assim"
+ * + tranquiliza ("estamos em fase beta") + FAQ.
+ *
+ * Aparece UMA VEZ por device (flag persistente no localStorage). Não
+ * limpa em clearDownloadClick — instruções são úteis em re-install.
+ */
+export function markSmartScreenSeen(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SMARTSCREEN_KEY, "1");
+  } catch {
+    // ignore
+  }
+}
+
+export function hasSeenSmartScreenWarning(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(SMARTSCREEN_KEY) === "1";
+  } catch {
+    return false;
   }
 }
 

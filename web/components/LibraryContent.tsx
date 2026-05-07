@@ -13,6 +13,7 @@ import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import AnalyzeModal from "./AnalyzeModal";
 import UpdateRequiredModal from "./UpdateRequiredModal";
 import Spinner from "./Spinner";
+import DownloadButton from "./DownloadButton";
 
 function fmtDate(epoch: number): string {
   return new Date(epoch * 1000).toLocaleDateString("pt-BR", {
@@ -299,9 +300,9 @@ export default function LibraryContent() {
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", maxWidth: 460, margin: "0 auto 20px" }}>
           Pra ver suas partidas, instale e abra o FragReel no seu PC. Ele lê suas demos do CS2 localmente — nada é enviado sem sua confirmação.
         </div>
-        <a href="/download" className="btn-primary" style={{ fontSize: 14, padding: "10px 22px", textDecoration: "none" }}>
+        <DownloadButton className="btn-primary" style={{ fontSize: 14, padding: "10px 22px" }}>
           ⬇ Baixar client
-        </a>
+        </DownloadButton>
         <div style={{ marginTop: 16 }}>
           <button onClick={() => load(false)} className="btn-secondary" style={{ fontSize: 13, padding: "8px 18px" }}>
             Já está aberto · Recarregar
@@ -326,9 +327,9 @@ export default function LibraryContent() {
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", maxWidth: 460, margin: "0 auto 20px" }}>
           O scan tentou rodar mas o client não respondeu. Reabra o FragReel.exe — se não tiver instalado, baixe abaixo.
         </div>
-        <a href="/download" className="btn-primary" style={{ fontSize: 14, padding: "10px 22px", textDecoration: "none" }}>
+        <DownloadButton className="btn-primary" style={{ fontSize: 14, padding: "10px 22px" }}>
           ⬇ Baixar / Reinstalar client
-        </a>
+        </DownloadButton>
         <div style={{ marginTop: 16 }}>
           <button onClick={() => load(false)} className="btn-secondary" style={{ fontSize: 13, padding: "8px 18px" }}>
             Tentar de novo
@@ -343,9 +344,9 @@ export default function LibraryContent() {
       <div style={{ padding: 24, color: "#ff8866", border: "1px solid rgba(255,80,80,0.4)", borderRadius: 12 }}>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>Erro no scan</div>
         <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 12 }}>{error}</div>
-        <a href="/download" className="btn-primary" style={{ fontSize: 13, padding: "8px 16px", textDecoration: "none" }}>
+        <DownloadButton className="btn-primary" style={{ fontSize: 13, padding: "8px 16px" }}>
           ⬇ Reinstalar client
-        </a>
+        </DownloadButton>
       </div>
     );
   }

@@ -1,21 +1,29 @@
 "use client";
 
 /**
- * DownloadButton — Sprint Install Indicator (06/05).
+ * DownloadButton — Sprint Install Indicator (06/05) + SmartScreen modal (07/05).
  *
- * Wrapper de <a download="FragReel.exe"> que ALÉM de baixar, marca o
- * timestamp em localStorage pra Nav exibir banner "Instalando o client".
+ * Wrapper de <a download="FragReel.exe"> que ALÉM de baixar:
+ *   - marca timestamp em localStorage pra Nav exibir banner "Instalando o client"
+ *   - abre SmartScreenWarningModal NA PRIMEIRA VEZ (educa user sobre o flow
+ *     "Mais informações → Executar mesmo assim" do Win SmartScreen pós-decisão
+ *     ship-unsigned 07/05)
+ *
+ * O download começa em paralelo via <a download> nativo. O modal NÃO bloqueia
+ * o browser — quando o user fecha (X, click fora, ou CTA), o .exe já está na
+ * pasta Downloads.
+ *
+ * Persistência: flag `fragreel:smartscreenWarningSeen` em localStorage. Se o
+ * user já viu, o click direto comporta-se como antes (sem modal).
  *
  * Uso (substitui <a href="/download" download> espalhados):
  *   <DownloadButton className="btn-primary" style={...}>
  *     ⬇ Baixar grátis
  *   </DownloadButton>
- *
- * Mantém todos os atributos download/href padrão. Just adds onClick handler
- * pra markDownloadClicked() antes do browser disparar download.
  */
-import { ReactNode, CSSProperties } from "react";
-import { markDownloadClicked } from "@/lib/installState";
+import { ReactNode, CSSProperties, useState } from "react";
+import { markDownloadClicked, hasSeenSmartScreenWarning } from "@/lib/installState";
+import SmartScreenWarningModal from "./SmartScreenWarningModal";
 
 type Props = {
   children: ReactNode;
@@ -31,17 +39,28 @@ export default function DownloadButton({
   style,
   href = "/download",
 }: Props) {
+  const [showModal, setShowModal] = useState(false);
+
   return (
-    <a
-      href={href}
-      download="FragReel.exe"
-      className={className}
-      style={{ textDecoration: "none", ...style }}
-      onClick={() => {
-        markDownloadClicked();
-      }}
-    >
-      {children}
-    </a>
+    <>
+      <a
+        href={href}
+        download="FragReel.exe"
+        className={className}
+        style={{ textDecoration: "none", ...style }}
+        onClick={() => {
+          markDownloadClicked();
+          // Modal abre apenas na primeira vez — em re-downloads, user já
+          // sabe o flow do SmartScreen.
+          if (!hasSeenSmartScreenWarning()) {
+            setShowModal(true);
+          }
+        }}
+      >
+        {children}
+      </a>
+
+      {showModal && <SmartScreenWarningModal onClose={() => setShowModal(false)} />}
+    </>
   );
 }

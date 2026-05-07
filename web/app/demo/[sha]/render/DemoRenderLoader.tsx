@@ -18,6 +18,7 @@ import { scoreDemoForPlayer } from "@/lib/local";
 import type { MatchOut } from "@/lib/api";
 import Spinner from "@/components/Spinner";
 import AdSlot from "@/components/AdSlot";
+import DownloadButton from "@/components/DownloadButton";
 
 interface Props {
   sha: string;
@@ -143,19 +144,12 @@ export default function DemoRenderLoader({ sha, targetSteamid, targetName }: Pro
           )}
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
             {is404 && (
-              <a
-                href="/download"
-                download="FragReel.exe"
-                onClick={() => {
-                  // Sprint Install Indicator (06/05) — banner aparece após
-                  // click. Lazy import pra não bundlar em SSR.
-                  import("@/lib/installState").then(m => m.markDownloadClicked());
-                }}
+              <DownloadButton
                 className="btn-primary"
-                style={{ padding: "10px 22px", fontSize: 13, textDecoration: "none" }}
+                style={{ padding: "10px 22px", fontSize: 13 }}
               >
                 ⬇ Baixar v0.6.16+
-              </a>
+              </DownloadButton>
             )}
             <Link href={`/demo/${sha}`} className="btn-secondary" style={{ padding: "10px 22px", fontSize: 13, textDecoration: "none" }}>
               ← Voltar

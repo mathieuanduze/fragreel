@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLatestClientVersion } from "@/lib/useLatestClientVersion";
 import { triggerClientUpdate, pingLocalClient, getLocalClientVersion } from "@/lib/local";
 import { isOutdated } from "@/lib/version-compare";
-import { markDownloadClicked } from "@/lib/installState";
+import DownloadButton from "./DownloadButton";
 
 type Props = {
   /** Versão que o usuário tem rodando agora (ou null se desconhecida). */
@@ -251,10 +251,7 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
         {/* Fallback manual — aparece SÓ em state=failed. No fluxo feliz
             o user não vê essa opção (decisão v0.2.16: um botão só). */}
         {state === "failed" && (
-          <a
-            href="/download"
-            download="FragReel.exe"
-            onClick={() => markDownloadClicked()}
+          <DownloadButton
             style={{
               display: "block",
               background: "linear-gradient(135deg, #FF6B35, #FF8E53)",
@@ -264,12 +261,11 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
               fontWeight: 700,
               fontSize: 15,
               textAlign: "center",
-              textDecoration: "none",
               boxShadow: "0 4px 14px rgba(255,107,53,0.35)",
             }}
           >
             ⬇ Baixar FragReel {latest ?? ""} manualmente
-          </a>
+          </DownloadButton>
         )}
 
         {error && (
