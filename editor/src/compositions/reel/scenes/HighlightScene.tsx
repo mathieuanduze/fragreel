@@ -366,40 +366,47 @@ export const HighlightScene: React.FC<Props> = ({
   return (
     <AbsoluteFill style={{ opacity: sceneOpacity, background: theme.bg }}>
       {/* Camada 1 — Gameplay backdrop.
-          Quando tem .mov do HLAE, OffthreadVideo (cobre frame inteiro,
-          object-fit cover pra horizontal/vertical não quebrarem). Sem footage,
-          gradient + crosshair fake — dev no Mac fica funcional. */}
+          Round 6 fix (07/05 noite tardia, Mathieu PC test): vertical com
+          `objectFit:cover` cropava ~74% da largura horizontal do CS2 (frame
+          1080×1920 vs video 1280×600 = aspect 2.13:1 vs 0.56:1). Resultado:
+          "só aparece o bico do cano da arma na tela". Mathieu sugeriu
+          "aumentar a resolução e ter um pouco de borda na parte de baixo
+          e de cima" = letterbox.
+          Fix:
+          - vertical → `objectFit: contain`: video full-width, ~506px height
+            centralizado, barras top/bottom com gradient mood
+          - horizontal → mantém `cover` (16:9 nativo do CS2 bate com 1920×1080)
+          Background gradient atrás (Layer 0 abaixo) preenche o letterbox
+          em vertical com blend mood-aware. */}
       {gameplaySrc ? (
-        <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
-          <OffthreadVideo
-            src={gameplaySrc}
-            playbackRate={gameplayRate}
-            // Round 4c Fase 1.19 — startFrom usa effectiveSkipSec (não a
-            // constante raw) pra ser consistente com scene duration calc
-            // em HighlightsReel. Pra clusters muito curtos, skip diminui
-            // automaticamente. Pra cluster comum (PAD_PRE 7s), pula 4s
-            // de buy phase + walk pré-engagement → highlight começa em
-            // "peek/posicionamento já no engagement". Mathieu Fase 1.19
-            // re-cobrou: "transições travadas, principalmente depois do
-            // primeiro round" — análise frames PC mostrou ~5s de player
-            // com knife andando entre #1→#2. SKIP=4 corta isso.
-            startFrom={Math.round(sceneSkipSec * FPS)}
-            // v0.3.1 Round 4c Fase 1.10 (Mathieu spec): som do jogo SEMPRE
-            // presente (tiros, footsteps, voice, defuse beep, plant beep).
-            // Antes muted=true descartava todo audio do .mov ProRes capturado
-            // pelo HLAE. Agora volume=0.85 dá game audio no foreground sem
-            // soterrar a música de fundo (Audio component da composition raiz
-            // tá em volume=0.65). Mix tunado pra game ≥ música, mas música
-            // audível.
-            volume={0.85}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "center",
-            }}
-          />
-        </AbsoluteFill>
+        <>
+          {/* Layer 0 — letterbox background (visível só em vertical) */}
+          {!isHorizontal && (
+            <AbsoluteFill
+              style={{
+                background: `
+                  radial-gradient(circle at 30% 30%, ${moodDef.color}25 0%, transparent 55%),
+                  radial-gradient(circle at 70% 70%, ${theme.orange}18 0%, transparent 55%),
+                  linear-gradient(180deg, #08080f 0%, #14141f 50%, #08080f 100%)
+                `,
+              }}
+            />
+          )}
+          <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
+            <OffthreadVideo
+              src={gameplaySrc}
+              playbackRate={gameplayRate}
+              startFrom={Math.round(sceneSkipSec * FPS)}
+              volume={0.85}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: isHorizontal ? "cover" : "contain",
+                objectPosition: "center",
+              }}
+            />
+          </AbsoluteFill>
+        </>
       ) : (
         <AbsoluteFill
           style={{
@@ -1337,19 +1344,13 @@ export const HighlightScene: React.FC<Props> = ({
                 };
                 const filter = filterMap[weaponColor] ?? "invert(100%)";
                 // Killfeed-style container — proporção CS2 vanilla (~56x22)
-                // Round 6 fix (07/05 noite tardia): Round 5 (95×32) ainda
-                // parecia "só ponta do cano" pro Mathieu. SVGs do lexogrine
-                // têm viewBox 678×222 (~3:1 aspect), 95×32 = 2.97:1 deveria
-                // bater, mas em prática path é desenhado em pequenas
-                // coordenadas dentro do viewBox → SVG visível ocupa só
-                // fração do container.
-                //
-                // Solução: bump significativo pra 140×46 (horizontal) /
-                // 155×52 (vertical) — mantém aspect 3:1 mas com ~50% mais
-                // resolução visível. Sem padding interno (estava comendo
-                // espaço útil).
-                const cellW = isHorizontal ? 140 : 155;
-                const cellH = isHorizontal ? 46 : 52;
+                // Round 6 revert (07/05 noite tardia): Mathieu esclareceu
+                // "Não é o killfeed cropado, é a GAMEPLAY". Killfeed icon
+                // já estava OK em round 5 (95×32 validado: "killfeed
+                // funcionou!"). Round 6 bump pra 140×46 era desnecessário.
+                // Volta pro tamanho validado.
+                const cellW = isHorizontal ? 95 : 105;
+                const cellH = isHorizontal ? 32 : 36;
                 return (
                   <div style={{
                     position: "relative",
@@ -1358,6 +1359,7 @@ export const HighlightScene: React.FC<Props> = ({
                     justifyContent: "center",
                     width: cellW,
                     height: cellH,
+                    padding: "3px 6px",
                     boxSizing: "border-box",
                     flexShrink: 0,
                   }}>
@@ -1423,9 +1425,9 @@ export const HighlightScene: React.FC<Props> = ({
                 //   - hsIcon set (bundle hit) → SVG only, no badge text
                 //   - hsIcon null → badge "HS" text only
                 const hsIcon = resolveModifierIconUrl("headshot", cs2IconsBaseUrl);
-                // Round 6: match weapon cellH (46/52) pra paridade visual.
-                const cellW = isHorizontal ? 50 : 56;
-                const cellH = isHorizontal ? 46 : 52;
+                // Round 6 revert: match weapon cellH (32/36) — killfeed era OK
+                const cellW = isHorizontal ? 36 : 40;
+                const cellH = isHorizontal ? 32 : 36;
                 return (
                   <div style={{
                     position: "relative",
@@ -1435,6 +1437,7 @@ export const HighlightScene: React.FC<Props> = ({
                     justifyContent: "center",
                     width: cellW,
                     height: cellH,
+                    padding: "3px 4px",
                     boxSizing: "border-box",
                     flexShrink: 0,
                   }}>
