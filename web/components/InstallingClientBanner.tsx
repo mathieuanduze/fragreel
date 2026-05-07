@@ -1,34 +1,36 @@
 "use client";
 
 /**
- * InstallingClientBanner — Sprint Install Indicator (06/05).
+ * InstallingClientBanner — Sprint Install Indicator B (06/05).
  *
- * Mathieu spec round 2: "seria quando o usuário clica no .exe, não no
- * download, pq pode fazer o usuário pensar que era só clicar no client".
+ * Mathieu spec round 3: install_progress_server.py do client agora reporta
+ * progresso REAL via /install-status. Banner usa esse payload quando
+ * disponível (priority sobre timing-based).
  *
- * Não dá pra detectar click do .exe direto da web (sem beacon dedicado),
- * MAS dá pra mudar mensageria pra ficar CLARO que user tem ação a tomar.
- * Banner não diz "Instalando..." nos primeiros 60s — diz "Abra o
- * FragReel.exe" instrucional. Só vira "Instalando..." quando passou tempo
- * suficiente sugerindo que user abriu .exe e setup está rolando OU
- * quando client efetivamente vem online (clearDownloadClick dismiss).
+ * Modo REAL (installStatus disponível):
+ *   - Mostra phase_label exato vindo do client ("Baixando HLAE + ffmpeg…")
+ *   - Mostra progresso de cada componente (HLAE, Node, Editor) com %
+ *   - Atualiza em tempo real (1.5s poll)
  *
- * Stages:
- *   0-15s    → "Baixando o FragReel.exe…" (download em curso)
- *   15-60s   → "Abra o FragReel.exe que foi baixado" (instructive)
- *              Cor mudada pra azul (info) em vez de laranja (active)
- *   60-180s  → "Instalando dependências…" (active)
- *              Volta laranja, assume user abriu .exe
- *   180-300s → "Quase lá…" (active)
+ * Modo TIMING (fallback — installStatus null):
+ *   - Stages timing-based (download/waiting/installing/finishing) como antes
+ *   - Aparece quando download foi clicado mas .exe ainda nem abriu
  */
 import Spinner from "./Spinner";
+import type { InstallStatus } from "@/lib/local";
 
 type Props = {
   secondsElapsed: number;
+  installStatus?: InstallStatus | null;
 };
 
-export default function InstallingClientBanner({ secondsElapsed }: Props) {
-  // Stage detection
+export default function InstallingClientBanner({ secondsElapsed, installStatus }: Props) {
+  // Modo REAL: client está respondendo, mostra progresso vindo do install_state.py
+  if (installStatus && !installStatus.ready) {
+    return <InstallingBannerReal status={installStatus} />;
+  }
+
+  // Modo TIMING fallback (client ainda não respondeu)
   const stage =
     secondsElapsed < 15 ? "downloading"
     : secondsElapsed < 60 ? "waiting"
@@ -141,6 +143,97 @@ export default function InstallingClientBanner({ secondsElapsed }: Props) {
           {config.hint}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Versão REAL do banner — usa payload do /install-status do client.
+ * Mostra phase_label exato + progress bars dos components em download.
+ */
+function InstallingBannerReal({ status }: { status: InstallStatus }) {
+  const components = Object.values(status.components || {});
+  // Sort por % desc pra mostrar o que está mais perto de terminar primeiro
+  components.sort((a, b) => b.pct - a.pct);
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: "fixed",
+        top: 80,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 50,
+        padding: "16px 22px",
+        background: "rgba(13, 13, 26, 0.94)",
+        backdropFilter: "blur(12px)",
+        border: "1px solid rgba(255, 107, 53, 0.4)",
+        borderRadius: 12,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.55), 0 0 28px rgba(255,107,53,0.22)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        maxWidth: "min(92vw, 600px)",
+        minWidth: 360,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <Spinner size={28} color="#FF6B35" />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 14, fontWeight: 700, color: "#E8E8F0",
+            letterSpacing: "0.01em", marginBottom: 2,
+          }}>
+            Instalando o FragReel client…
+          </div>
+          <div style={{
+            fontSize: 12, color: "rgba(255,255,255,0.6)",
+            lineHeight: 1.4,
+          }}>
+            {status.phase_label} · {Math.round(status.elapsed_sec)}s
+          </div>
+        </div>
+      </div>
+
+      {/* Progress bars dos componentes em download */}
+      {components.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+          {components.map((c) => (
+            <div key={c.label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                  {c.label}
+                </span>
+                <span style={{
+                  color: c.pct >= 100 ? "#5be38f" : "rgba(255,255,255,0.5)",
+                  fontWeight: 700, fontVariantNumeric: "tabular-nums",
+                }}>
+                  {c.total > 0
+                    ? `${(c.downloaded / 1024 / 1024).toFixed(1)} / ${(c.total / 1024 / 1024).toFixed(1)} MB · ${c.pct}%`
+                    : "…"}
+                </span>
+              </div>
+              <div style={{
+                height: 4,
+                background: "rgba(255,255,255,0.08)",
+                borderRadius: 2,
+                overflow: "hidden",
+              }}>
+                <div style={{
+                  width: `${c.pct}%`,
+                  height: "100%",
+                  background: c.pct >= 100
+                    ? "linear-gradient(90deg, #5be38f 0%, #34d399 100%)"
+                    : "linear-gradient(90deg, #FF6B35 0%, #FF8E53 100%)",
+                  transition: "width 300ms ease",
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

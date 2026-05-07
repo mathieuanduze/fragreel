@@ -107,6 +107,42 @@ export async function pingLocalClient(timeoutMs = 1500): Promise<boolean> {
   }
 }
 
+/**
+ * Sprint Install Indicator B (06/05) — payload do /install-status do client.
+ * Pré-setup: install_progress_server.py responde com phase atual + progresso
+ * de cada componente sendo baixado. Pós-setup: local_api.py Flask responde
+ * com ready=true.
+ */
+export interface InstallStatus {
+  phase: string;          // "starting" | "downloading_hlae" | ... | "ready"
+  phase_label: string;    // human-friendly PT-BR
+  components: Record<string, {
+    downloaded: number;
+    total: number;
+    pct: number;
+    label: string;
+  }>;
+  elapsed_sec: number;
+  ready: boolean;
+}
+
+/** Polla /install-status do client local. Returns null se offline. */
+export async function getInstallStatus(timeoutMs = 1500): Promise<InstallStatus | null> {
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    const res = await privateFetch(`${LOCAL_BASE}/install-status`, {
+      signal: ctl.signal,
+      cache: "no-store",
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as InstallStatus | null;
+  } catch {
+    return null;
+  }
+}
+
 /** Retorna a versão reportada pelo client local — ou null se offline / sem suporte. */
 export async function getLocalClientVersion(timeoutMs = 1500): Promise<string | null> {
   try {

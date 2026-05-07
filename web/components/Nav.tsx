@@ -57,7 +57,10 @@ export default function Nav() {
           clicou em "Baixar" + client offline. Some sozinho quando client
           vem online OU expira janela 5min. */}
       {clientStatus.status === "installing" && (
-        <InstallingClientBanner secondsElapsed={clientStatus.installingForSec ?? 0} />
+        <InstallingClientBanner
+          secondsElapsed={clientStatus.installingForSec ?? 0}
+          installStatus={clientStatus.installStatus}
+        />
       )}
     <nav
       style={{

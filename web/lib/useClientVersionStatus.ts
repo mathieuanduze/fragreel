@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getLocalClientVersion, pingLocalClient } from "@/lib/local";
+import { getLocalClientVersion, pingLocalClient, getInstallStatus, type InstallStatus } from "@/lib/local";
 import { useLatestClientVersion } from "@/lib/useLatestClientVersion";
 import { isOutdated } from "@/lib/version-compare";
 import { isWithinInstallWindow, clearDownloadClick, secondsSinceDownloadClick } from "@/lib/installState";
@@ -23,6 +23,12 @@ export interface ClientVersionStatus {
   /** Sprint Install Indicator (06/05) — segundos desde o click "Baixar".
    *  Null se não tem janela de instalação ativa OU client já online. */
   installingForSec: number | null;
+  /** Sprint Install Indicator B (06/05) — payload do /install-status do
+   *  client. Disponível QUANDO o client está respondendo (mesmo durante
+   *  setup, via install_progress_server.py minimal HTTP server). Null
+   *  quando client offline. Banner usa pra mostrar progresso real ao
+   *  invés de timing-based. */
+  installStatus: InstallStatus | null;
 }
 
 /**
@@ -52,10 +58,12 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
   const [local, setLocal] = useState<{ value: string | null; online: boolean | null }>(
     { value: null, online: null },
   );
+  // Sprint Install Indicator B (06/05) — install_status do client servido
+  // pelo install_progress_server.py durante setup OU pelo Flask full pós-
+  // setup. Banner usa pra mostrar progresso REAL.
+  const [installStatus, setInstallStatus] = useState<InstallStatus | null>(null);
   // Sprint Install Indicator (06/05) — re-render flag pra mostrar contador
-  // de "instalando há Xs" atualizado per-tick. Hook polla a cada intervalMs
-  // mas o segundo de instalação muda a cada 1s — usamos 1s timer separado
-  // SÓ quando estamos no estado installing.
+  // de "instalando há Xs" atualizado per-tick.
   const [installSecondsTick, setInstallSecondsTick] = useState(0);
 
   useEffect(() => {
@@ -66,6 +74,7 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
       if (!alive) return;
       if (!online) {
         setLocal({ value: null, online: false });
+        setInstallStatus(null);
         return;
       }
       const version = await getLocalClientVersion();
@@ -74,12 +83,42 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
       // Client veio online — limpa flag de install (next render volta pra
       // current path). Banner "instalando" some sozinho.
       clearDownloadClick();
+      // Plus polla install-status pra payload real (progresso de setup
+      // OU ready=true se Flask full está rodando).
+      const status = await getInstallStatus();
+      if (alive) setInstallStatus(status);
+    };
+
+    // Sprint Install Indicator B — tick MAIS RÁPIDO pra detectar client
+    // logo que aparece em setup. 8s era OK pra "checking online", mas
+    // pra UX de "user clicou .exe agora", queremos detectar < 1s.
+    const fastTick = async () => {
+      if (!alive) return;
+      const status = await getInstallStatus();
+      if (!alive) return;
+      if (status) {
+        setInstallStatus(status);
+        // Se temos install_status response, client está online — full
+        // tick atualiza version cache na próxima janela.
+        if (local.online !== true) {
+          // Force a normal tick pra capturar version
+          tick();
+        }
+      }
     };
 
     tick();
     const id = setInterval(tick, intervalMs);
 
-    // Tick extra rápido só pra contador de "instalando há Xs"
+    // Fast poll quando suspect installing (download click recente)
+    // pra UX de banner aparecer ASAP após .exe abrir
+    const fastId = setInterval(() => {
+      if (isWithinInstallWindow() || installStatus === null) {
+        fastTick();
+      }
+    }, 1500);
+
+    // Tick 1Hz pra contador de tempo no banner
     const installSecondsId = setInterval(() => {
       if (alive) setInstallSecondsTick((n) => n + 1);
     }, 1000);
@@ -90,9 +129,11 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
     return () => {
       alive = false;
       clearInterval(id);
+      clearInterval(fastId);
       clearInterval(installSecondsId);
       window.removeEventListener("focus", onFocus);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervalMs]);
 
   // Read-time check: se user clicou em "Baixar" na janela de install,
@@ -106,14 +147,30 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
   // Mark as used pra TS não warnar (efeito é só forçar re-render)
   void installSecondsTick;
 
+  // Sprint Install Indicator B (06/05) — install_status pode estar
+  // disponível MESMO com client.local.online=false (Flask não respondeu
+  // /version mas install_progress_server.py respondeu /install-status).
+  // Esse é o caso DURANTE first-run setup. Detect installing aqui ANTES
+  // de checar local.online.
+  if (installStatus && !installStatus.ready) {
+    return {
+      status: "installing",
+      local: null,
+      required: latest,
+      canRender: false,
+      installingForSec: installingForSec,
+      installStatus,
+    };
+  }
+
   // Ainda não pollou o client local uma vez
   if (local.online === null) {
     // Mesmo em "checking" inicial, se já clicou em download, mostra
     // installing (UX mais clara que "checking" → "offline" → "installing")
     if (installingForSec !== null && isWithinInstallWindow()) {
-      return { status: "installing", local: null, required: latest, canRender: false, installingForSec };
+      return { status: "installing", local: null, required: latest, canRender: false, installingForSec, installStatus: null };
     }
-    return { status: "checking", local: null, required: latest, canRender: false, installingForSec: null };
+    return { status: "checking", local: null, required: latest, canRender: false, installingForSec: null, installStatus: null };
   }
 
   // Client local fechado / não instalado
@@ -121,30 +178,26 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
     // Sprint Install Indicator: se user clicou em "Baixar" recentemente
     // (last 5min), banner de "instalando" em vez de "offline".
     if (installingForSec !== null && isWithinInstallWindow()) {
-      return { status: "installing", local: null, required: latest, canRender: false, installingForSec };
+      return { status: "installing", local: null, required: latest, canRender: false, installingForSec, installStatus: null };
     }
-    return { status: "offline", local: null, required: latest, canRender: false, installingForSec: null };
+    return { status: "offline", local: null, required: latest, canRender: false, installingForSec: null, installStatus: null };
   }
 
   // Client online mas /version retornou null (versão <= v0.1.x sem endpoint).
   // Versão desconhecida num client online é tratada como outdated por
   // segurança — não dá pra confirmar compat com features novas da web.
   if (!local.value) {
-    return { status: "outdated", local: null, required: latest, canRender: false, installingForSec: null };
+    return { status: "outdated", local: null, required: latest, canRender: false, installingForSec: null, installStatus };
   }
 
   // Client online e reportou versão. Cruzamento com GitHub:
-  // - Se GitHub API ainda carregando → "checking" (evita flash de status errado)
-  // - Se GitHub API falhou (latest === null após loading) → trust local, assume current
-  // - Se temos latest → compara com isOutdated()
   if (latestLoading) {
-    return { status: "checking", local: local.value, required: latest, canRender: false, installingForSec: null };
+    return { status: "checking", local: local.value, required: latest, canRender: false, installingForSec: null, installStatus };
   }
 
   if (!latest) {
-    // GitHub API indisponível. Failure mode: trust local client — pior UX
-    // seria pedir update sem confirmar que existe release mais nova.
-    return { status: "current", local: local.value, required: null, canRender: true, installingForSec: null };
+    // GitHub API indisponível. Failure mode: trust local client.
+    return { status: "current", local: local.value, required: null, canRender: true, installingForSec: null, installStatus };
   }
 
   const stale = isOutdated(local.value, latest);
@@ -154,5 +207,6 @@ export function useClientVersionStatus(intervalMs = 8000): ClientVersionStatus {
     required: latest,
     canRender: !stale,
     installingForSec: null,
+    installStatus,
   };
 }
