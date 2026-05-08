@@ -28,6 +28,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AdSlot from "@/components/AdSlot";
 import { useRouter } from "next/navigation";
 import {
   getLocalDemos,
@@ -212,6 +213,22 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
 
   const isWorking = phase === "looking_up" || phase === "uploading" || phase === "analyzing";
 
+  // Sprint v5.7.2 (Mathieu spec 08/05/2026):
+  //   "o problema da página reanalizando, é que ela deveria ser somente
+  //    a página que fala que ta analizando, com o ad lá"
+  //
+  // Quando working: render AnalyzingDemoView-style layout (mesmo visual
+  // do AnalyzingDemoModal usado em /matches expand inline) com:
+  //   - Headline "Analisando demo" destacada
+  //   - Step rotation (lendo .dem → identificando jogadas...)
+  //   - AdSlot leaderboard ("Patrocinado · enquanto a IA trabalha")
+  //   - Indeterminate progress bar
+  // Quando error/done: card pequeno com ação.
+
+  if (isWorking) {
+    return <AnalyzingDemoView phase={phase} elapsedSec={elapsedSec} />;
+  }
+
   return (
     <div
       style={{
@@ -242,9 +259,7 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
             background:
               phase === "done"
                 ? "rgba(91,227,143,0.10)"
-                : isWorking
-                  ? "rgba(255,107,53,0.10)"
-                  : "rgba(255,107,53,0.08)",
+                : "rgba(255,107,53,0.08)",
             border: `1px solid ${
               phase === "done"
                 ? "rgba(91,227,143,0.30)"
@@ -256,7 +271,7 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
             fontSize: 26,
           }}
         >
-          {phase === "done" ? "✅" : isWorking ? "⏳" : "⚠️"}
+          {phase === "done" ? "✅" : "⚠️"}
         </div>
         <h2
           style={{
@@ -282,39 +297,7 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
           {sub}
         </p>
 
-        {isWorking && (
-          <div
-            style={{
-              width: "100%",
-              maxWidth: 320,
-              margin: "0 auto 20px",
-              height: 5,
-              background: "rgba(255,255,255,0.04)",
-              borderRadius: 999,
-              overflow: "hidden",
-              position: "relative",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(90deg, transparent, #FF6B35, transparent)",
-                animation: "fragreel-loading 1.5s linear infinite",
-                width: "30%",
-              }}
-            />
-            <style>{`
-              @keyframes fragreel-loading {
-                0%   { transform: translateX(-100%); }
-                100% { transform: translateX(380%); }
-              }
-            `}</style>
-          </div>
-        )}
-
-        {!isWorking && phase !== "done" && (
+        {phase !== "done" && (
           <Link
             href="/matches"
             style={{
@@ -347,6 +330,138 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
           ref: {staleMatchId.slice(0, 24)}…
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * AnalyzingDemoView — full-page version do AnalyzingDemoModal.
+ *
+ * Sprint v5.7.2 (Mathieu spec): página de "re-analisando" deve ter
+ * SOMENTE a UI de "analisando demo" com ad. Não card técnico com phase
+ * indicators e progress bar feios.
+ *
+ * Layout match AnalyzingDemoModal (componentes/AnalyzingDemoModal.tsx)
+ * mas inline (não fixed overlay) — fica dentro do AppShell content area.
+ */
+function AnalyzingDemoView({
+  phase,
+  elapsedSec,
+}: {
+  phase: "looking_up" | "uploading" | "analyzing" | string;
+  elapsedSec: number;
+}) {
+  const STEPS = [
+    { label: "Lendo arquivo .dem", icon: "📂" },
+    { label: "Mapeando rounds e ticks", icon: "🎯" },
+    { label: "Detectando kills do jogador", icon: "💀" },
+    { label: "Calculando scoring (HS, distância, contexto)", icon: "📊" },
+    { label: "Identificando jogadas de impacto", icon: "✨" },
+    { label: "Quase lá...", icon: "⏳" },
+  ];
+  const [stepIdx, setStepIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStepIdx((i) => (i + 1) % STEPS.length);
+    }, 4000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Phase context — substring abaixo do step principal pra não esconder
+  // que estamos em looking_up ou uploading (info útil sem jargão).
+  const phaseHint =
+    phase === "looking_up"
+      ? "Localizando demo no PC..."
+      : phase === "uploading"
+        ? "Enviando pra análise..."
+        : null;
+
+  return (
+    <div className="flex items-center justify-center px-4 py-8 min-h-[60vh]">
+      <div className="w-full max-w-3xl bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header — placeholder avatar (sem playerName conhecido aqui) */}
+        <div className="relative px-6 pt-8 pb-5 bg-gradient-to-br from-[#FF6B35]/[0.10] via-transparent to-[#5D9CEC]/[0.05] border-b border-white/[0.06]">
+          <div className="flex items-center gap-4">
+            <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 border-[#FF6B35]/40 shadow-[0_0_20px_rgba(255,107,53,0.2)] bg-[#FF6B35]/15 flex items-center justify-center text-base font-bold text-[#FF6B35]">
+              ⏳
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#FF6B35]/85 mb-1.5 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-pulse" />
+                Analisando demo
+              </div>
+              <h2 className="text-xl font-bold text-white leading-tight">
+                Processando partida...
+              </h2>
+              <div className="text-xs text-white/50 mt-1.5 font-mono">
+                {elapsedSec}s
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Body — current step + progress */}
+        <div className="px-6 py-5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="inline-block w-4 h-4 border-2 border-[#FF6B35] border-t-transparent rounded-full animate-spin shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-white/90 flex items-center gap-2">
+                <span className="text-base">{STEPS[stepIdx].icon}</span>
+                {STEPS[stepIdx].label}
+              </div>
+              {phaseHint && (
+                <div className="text-[11px] text-white/40 mt-0.5">
+                  {phaseHint}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="h-1 bg-white/[0.04] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-[#FF6B35] via-[#FF8E53] to-[#FF6B35] rounded-full"
+              style={{
+                width: "40%",
+                animation: "indeterminate-line 1.6s ease-in-out infinite",
+              }}
+            />
+          </div>
+
+          <p className="text-[11px] text-white/45 mt-3 leading-relaxed">
+            A IA tá identificando as kills de maior impacto pra montar seu
+            reel. Pode levar até 2 minutos dependendo do tamanho da demo.
+          </p>
+        </div>
+
+        {/* Ad slot — Mathieu spec: "deve ter ad lá pois demora" */}
+        <div className="px-6 py-5 bg-white/[0.01]">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-2 text-center">
+            Patrocinado · enquanto a IA trabalha
+          </div>
+          <div className="flex items-center justify-center">
+            <AdSlot
+              id="reanalyze-ad"
+              size="leaderboard"
+              label="HyperX Cloud III · headset oficial CS2"
+            />
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @keyframes indeterminate-line {
+          0% {
+            transform: translateX(-100%);
+          }
+          50% {
+            transform: translateX(150%);
+          }
+          100% {
+            transform: translateX(350%);
+          }
+        }
+      `}</style>
     </div>
   );
 }
