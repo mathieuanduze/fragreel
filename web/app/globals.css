@@ -99,24 +99,28 @@
    event-pop: markers aparecem com pulse + glow.
    score-float: números +X sobem e fade out (ghost text).
    glow-pulse: container respira lentamente. */
+/* Sprint v5.7.3 (Mathieu spec 08/05): "Faça essa animação na vertical,
+   pra ficar esteticamente melhor". Animation timeline pivot horizontal
+   → vertical: scan sweep agora top→bottom, event-pop entry slides from
+   left, score-float drifts right (não mais up). */
 @keyframes ai-scan-sweep {
-  0%   { left: -10%; opacity: 0; }
+  0%   { top: -10%; opacity: 0; }
   8%   { opacity: 1; }
   92%  { opacity: 1; }
-  100% { left: 100%; opacity: 0; }
+  100% { top: 100%; opacity: 0; }
 }
 @keyframes ai-event-pop {
-  0%   { transform: scale(0.6) translateY(0); opacity: 0; box-shadow: 0 0 0 rgba(255,107,53,0); }
-  20%  { transform: scale(1.15) translateY(-2px); opacity: 1; box-shadow: 0 0 24px rgba(255,107,53,0.7); }
-  35%  { transform: scale(1) translateY(0); opacity: 1; }
-  95%  { transform: scale(1) translateY(0); opacity: 1; }
-  100% { transform: scale(1) translateY(0); opacity: 0.85; }
+  0%   { transform: scale(0.6) translateX(-8px); opacity: 0; box-shadow: 0 0 0 rgba(255,107,53,0); }
+  20%  { transform: scale(1.10) translateX(2px); opacity: 1; box-shadow: 0 0 24px rgba(255,107,53,0.7); }
+  35%  { transform: scale(1) translateX(0); opacity: 1; }
+  95%  { transform: scale(1) translateX(0); opacity: 1; }
+  100% { transform: scale(1) translateX(0); opacity: 0.85; }
 }
 @keyframes ai-score-float {
-  0%   { transform: translateY(8px); opacity: 0; }
-  20%  { transform: translateY(-6px); opacity: 1; }
-  80%  { transform: translateY(-22px); opacity: 1; }
-  100% { transform: translateY(-32px); opacity: 0; }
+  0%   { transform: translateX(-8px); opacity: 0; }
+  20%  { transform: translateX(6px); opacity: 1; }
+  80%  { transform: translateX(22px); opacity: 1; }
+  100% { transform: translateX(32px); opacity: 0; }
 }
 @keyframes ai-glow-pulse {
   0%, 100% { box-shadow: 0 0 0 1px rgba(255,107,53,0.2), 0 0 28px rgba(255,107,53,0.05); }

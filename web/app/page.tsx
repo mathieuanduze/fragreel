@@ -302,63 +302,94 @@ export default async function Home() {
                 <span style={{ fontSize: 10, fontFamily: "var(--font-mono, monospace)", color: "rgba(255,255,255,0.35)" }}>Round 14 · 02:18</span>
               </div>
 
-              {/* Timeline track */}
-              <div style={{ position: "relative", height: 90, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
-                {/* Tick marks */}
+              {/* Timeline track — Sprint v5.7.3 (Mathieu spec):
+                  "Faça essa animação na vertical". Container portrait
+                  320×400, events stacked top→bottom, sweep bar
+                  horizontal moving down, score floats right. */}
+              <div style={{ position: "relative", height: 360, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+                {/* Horizontal tick marks pra dar leitura de timeline vertical */}
                 {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((p) => (
-                  <div key={p} aria-hidden style={{ position: "absolute", top: 0, bottom: 0, left: `${p}%`, width: 1, background: "rgba(255,255,255,0.04)" }} />
+                  <div
+                    key={p}
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: `${p}%`,
+                      height: 1,
+                      background: "rgba(255,255,255,0.04)",
+                    }}
+                  />
                 ))}
 
-                {/* Scan sweep line */}
-                <div aria-hidden style={{
-                  position: "absolute",
-                  top: 0,
-                  bottom: 0,
-                  width: 2,
-                  background: "linear-gradient(180deg, transparent 0%, #FF6B35 30%, #FF6B35 70%, transparent 100%)",
-                  boxShadow: "0 0 16px rgba(255,107,53,0.8)",
-                  animation: "ai-scan-sweep 6s linear infinite",
-                }} />
+                {/* Scan sweep line horizontal — varre top→bottom */}
+                <div
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    background:
+                      "linear-gradient(90deg, transparent 0%, #FF6B35 30%, #FF6B35 70%, transparent 100%)",
+                    boxShadow: "0 0 16px rgba(255,107,53,0.8)",
+                    animation: "ai-scan-sweep 6s linear infinite",
+                  }}
+                />
 
-                {/* Event markers — staggered animation delays simulate "events being detected" */}
+                {/* Event markers — agora stacked verticalmente. Cada evento
+                    fica num row centrado horizontalmente, top: % position
+                    no track. Score float aparece à DIREITA do badge. */}
                 {[
-                  { left: 18, label: "HS", color: "#FF6B35", score: "+8", delay: "0.6s" },
-                  { left: 32, label: "2K", color: "#FF6B35", score: "+15", delay: "1.7s" },
-                  { left: 48, label: "AWP", color: "#fbbf24", score: "+12", delay: "2.6s" },
-                  { left: 64, label: "1v3", color: "#a78bfa", score: "+45", delay: "3.7s" },
-                  { left: 82, label: "DEFUSE", color: "#34d399", score: "+25", delay: "4.8s" },
+                  { top: 14, label: "HS", color: "#FF6B35", score: "+8", delay: "0.6s" },
+                  { top: 28, label: "2K", color: "#FF6B35", score: "+15", delay: "1.7s" },
+                  { top: 44, label: "AWP", color: "#fbbf24", score: "+12", delay: "2.6s" },
+                  { top: 62, label: "1v3", color: "#a78bfa", score: "+45", delay: "3.7s" },
+                  { top: 82, label: "DEFUSE", color: "#34d399", score: "+25", delay: "4.8s" },
                 ].map((ev) => (
-                  <div key={ev.left} style={{ position: "absolute", left: `${ev.left}%`, top: "50%", transform: "translate(-50%, -50%)" }}>
-                    <div style={{
-                      padding: "4px 8px",
-                      background: `${ev.color}22`,
-                      border: `1px solid ${ev.color}`,
-                      borderRadius: 6,
-                      fontSize: 10,
-                      fontWeight: 800,
-                      color: ev.color,
-                      letterSpacing: "0.08em",
-                      whiteSpace: "nowrap",
-                      animation: `ai-event-pop 6s ease-out ${ev.delay} infinite`,
-                      opacity: 0,
-                    }}>
+                  <div
+                    key={ev.top}
+                    style={{
+                      position: "absolute",
+                      top: `${ev.top}%`,
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "5px 12px",
+                        background: `${ev.color}22`,
+                        border: `1px solid ${ev.color}`,
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: ev.color,
+                        letterSpacing: "0.08em",
+                        whiteSpace: "nowrap",
+                        animation: `ai-event-pop 6s ease-out ${ev.delay} infinite`,
+                        opacity: 0,
+                      }}
+                    >
                       {ev.label}
                     </div>
-                    <div style={{
-                      position: "absolute",
-                      top: -10,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      fontSize: 13,
-                      fontWeight: 900,
-                      color: ev.color,
-                      fontFamily: "var(--font-mono, monospace)",
-                      whiteSpace: "nowrap",
-                      animation: `ai-score-float 6s ease-out ${ev.delay} infinite`,
-                      opacity: 0,
-                      pointerEvents: "none",
-                      textShadow: `0 0 12px ${ev.color}`,
-                    }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 900,
+                        color: ev.color,
+                        fontFamily: "var(--font-mono, monospace)",
+                        whiteSpace: "nowrap",
+                        animation: `ai-score-float 6s ease-out ${ev.delay} infinite`,
+                        opacity: 0,
+                        pointerEvents: "none",
+                        textShadow: `0 0 12px ${ev.color}`,
+                      }}
+                    >
                       {ev.score}
                     </div>
                   </div>
