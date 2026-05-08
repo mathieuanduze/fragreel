@@ -402,15 +402,24 @@ export const HighlightScene: React.FC<Props> = ({
           em vertical com blend mood-aware. */}
       {gameplaySrc ? (
         <>
-          {/* Round 11 fix (07/05 noite tardia) — vertical: blurred video
-              background preenche letterbox em vez de gradient mood
-              vazio. Mathieu reportou que letterbox 74% (objectFit:contain
-              com aspect 2.13:1 video em frame 0.56:1) parecia "padding
-              enorme". Solução padrão Instagram Reels / TikTok pra video
-              horizontal forçado em vertical: mesmo video em layer
-              background com blur + dim, sharp video em layer foreground.
-              Letterbox vira "extensão visual" do gameplay em vez de
-              espaço vazio. */}
+          {/* Round 12 fix (07/05 noite tardia) — vertical: middle-ground
+              entre cover full ("só ponta do cano") e contain pure
+              ("padding enorme 74%"). Mathieu spec: "podemos achar uma
+              versão mais preenchida... gostei de deixar com blur no
+              background pra preencher o pouco padding".
+
+              Solução: container foreground limitado em altura (80% do
+              frame) com objectFit:cover dentro dele. Math:
+              - Container 1080 × 1536 (80% de 1920)
+              - Video cover scale = max(1080/1280, 1536/600) = 2.56
+              - Visible: full altura do container + crop lateral ~33%
+              - Letterbox 384px total (12% top + 12% bottom, ~10% cada)
+              Letterbox pequeno é preenchido pelo blur do background.
+
+              Trade vs contain: 0% lateral crop → 33% lateral crop, mas
+              letterbox 74% → 20%. Crop lateral mostra middle ~67% da
+              largura do CS2 — bem mais que o "cano só" do cover full
+              (26%) e mais útil que "tudo letterboxed". */}
           {!isHorizontal && (
             <AbsoluteFill style={{ overflow: "hidden" }}>
               <OffthreadVideo
@@ -437,20 +446,54 @@ export const HighlightScene: React.FC<Props> = ({
               />
             </AbsoluteFill>
           )}
-          <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
-            <OffthreadVideo
-              src={gameplaySrc}
-              playbackRate={gameplayRate}
-              startFrom={Math.round(sceneSkipSec * FPS)}
-              volume={0.85}
+          {isHorizontal ? (
+            <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
+              <OffthreadVideo
+                src={gameplaySrc}
+                playbackRate={gameplayRate}
+                startFrom={Math.round(sceneSkipSec * FPS)}
+                volume={0.85}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                }}
+              />
+            </AbsoluteFill>
+          ) : (
+            // Vertical: container 80% altura centered, cover dentro dele
+            <AbsoluteFill
               style={{
-                width: "100%",
-                height: "100%",
-                objectFit: isHorizontal ? "cover" : "contain",
-                objectPosition: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transform: `scale(${zoom})`,
               }}
-            />
-          </AbsoluteFill>
+            >
+              <div
+                style={{
+                  width: "100%",
+                  height: "80%",
+                  overflow: "hidden",
+                  position: "relative",
+                }}
+              >
+                <OffthreadVideo
+                  src={gameplaySrc}
+                  playbackRate={gameplayRate}
+                  startFrom={Math.round(sceneSkipSec * FPS)}
+                  volume={0.85}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                  }}
+                />
+              </div>
+            </AbsoluteFill>
+          )}
         </>
       ) : (
         <AbsoluteFill
