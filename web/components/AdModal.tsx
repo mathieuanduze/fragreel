@@ -364,21 +364,22 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
     ? localOutputPath.replace(/[\\/][^\\/]+$/, "")
     : null;
 
-  // Sprint v5.7 — fire onRenderComplete UMA vez quando render local
-  // termina com sucesso. Guarded contra re-fires via ref (state-based
-  // useEffect deps faria re-fire se setRecentRender atualizasse o
-  // localStatus indireto). MatchClient usa pra setRecentRender (Meus
-  // FragReels) + clearEditDraft.
+  // Sprint v5.7.4 (Mathieu 08/05 round 2): "Continua sem ir pros meus
+  // fragreels". Lowered threshold: dispara onRenderComplete UMA VEZ
+  // quando state="done", path opcional. Antes exigia localOutputPath
+  // truthy → se localStatus chegava em "done" antes de path popular,
+  // hook nunca firava. Agora: passa path = "" se ausente, MatchClient
+  // grava entry parcial (sem "Abrir vídeo" mas aparece em Meus
+  // FragReels).
   const completeFiredRef = useRef(false);
   useEffect(() => {
     if (
       !completeFiredRef.current &&
       localStatus?.state === "done" &&
-      localOutputPath &&
       onRenderComplete
     ) {
       completeFiredRef.current = true;
-      onRenderComplete(localOutputPath);
+      onRenderComplete(localOutputPath || "");
     }
   }, [localStatus?.state, localOutputPath, onRenderComplete]);
 

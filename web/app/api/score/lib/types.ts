@@ -31,6 +31,11 @@ export interface KillEvent {
   attackerinair?: boolean;
   distance?: number | null;
   attacker_health?: number | null;
+  // Sprint v5.7.4 (Mathieu 08/05): nomes diretos do event row pra
+  // bypassar roster lookup. Editor killfeed usa victim_name em vez de
+  // fallback genérico "INIMIGO".
+  attacker_name?: string | null;
+  victim_name?: string | null;
 }
 
 export interface BombEvent {

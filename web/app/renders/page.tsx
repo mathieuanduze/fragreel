@@ -173,14 +173,18 @@ export default function MeusFragReelsPage() {
             {render.mp4Path}
           </div>
 
-          {/* Actions */}
+          {/* Actions — "Abrir vídeo" só renderiza se mp4Path foi
+              capturado (Sprint v5.7.4 — render pode concluir sem path
+              imediato em alguns paths assíncronos). */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Button onClick={handleOpen} disabled={opening}>
-              <FolderOpen size={14} />
-              {opening ? "Abrindo..." : "Abrir vídeo"}
-            </Button>
+            {render.mp4Path && (
+              <Button onClick={handleOpen} disabled={opening}>
+                <FolderOpen size={14} />
+                {opening ? "Abrindo..." : "Abrir vídeo"}
+              </Button>
+            )}
             <Button
-              variant="outline"
+              variant={render.mp4Path ? "outline" : "default"}
               size="sm"
               onClick={() => router.push(`/match/${render.matchId}`)}
             >

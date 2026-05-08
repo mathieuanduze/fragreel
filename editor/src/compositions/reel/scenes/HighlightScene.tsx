@@ -1485,17 +1485,10 @@ export const HighlightScene: React.FC<Props> = ({
                   </div>
                 );
               })()}
-              <span
-                style={{
-                  color: theme.textDim,
-                  fontSize: isHorizontal ? 13 : 16,
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  fontFamily: theme.fontMono,
-                }}
-              >
-                #{i + 1}
-              </span>
+              {/* Sprint v5.7.4 (Mathieu spec 08/05): "Tem também um #1, #2,...
+                  que não precisa aparecer". Removido rank badge do killfeed —
+                  era informação editorial FragReel-specific que poluia o
+                  visual CS2 vanilla. */}
               {k.headshot && (() => {
                 // Sprint Killfeed Icons (07/05 round 5) — paridade com weapon
                 // icon: SVG-only OU badge-only, nunca dual-layer. Print do

@@ -392,7 +392,16 @@ function _scoreRound(
       // kill_tick sempre emitidos (null se not available).
       pov_eligible: false,
       victim_steamid: kill.victim_steamid || null,
-      victim_name: (roster && kill.victim_steamid && roster[kill.victim_steamid]) || null,
+      // Sprint v5.7.4 (Mathieu 08/05): tier fallback pro victim_name —
+      //   1. kill.victim_name DIRETO do event row (parser captures
+      //      user_name field do demoparser2 player_death)
+      //   2. Roster lookup via victim_steamid (legacy / fallback)
+      //   3. null → editor mostra "Inimigo" generic
+      // Tier 1 evita "INIMIGO" quando demo tem player_info empty.
+      victim_name:
+        kill.victim_name ||
+        (roster && kill.victim_steamid && roster[kill.victim_steamid]) ||
+        null,
       kill_tick: kill.tick ?? null,
       // Round 8 (07/05) — distance pra filtro pov_eligible
       distance: kill.distance ?? null,
