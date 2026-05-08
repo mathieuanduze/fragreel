@@ -125,6 +125,54 @@ export default async function Home() {
           <div style={{ marginBottom: 4 }} />
 
           <HeroCTA versionSuffix={versionSuffix} />
+
+          {/* Sprint v5.7.6 (Mathieu spec 08/05): "faça uma flecha
+              mostrando que tem conteúdo abaixo do hero". Scroll indicator
+              animado abaixo do CTA — texto sutil + chevron com bounce
+              gentle. Anchor #demo permite click pra scroll suave. */}
+          <a
+            href="#demo"
+            aria-label="Ver demo abaixo"
+            style={{
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 64,
+              color: "rgba(255,255,255,0.30)",
+              textDecoration: "none",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              transition: "color 0.2s ease",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "rgba(255,107,53,0.85)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "rgba(255,255,255,0.30)";
+            }}
+          >
+            <span>Ver como funciona</span>
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+              style={{
+                animation: "fragreel-scroll-bounce 2s ease-in-out infinite",
+              }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </a>
         </div>
       </section>
 
@@ -133,7 +181,7 @@ export default async function Home() {
             trocar por <video autoPlay muted loop playsInline> + <source src="<R2 url>" />)
           Right: features grid + map pool inline
           Mobile: collapse via grid auto-fit minmax 320px. */}
-      <section style={{ padding: "20px 24px 60px", maxWidth: 1100, margin: "0 auto" }}>
+      <section id="demo" style={{ padding: "20px 24px 60px", maxWidth: 1100, margin: "0 auto", scrollMarginTop: 80 }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",

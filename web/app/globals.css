@@ -127,6 +127,14 @@
   50%      { box-shadow: 0 0 0 1px rgba(255,107,53,0.45), 0 0 48px rgba(255,107,53,0.18); }
 }
 
+/* Sprint v5.7.6 (Mathieu spec): scroll indicator chevron bounces gently
+   pra sinalizar "tem conteúdo abaixo". 8px translate + cubic-bezier
+   easing pra movimento orgânico (não linear robótico). */
+@keyframes fragreel-scroll-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50%      { transform: translateY(8px); opacity: 1; }
+}
+
 /* Hero H1 — 06/05 round 3 (Mathieu spec): "Faça com que o título do hero
    sempre apareça em 3 linhas, faça isso só no desktop, no mobile não
    precisa". Mobile-first: linhas wrap natural se precisarem. Desktop
