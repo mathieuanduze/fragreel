@@ -822,10 +822,20 @@ function OfflineState({ onRetry }: { onRetry: () => void }) {
         <AlertCircle size={26} className="text-orange-400" />
       </div>
       <h2 className="text-lg font-semibold mb-1.5">Client FragReel não detectado</h2>
-      <p className="text-sm text-white/55 max-w-md mx-auto mb-5">
+      <p className="text-sm text-white/55 max-w-md mx-auto mb-3">
         Pra ver suas demos, abra o FragReel no seu PC. Ele lê os .dem do CS2
         localmente — nada é enviado pra servidor sem confirmação.
       </p>
+      {/* Sprint v5.7.11 (Mathieu spec): "deixe claro que o fragreel só
+          funciona em PC Windows com CS instalado". Note explícito antes
+          do CTA pra não deixar Mac/Linux user perdido. */}
+      <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-400/85 bg-amber-500/[0.06] border border-amber-500/20 rounded-md px-2.5 py-1 mb-5">
+        <span>🪟</span>
+        <span>
+          Requer <strong className="text-amber-400">Windows 10/11</strong> +
+          CS2 instalado
+        </span>
+      </div>
       <div className="flex items-center justify-center gap-2 flex-wrap">
         <DownloadButton className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md text-sm font-medium bg-[#FF6B35] text-white hover:bg-[#FF6B35]/90 transition-colors shadow-[0_4px_14px_rgba(255,107,53,0.25)]">
           <Download size={14} />

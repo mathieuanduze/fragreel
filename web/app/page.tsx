@@ -142,13 +142,35 @@ export default async function Home() {
           </p>
 
           {/* Sprint v5.7 (Mathieu 08/05/2026): "Render roda no seu
-              Windows" + 4 stats chips (1v3 CLUTCH, DEFUSE, PLANT WON,
-              ACE) removidos — "polui muito". Hero foca em: badge CS2,
-              H1, descrição, CTA primary. STATS const mantida pq pode
-              ser reusada em /pricing ou /how-it-works no futuro. */}
+              Windows" + 4 stats chips removidos — "polui muito". */}
           <div style={{ marginBottom: 4 }} />
 
           <HeroCTA versionSuffix={versionSuffix} />
+
+          {/* Sprint v5.7.11 (Mathieu 08/05): "deixe claro que o fragreel
+              só funciona em PC Windows com CS instalado". Note pequeno
+              abaixo do CTA — não compete com headline/CTA mas é honesto
+              upfront pra evitar usuário Mac/Linux baixar e descobrir. */}
+          <div
+            style={{
+              marginTop: 18,
+              fontSize: 12,
+              color: "rgba(255,255,255,0.40)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            <span style={{ fontSize: 13 }}>🪟</span>
+            <span>
+              <strong style={{ color: "rgba(255,255,255,0.65)" }}>
+                Só roda em PC Windows 10/11
+              </strong>{" "}
+              com CS2 instalado · Mac/Linux não suportado
+            </span>
+          </div>
 
           {/* Sprint v5.7.6 (Mathieu spec 08/05): "faça uma flecha
               mostrando que tem conteúdo abaixo do hero". Scroll indicator
@@ -558,8 +580,9 @@ export default async function Home() {
           flow real DEMO-3 v5 (login → demo → player → personalize →
           render → share). Visual: timeline vertical com gradient laranja→
           azul, ícones SVG inline, highlight stat por step. */}
-      <section style={{ padding: "80px 24px", position: "relative" }}>
-        {/* Ambient glow background */}
+      <section style={{ padding: "80px 24px", position: "relative", overflow: "hidden" }}>
+        {/* Ambient glow background — circle 800px pode ovrflow no mobile,
+            section overflow:hidden contém. Sprint v5.7.11 mobile fix. */}
         <div
           aria-hidden
           style={{

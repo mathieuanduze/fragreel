@@ -172,12 +172,24 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    /* Sprint v5.7.11 (Mathieu 08/05): "no mobile a LP não está
+       otimizada, está com scroll lateral". Defesa contra elementos
+       absolutos que extrapolem viewport (ex: ambient glows 700-900px
+       em sections sem overflow:hidden). overflow-x: hidden no html
+       garante que nenhuma section pode causar scroll horizontal —
+       cobre casos onde overflow:hidden esquecido em section
+       específica. */
+    overflow-x: hidden;
+  }
   body {
     background-color: #0D0D1A;
     color: #E8E8F0;
     font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: #1A1A2E; }
