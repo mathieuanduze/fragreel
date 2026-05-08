@@ -109,15 +109,20 @@ export const HudV2: React.FC<HudV2Props> = ({
   const bottomCenter = (
     <div style={{
       position: "absolute",
-      // Mathieu spec round 4 (06/05): "tem bastante espaço na parte de
-      // baixo onde está o nome do player e o watermark, pode puxar isso
-      // mais pra baixo". Antes bottom 240 (vertical) deixava ~150-200px
-      // empty acima da TikTok safe area. Agora bottom 130 = stack quase
-      // colado no bottom edge, mantém ~120px clearance pra TikTok action
-      // bar quando reel for postado lá (controls tipicamente ~150px
-      // bottom). Trade-off conservador: postado em TikTok, action bar
-      // pode tocar ligeiramente o stack — Mathieu monitora se acontecer.
-      bottom: isHorizontal ? 50 : 130,
+      // Sprint v5.2 (08/05/2026 Mathieu spec):
+      //   "tag do jogador e do fragreel, estão em cima da gameplay,
+      //    sendo que tem um espaço embaixo do letterboxed vídeo".
+      //
+      // Vertical letterbox: gameplay ocupa 80% (1536px), letterbox
+      // bottom é os 192px abaixo (10% de 1920). Antes bottom=130 caía
+      // 62px DENTRO da gameplay area. Agora bottom=35 cai centralizado
+      // no letterbox 192px (player+watermark stack ~130px alto, fica
+      // (192-130)/2 = 31 do bottom + safe).
+      //
+      // Horizontal: sem letterbox real (16:9 nativo). Tag fica no
+      // bottom: 50 sobre gameplay mesmo — trade aceito (horizontal não
+      // tem letterbox onde colocar).
+      bottom: isHorizontal ? 50 : 35,
       left: "50%",
       transform: `translateX(-50%) translateY(${(1 - entrance) * 20}px)`,
       opacity: entrance,

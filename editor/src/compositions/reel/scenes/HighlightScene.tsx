@@ -422,6 +422,12 @@ export const HighlightScene: React.FC<Props> = ({
               (26%) e mais útil que "tudo letterboxed". */}
           {!isHorizontal && (
             <AbsoluteFill style={{ overflow: "hidden" }}>
+              {/* Sprint v5.2 (08/05 Mathieu): "fundo preto é muito ruim. Não
+                  está vindo o background do mesmo vídeo em blur". Bumpada
+                  brightness 0.42 → 0.65 + saturação 0.85 → 1.0 + reduced
+                  blur 48 → 32px. Ficou demasiado escurecido — em CS2 maps
+                  de tons escuros (Inferno noite, Nuke), brightness 0.42
+                  matava o blur visualmente até virar preto puro. */}
               <OffthreadVideo
                 src={gameplaySrc}
                 playbackRate={gameplayRate}
@@ -434,14 +440,15 @@ export const HighlightScene: React.FC<Props> = ({
                   marginTop: "-10%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  filter: "blur(48px) brightness(0.42) saturate(0.85)",
+                  filter: "blur(32px) brightness(0.65) saturate(1.0)",
                 }}
               />
-              {/* Subtle vignette por cima do blur pra dar foco no centro */}
+              {/* Subtle vignette por cima do blur pra dar foco no centro.
+                  Reduzido também — vignette 0.45 era forte demais. */}
               <AbsoluteFill
                 style={{
                   background:
-                    "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.45) 90%)",
+                    "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.30) 95%)",
                 }}
               />
             </AbsoluteFill>
@@ -697,80 +704,18 @@ export const HighlightScene: React.FC<Props> = ({
             (c) LABEL POPUP center: texto "NO SCOPE", "WALLBANG", etc com
                 scale+fade entrance, persistente ~700ms, fade out.
           Kills sem style: NADA renderizado (anti-fadiga). */}
-      {activeStyle && vignetteIntensity > 0.01 && (
-        <AbsoluteFill
-          style={{
-            background: `radial-gradient(ellipse at center, transparent 30%, ${activeStyle.color}88 90%)`,
-            opacity: vignetteIntensity,
-            pointerEvents: "none",
-            mixBlendMode: "multiply",
-          }}
-        />
-      )}
-      {activeStyle && borderIntensity > 0.01 && (
-        <AbsoluteFill style={{ pointerEvents: "none", opacity: borderIntensity }}>
-          {/* 4 corner brackets — top-left, top-right, bottom-left, bottom-right */}
-          {[
-            { top: 24, left: 24, borderTop: 4, borderLeft: 4 },
-            { top: 24, right: 24, borderTop: 4, borderRight: 4 },
-            { bottom: 24, left: 24, borderBottom: 4, borderLeft: 4 },
-            { bottom: 24, right: 24, borderBottom: 4, borderRight: 4 },
-          ].map((pos, i) => {
-            const { borderTop, borderLeft, borderRight, borderBottom, ...positioning } = pos;
-            return (
-              <div
-                key={i}
-                style={{
-                  position: "absolute",
-                  ...positioning,
-                  width: 80,
-                  height: 80,
-                  borderColor: activeStyle.color,
-                  borderStyle: "solid",
-                  borderWidth: 0,
-                  borderTopWidth: borderTop ?? 0,
-                  borderLeftWidth: borderLeft ?? 0,
-                  borderRightWidth: borderRight ?? 0,
-                  borderBottomWidth: borderBottom ?? 0,
-                  boxShadow: `0 0 24px ${activeStyle.color}`,
-                }}
-              />
-            );
-          })}
-        </AbsoluteFill>
-      )}
-      {activeStyle && labelOpacity > 0.01 && (
-        <AbsoluteFill
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              transform: `scale(${labelScale})`,
-              opacity: labelOpacity,
-              padding: "14px 32px",
-              background: "rgba(0,0,0,0.65)",
-              backdropFilter: "blur(6px)",
-              border: `2px solid ${activeStyle.color}`,
-              borderRadius: 12,
-              fontSize: isHorizontal ? 42 : 56,
-              fontWeight: 900,
-              letterSpacing: "0.18em",
-              color: activeStyle.color,
-              fontFamily: theme.fontDisplay,
-              textShadow: `0 0 24px ${activeStyle.color}, 0 4px 12px rgba(0,0,0,0.8)`,
-              boxShadow: `0 0 40px ${activeStyle.color}80, 0 8px 24px rgba(0,0,0,0.6)`,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {activeStyle.label}
-          </div>
-        </AbsoluteFill>
-      )}
+      {/* Sprint v5.2 (08/05/2026 Mathieu spec): "Apareceu, do nada no
+          vídeo wallbang pra valorizar um varado. Nunca pedi isso, não
+          coloque essas tags". Removidos os 3 layers de styled-kill
+          effects (vignette tint, corner brackets, label popup). Estavam
+          sobrepondo gameplay com texto editorial NO SCOPE / WALLBANG /
+          BACKSTAB / etc — que o user nunca pediu.
+
+          activeStyle ainda é computed acima pois pode ser reusado em
+          futuras features (slow-mo cinematic, etc), mas o RENDER tá
+          desabilitado. Pra reativar (com user opt-in explícito), basta
+          re-introduzir o block aqui. Histórico no git: ver commit
+          imediatamente anterior a este. */}
 
       {/* Sprint #6.5 round 6 (07/05 noite tardia) — POV cut: efeito visual
           cinematográfico + label REPLAY.
