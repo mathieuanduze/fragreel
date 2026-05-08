@@ -64,19 +64,11 @@ const steps = [
   },
   {
     num: "05",
-    title: "Render no seu PC",
-    desc: "~15-20min usando HLAE + ffmpeg + Remotion no seu Windows. 1 anúncio de 30s sustenta o site grátis. Tudo local — vídeo NUNCA sai do seu PC.",
-    accent: "#7FB3FF",
-    iconPath: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4",
-    highlight: "Privacy-first · render local",
-  },
-  {
-    num: "06",
-    title: "Compartilha",
-    desc: "MP4 final pronto na sua área de trabalho (~30-40 MB). Posta direto no TikTok/Reels/Shorts/YouTube. Histórico em \"Meus FragReels\" pra re-gerar variações.",
+    title: "MP4 pronto",
+    desc: "~15-20min usando HLAE + ffmpeg + Remotion no seu Windows. 1 ad de 30s sustenta o grátis. Tudo local — vídeo NUNCA sai do seu PC. Final fica na sua área de trabalho (~30-40 MB).",
     accent: "#5D9CEC",
-    iconPath: "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8 M16 6l-4-4-4 4 M12 2v13",
-    highlight: "Vertical · horizontal · 30-40 MB",
+    iconPath: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4",
+    highlight: "Render local · privacy-first",
   },
 ];
 
@@ -615,7 +607,7 @@ export default async function Home() {
               }}
             >
               Do .dem ao reel viral em{" "}
-              <span style={{ color: "#FF6B35" }}>6 passos</span>.
+              <span style={{ color: "#FF6B35" }}>5 passos</span>.
             </h2>
             <p
               style={{
@@ -627,26 +619,33 @@ export default async function Home() {
               }}
             >
               Pipeline completo: login Steam → escolha partida → seleciona
-              player → personaliza → render local → MP4 pronto.
+              player → personaliza → MP4 pronto.
             </p>
           </div>
 
           {/* Timeline vertical com gradient line connecting steps */}
           <div style={{ position: "relative" }}>
-            {/* Vertical gradient connector line — visible only on md+ */}
+            {/* Vertical gradient connector line — Sprint v5.7.10 (Mathieu
+                spec): "veja no print que a linha ficou na frente dos
+                ícones". Adicionado zIndex 0 + bumped left -1px pra
+                centralizar atrás dos medallions (que ganham zIndex 1).
+                Linha agora atrás, medallions à frente. Reduzido bottom
+                spread agora que são 5 steps (linha não passa do último
+                medallion). */}
             <div
               aria-hidden
               className="howto-connector"
               style={{
                 position: "absolute",
-                left: 36,
+                left: 35,
                 top: 36,
                 bottom: 36,
                 width: 2,
                 background:
-                  "linear-gradient(180deg, #FF6B35 0%, #FF8A4C 25%, #FFA060 45%, #9DC4FF 65%, #7FB3FF 85%, #5D9CEC 100%)",
-                opacity: 0.35,
+                  "linear-gradient(180deg, #FF6B35 0%, #FF8A4C 22%, #FFA060 42%, #9DC4FF 65%, #5D9CEC 100%)",
+                opacity: 0.30,
                 borderRadius: 2,
+                zIndex: 0,
               }}
             />
 
