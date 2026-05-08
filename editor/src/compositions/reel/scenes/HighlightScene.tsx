@@ -422,12 +422,26 @@ export const HighlightScene: React.FC<Props> = ({
               (26%) e mais útil que "tudo letterboxed". */}
           {!isHorizontal && (
             <AbsoluteFill style={{ overflow: "hidden" }}>
-              {/* Sprint v5.2 (08/05 Mathieu): "fundo preto é muito ruim. Não
-                  está vindo o background do mesmo vídeo em blur". Bumpada
-                  brightness 0.42 → 0.65 + saturação 0.85 → 1.0 + reduced
-                  blur 48 → 32px. Ficou demasiado escurecido — em CS2 maps
-                  de tons escuros (Inferno noite, Nuke), brightness 0.42
-                  matava o blur visualmente até virar preto puro. */}
+              {/* Sprint v5.3 (08/05 Mathieu round 2):
+                  "O mesmo vídeo da demo no background, só que passando em
+                   resolução 100% da tela, com um blur alto"
+
+                  O VIDEO está aqui — mesmo gameplaySrc do foreground,
+                  em full frame coverage, com blur alto. Não é cor sólida.
+
+                  Iterações:
+                    v0.6.48: blur 48 / brightness 0.42 → preto demais, Mathieu
+                              reportou "fundo preto"
+                    v0.6.49: blur 32 / brightness 0.65 → mais visível, mas em
+                              maps escuros (Inferno noite) ainda escurece
+                    v0.6.50 (atual): blur 28 / brightness 0.85 / saturate 1.1
+                                     vignette quase zerada. Background mantém
+                                     visibilidade do gameplay original mesmo
+                                     em maps escuros, blur alto separa
+                                     visualmente do foreground sharp.
+
+                  Layer ordering: este AbsoluteFill é PRIMEIRO no JSX → renderiza
+                  ANTES do foreground → fica ATRÁS na stacking order. */}
               <OffthreadVideo
                 src={gameplaySrc}
                 playbackRate={gameplayRate}
@@ -440,15 +454,15 @@ export const HighlightScene: React.FC<Props> = ({
                   marginTop: "-10%",
                   objectFit: "cover",
                   objectPosition: "center",
-                  filter: "blur(32px) brightness(0.65) saturate(1.0)",
+                  filter: "blur(28px) brightness(0.85) saturate(1.1)",
                 }}
               />
-              {/* Subtle vignette por cima do blur pra dar foco no centro.
-                  Reduzido também — vignette 0.45 era forte demais. */}
+              {/* Vignette quase zerada — só pra suavizar bordas em telas
+                  grandes. Não deve escurecer significantly. */}
               <AbsoluteFill
                 style={{
                   background:
-                    "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.30) 95%)",
+                    "radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.18) 100%)",
                 }}
               />
             </AbsoluteFill>
