@@ -53,6 +53,7 @@ import {
   type DemoRosterPlayer,
   type DemoRosterResponse,
 } from "@/lib/local";
+import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import { getUser, type SessionUser } from "@/lib/session";
 
 type Status =
@@ -117,6 +118,8 @@ export default function MinhasDemosClient() {
   const [scanning, setScanning] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const clientVersion = useClientVersionStatus();
+  const lastLocalVersionRef = useRef<string | null>(null);
 
   useEffect(() => {
     setUser(getUser());
@@ -212,6 +215,25 @@ export default function MinhasDemosClient() {
       clearInterval(id);
     };
   }, [status, load]);
+
+  // Sprint v5.7.8 (Mathieu spec 08/05/2026): "Quando instala o client
+  // novo e ele atualiza, nao da um autorefresh nas demos e vem a mensagem
+  // demo_not_found. Quando atualizo manual, fica tudo certo, mas deveria
+  // ser automatico."
+  //
+  // Detecta transição de versão do client local (auto-update completou)
+  // e força refresh=true do scanner pra invalidar cache stale de SHAs
+  // pre-update. Espelha behavior do LibraryContent (sprint v0.2.11).
+  useEffect(() => {
+    const prev = lastLocalVersionRef.current;
+    const curr = clientVersion.local;
+    // Só reaja a mudança real prev→curr com curr definido. Ignora
+    // primeiro tick (prev null + curr null = boot).
+    if (curr && prev && prev !== curr) {
+      void load(true);
+    }
+    lastLocalVersionRef.current = curr;
+  }, [clientVersion.local, load]);
 
   // Sprint v5.1 (Mathieu spec): "não acho que faça sentido a tag analisada
   // e pendente, ali faz sentido aquela informação de vencimento da demo".
