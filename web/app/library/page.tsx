@@ -1,81 +1,90 @@
-import Nav from "@/components/Nav";
-import LibraryContent from "@/components/LibraryContent";
-import AdSlot from "@/components/AdSlot";
+"use client";
 
-export const metadata = { title: "Minhas Demos · FragReel" };
+/**
+ * /library — "Demos Analisadas" (Sprint DEMO-3 v3, 08/05/2026).
+ *
+ * Renomeada de "Demos locais" pra "Demos Analisadas" — Mathieu spec:
+ * "uma sessão com as demos que já foram analisadas — ele vê os jogos
+ * que já passaram pela IA, ranking das kills com fotos dos players,
+ * clica na foto e aparecem as kills de impacto, escolhe player + cenas
+ * + features".
+ *
+ * Esta page lista as demos. O fluxo rico (player roster com fotos,
+ * filtragem de kills por player) já vive em /demo/[sha]/DemoRosterClient
+ * → /match/[id]/MatchClient (com KILL POV badge tooltip + cenas + mood
+ * + HUD bomb timer + cinematic toggles). Não duplicar aqui.
+ *
+ * Migra de Nav top-bar pra AppShell sidebar (mata as abas redundantes).
+ */
+
+import AppShell from "@/components/AppShell";
+import LibraryContent from "@/components/LibraryContent";
 
 export default function Library() {
   return (
-    <div style={{ minHeight: "100vh", background: "#0D0D1A", color: "#E8E8F0" }}>
-      <Nav />
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "96px 24px 48px" }}>
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 6 }}>
-            Demos disponíveis
-          </h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", maxWidth: 720, lineHeight: 1.6, marginBottom: 18 }}>
-            Suas partidas do CS2 + qualquer .dem que você baixou. Selecione uma demo,
-            escolha o player que vai protagonizar o reel, e a IA detecta os melhores
-            momentos.
-          </p>
-
-          {/* Sprint #7 (05/05) — clarifica 2 fontes de demos. Source-agnostic UX:
-              tudo aparece numa lista só, badges no card mostram origem. */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 10,
-            marginBottom: 12,
-          }}>
-            <div style={{
-              padding: "12px 14px",
-              background: "#13131f",
-              border: "1px solid #2D2D44",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}>
-              <span style={{ fontSize: 18 }}>✓</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#4CAF82", marginBottom: 2 }}>Automático</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>
-                  Suas partidas CS2 ficam em <code style={{ color: "#FF6B35", fontSize: 10 }}>csgo/replays/</code> — detectadas automaticamente
-                </div>
-              </div>
+    <AppShell
+      title="Demos Analisadas"
+      subtitle="Suas partidas + demos importadas, prontas pra virar reel"
+    >
+      {/* Sprint #7 (05/05) — clarifica 2 fontes (auto / manual). Mantida
+          em 2 cards compactos. AdSlot removido pra ficar mais sóbrio
+          (Mathieu DEMO-3 v3 spec — paleta reduzida). */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-5">
+        <div className="rounded-lg border border-white/10 bg-white/[0.025] px-3.5 py-3 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-md bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm font-bold">
+            ✓
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400/90 mb-0.5">
+              Automático
             </div>
-            <div style={{
-              padding: "12px 14px",
-              background: "#13131f",
-              border: "1px solid #2D2D44",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}>
-              <span style={{ fontSize: 18 }}>⬇</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa", marginBottom: 2 }}>Manual</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.45 }}>
-                  Demos de pro players: download de <a href="https://www.hltv.org/results" target="_blank" rel="noopener" style={{ color: "#FF6B35" }}>HLTV</a> ou <a href="https://csgostats.gg/" target="_blank" rel="noopener" style={{ color: "#FF6B35" }}>CSGOStats</a> e drop em <code style={{ color: "#FF6B35", fontSize: 10 }}>replays/</code>
-                </div>
-              </div>
+            <div className="text-[11px] text-white/55 leading-snug">
+              Partidas CS2 em{" "}
+              <code className="text-[#FF6B35] text-[10px] font-mono">
+                csgo/replays/
+              </code>{" "}
+              — detectadas pelo client
             </div>
           </div>
         </div>
 
-        {/* Ad — leaderboard topo */}
-        <div style={{ marginBottom: 28 }}>
-          <AdSlot id="library-leaderboard" size="leaderboard" label="HyperX · Headsets oficiais CS2" />
-        </div>
-
-        <LibraryContent />
-
-        {/* Ad — native rodapé */}
-        <div style={{ marginTop: 32 }}>
-          <AdSlot id="library-native" size="native" label="Patrocinado · Logitech G Pro X Superlight" />
+        <div className="rounded-lg border border-white/10 bg-white/[0.025] px-3.5 py-3 flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-md bg-violet-500/15 border border-violet-500/20 flex items-center justify-center text-violet-400 text-sm font-bold">
+            ⬇
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-violet-400/90 mb-0.5">
+              Manual
+            </div>
+            <div className="text-[11px] text-white/55 leading-snug">
+              Demos pro players:{" "}
+              <a
+                href="https://www.hltv.org/results"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#FF6B35] hover:underline"
+              >
+                HLTV
+              </a>{" "}
+              ou{" "}
+              <a
+                href="https://csgostats.gg/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#FF6B35] hover:underline"
+              >
+                CSGOStats
+              </a>{" "}
+              → drop em{" "}
+              <code className="text-[#FF6B35] text-[10px] font-mono">
+                replays/
+              </code>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      <LibraryContent />
+    </AppShell>
   );
 }

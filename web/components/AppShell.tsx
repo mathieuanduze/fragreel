@@ -35,6 +35,8 @@ import {
   LogOut,
   Download,
   Zap,
+  UploadCloud,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -50,9 +52,15 @@ type NavItem = {
   badge?: string;
 };
 
+// Sprint DEMO-3 v3 (08/05/2026 Mathieu spec):
+// "no sidebar pode ter Match History, Upload demo (pra demo externa), e
+// uma sessão com as demos que já foram analisadas — onde ele vê o ranking
+// das kills com fotos dos players e seleciona". Substitui as abas top
+// "Match History | Minhas Demos" da Nav.tsx (que morre em pages logadas).
 const NAV_PRIMARY: NavItem[] = [
-  { href: "/matches",  label: "Match History", icon: Trophy },
-  { href: "/library",  label: "Demos locais",  icon: FolderClock },
+  { href: "/matches",  label: "Match History",   icon: Trophy },
+  { href: "/upload",   label: "Upload Demo",     icon: UploadCloud },
+  { href: "/library",  label: "Demos Analisadas", icon: Sparkles },
 ];
 
 const NAV_SECONDARY: NavItem[] = [
