@@ -33,7 +33,7 @@ function AuthCallbackInner() {
     }
 
     setToken(token);
-    router.replace("/library");
+    router.replace("/matches");
   }, [searchParams, router]);
 
   return (

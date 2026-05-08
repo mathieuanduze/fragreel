@@ -293,7 +293,7 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
 
         {!isWorking && phase !== "done" && (
           <Link
-            href="/library"
+            href="/matches"
             style={{
               display: "inline-block",
               padding: "12px 24px",

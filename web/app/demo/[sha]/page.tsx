@@ -30,7 +30,7 @@ export default async function DemoPage({ params }: Props) {
       <section style={{ paddingTop: 90, paddingBottom: 60, paddingLeft: 24, paddingRight: 24 }}>
         <div style={{ maxWidth: 920, margin: "0 auto" }}>
           <Link
-            href="/library"
+            href="/matches"
             style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
           >
             ← Voltar pras demos

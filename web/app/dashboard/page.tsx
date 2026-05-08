@@ -16,5 +16,5 @@ import { redirect } from "next/navigation";
  * 6 meses), podemos deletar o route inteiro.
  */
 export default function DashboardRedirect() {
-  redirect("/library");
+  redirect("/matches");
 }

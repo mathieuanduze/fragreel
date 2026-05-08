@@ -757,7 +757,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
 
         {/* Breadcrumb */}
         <div style={{ marginBottom: 28, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
-          <Link href="/library" style={{ color: "inherit", textDecoration: "none" }}>Demos Analisadas</Link>
+          <Link href="/matches" style={{ color: "inherit", textDecoration: "none" }}>Minhas Demos</Link>
           {" / "}
           <span style={{ color: "rgba(255,255,255,0.7)" }}>{match.map} · {match.date}</span>
         </div>

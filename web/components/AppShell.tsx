@@ -37,6 +37,8 @@ import {
   Zap,
   UploadCloud,
   Sparkles,
+  Bug,
+  Film,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -45,6 +47,7 @@ import { getUser, logout, type SessionUser } from "@/lib/session";
 import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import ClientStatusChip from "./ClientStatusChip";
 import InstallingClientBanner from "./InstallingClientBanner";
+import { getRecentRender } from "@/lib/recentRender";
 
 type NavItem = {
   href: string;
@@ -53,19 +56,23 @@ type NavItem = {
   badge?: string;
 };
 
-// Sprint DEMO-3 v4 (08/05/2026 Mathieu spec — pivot v3 revertido):
-// /matches vira "Minhas Demos" (lista demos LOCAIS no PC, mesma data
-// source do antigo /library). /library vira "Demos Analisadas" (só
-// as que já passaram pela IA — match_id preenchido). Upload Demo
-// continua. Login Steam OpenID puro, sem auth code paste.
+// Sprint DEMO-3 v5 (08/05/2026 Mathieu spec):
+// "Minhas Demos e Demos Analisadas são redundantes — user não vai
+// entender a diferença". Unificado em 1 tela só (/matches) com expand
+// inline. Upload Demo virou ação na topbar (modal). Renders Recentes
+// é item conditional (só aparece se tem render < 1h em localStorage).
+// Reportar Bug é link novo.
 const NAV_PRIMARY: NavItem[] = [
-  { href: "/matches",  label: "Minhas Demos",     icon: FolderClock },
-  { href: "/upload",   label: "Upload Demo",      icon: UploadCloud },
-  { href: "/library",  label: "Demos Analisadas", icon: Sparkles },
+  { href: "/matches",       label: "Minhas Demos",     icon: FolderClock },
 ];
 
+// Renders Recentes — conditional render no sidebar (ver AppShell render).
+const NAV_RENDERS: NavItem = {
+  href: "/renders",       label: "Renders Recentes", icon: Film,
+};
+
 const NAV_SECONDARY: NavItem[] = [
-  // { href: "/settings", label: "Configurações", icon: Settings },
+  { href: "/report-bug",    label: "Reportar Bug",     icon: Bug },
 ];
 
 interface AppShellProps {
@@ -88,18 +95,31 @@ export default function AppShell({
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [hasRecentRender, setHasRecentRender] = useState(false);
   const clientStatus = useClientVersionStatus();
 
   useEffect(() => {
     setUser(getUser());
+    setHasRecentRender(getRecentRender() !== null);
     setHydrated(true);
-    const onFocus = () => setUser(getUser());
+    const onFocus = () => {
+      setUser(getUser());
+      setHasRecentRender(getRecentRender() !== null);
+    };
     window.addEventListener("focus", onFocus);
     window.addEventListener("storage", onFocus);
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onFocus);
     };
+  }, []);
+
+  // Re-check recent render every 60s (TTL é 1h, granularidade fina não importa)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHasRecentRender(getRecentRender() !== null);
+    }, 60_000);
+    return () => clearInterval(id);
   }, []);
 
   const handleLogout = () => {
@@ -143,11 +163,18 @@ export default function AppShell({
           {NAV_PRIMARY.map((item) => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}
+          {/* Conditional: só renderiza se tem render < 1h em localStorage */}
+          {hydrated && hasRecentRender && (
+            <NavLink
+              item={NAV_RENDERS}
+              active={pathname === NAV_RENDERS.href}
+            />
+          )}
 
           {NAV_SECONDARY.length > 0 && (
             <>
               <div className="px-2 mb-1 mt-4 text-[10px] font-semibold uppercase tracking-wider text-[rgb(var(--color-muted-foreground))]">
-                Conta
+                Suporte
               </div>
               {NAV_SECONDARY.map((item) => (
                 <NavLink key={item.href} item={item} active={pathname === item.href} />

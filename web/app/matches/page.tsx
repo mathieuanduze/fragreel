@@ -1,18 +1,14 @@
-import MatchesPageClient from "@/components/MatchesPageClient";
+import MinhasDemosClient from "@/components/MinhasDemosClient";
 
 export const metadata = { title: "Minhas Demos · FragReel" };
 
 /**
- * /matches — "Minhas Demos" (Sprint DEMO-3 v4, 08/05/2026).
+ * /matches — "Minhas Demos" UNIFIED (Sprint DEMO-3 v5, 08/05/2026).
  *
- * Mathieu spec: "Match history tem que virar Minhas demos, ali, vai
- * aparecer todas as demos que a pessoa tem baixadas no computador,
- * como fazíamos antes... CTA → Analisar Demos".
- *
- * Lista de .dem detectadas pelo client local (127.0.0.1:5775/demos).
- * Per-card CTA "Analisar Demo" → roster picker → /match/[id].
- * Após analisada, demo aparece em "Demos Analisadas" (/library).
+ * Mathieu spec: "Unificar Minhas Demos + Demos Analisadas em 1 tela com
+ * expand inline". Lista única de demos do PC, expand inline pra escolher
+ * player, click → /match/[id] direto.
  */
 export default function MinhasDemosPage() {
-  return <MatchesPageClient />;
+  return <MinhasDemosClient />;
 }
