@@ -118,11 +118,26 @@ export default async function Home() {
             Render roda no seu Windows · CS2 lê as demos local
           </div>
 
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap", marginBottom: 28 }}>
+          {/* Sprint v5.6 (LP plataforma-style): chips Shadcn-aligned com
+              paleta hybrid (white/[0.02] bg, white/[0.06] border) em vez
+              do antigo #1A1A2E sólido. */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
             {STATS.map((s) => (
-              <div key={s.label} style={{ padding: "5px 12px", background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: s.color, letterSpacing: "0.04em" }}>{s.label}</span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{s.sub}</span>
+              <div
+                key={s.label}
+                style={{
+                  padding: "6px 14px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  transition: "border-color 0.15s ease",
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 800, color: s.color, letterSpacing: "0.05em" }}>{s.label}</span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{s.sub}</span>
               </div>
             ))}
           </div>
@@ -208,13 +223,17 @@ export default async function Home() {
               gap: 10,
             }}>
               {features.map((feat) => (
-                <div key={feat.label} style={{
-                  padding: "14px 14px",
-                  background: "#1A1A2E",
-                  border: "1px solid #2D2D44",
-                  borderRadius: 8,
-                  textAlign: "center",
-                }}>
+                <div
+                  key={feat.label}
+                  style={{
+                    padding: "14px 14px",
+                    background: "rgba(255,255,255,0.02)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: 10,
+                    textAlign: "center",
+                    transition: "border-color 0.15s ease",
+                  }}
+                >
                   <div style={{ fontSize: 22, marginBottom: 6 }}>{feat.icon}</div>
                   <div style={{ fontWeight: 600, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>{feat.label}</div>
                 </div>
@@ -236,10 +255,19 @@ export default async function Home() {
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {MAPS.map((m) => (
                   <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 7, overflow: "hidden", background: "#16213E", border: "1px solid #2D2D44" }}>
+                    <div
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 7,
+                        overflow: "hidden",
+                        background: "rgba(255,255,255,0.02)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    >
                       <img src={`/maps/${m.id}.png`} alt={m.name} width={38} height={38} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     </div>
-                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{m.name.toUpperCase()}</span>
+                    <span style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", fontWeight: 600, letterSpacing: "0.06em" }}>{m.name.toUpperCase()}</span>
                   </div>
                 ))}
               </div>
@@ -439,10 +467,19 @@ export default async function Home() {
 
           </div>
 
-          {/* Bottom row — 4 quick-fact cards (substitui reasons antigos compactos) */}
+          {/* Bottom row — 4 quick-fact cards (Sprint v5.6 plataforma-style) */}
           <div style={{ marginTop: 48, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
             {reasons.map((f) => (
-              <div key={f.label} style={{ padding: "14px 16px", background: "rgba(13,13,26,0.6)", border: "1px solid #2D2D44", borderRadius: 10, transition: "border-color 200ms ease, background 200ms ease" }}>
+              <div
+                key={f.label}
+                style={{
+                  padding: "14px 16px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 12,
+                  transition: "border-color 0.15s ease, background 0.15s ease",
+                }}
+              >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points="20 6 9 17 4 12"/></svg>
                   <div style={{ fontWeight: 700, fontSize: 13, color: "#E8E8F0" }}>{f.label}</div>
@@ -460,23 +497,62 @@ export default async function Home() {
           <h2 style={{ textAlign: "center", fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 40 }}>
             Como funciona
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
             {steps.map((s) => (
-              <div key={s.num}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: "#FF6B35", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, marginBottom: 12, color: "white" }}>
+              <div
+                key={s.num}
+                style={{
+                  padding: "20px 18px",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  borderRadius: 12,
+                  transition: "border-color 0.15s ease",
+                }}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: "rgba(255,107,53,0.10)",
+                    border: "1px solid rgba(255,107,53,0.25)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 800,
+                    fontSize: 12,
+                    marginBottom: 14,
+                    color: "#FF6B35",
+                    fontFamily: "monospace",
+                  }}
+                >
                   {s.num}
                 </div>
-                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{s.title}</h3>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.55 }}>{s.desc}</p>
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#E8E8F0" }}>{s.title}</h3>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>{s.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Ad transparency — chip de fluxo + privacy ─────────────── */}
+      {/* ── Ad transparency — chip de fluxo + privacy (Sprint v5.6 platform-style) ─── */}
       <section style={{ padding: "60px 24px", maxWidth: 680, margin: "0 auto", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 14, padding: "12px 20px", background: "#1A1A2E", border: "1px solid #2D2D44", borderRadius: 12, fontSize: 12, color: "rgba(255,255,255,0.5)", flexWrap: "wrap", justifyContent: "center" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "12px 20px",
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 12,
+            fontSize: 12,
+            color: "rgba(255,255,255,0.55)",
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
           <span>🎮 Jogue</span>
           <span style={{ color: "#2D2D44" }}>→</span>
           <span>📺 30s ad</span>

@@ -795,24 +795,179 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             breadcrumb (AppShell topbar agora mostra "Editar FragReel · Map ·
             Score"). Sidebar disponível pra navegação. */}
 
-        {/* Match header */}
-        <div className="card" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 24, marginBottom: 40, padding: "24px 28px" }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 6 }}>
-              {match.map.replace("de_", "").charAt(0).toUpperCase() + match.map.replace("de_", "").slice(1)}
-              <span style={{ marginLeft: 12, fontSize: 18, color: "#4CAF82", fontWeight: 700 }}>{match.score}</span>
-            </h1>
-            <div style={{ display: "flex", gap: 24, fontSize: 14, color: "rgba(255,255,255,0.5)" }}>
-              <span>K/D: <b style={{ color: "#E8E8F0" }}>{match.stats.kd}</b></span>
-              <span>HS: <b style={{ color: "#E8E8F0" }}>{match.stats.hs}</b></span>
-              <span>ADR: <b style={{ color: "#E8E8F0" }}>{match.stats.adr}</b></span>
-              <span>Rating: <b style={{ color: "#FF6B35" }}>{match.stats.rating}</b></span>
+        {/* Sprint v5.6 (Mathieu spec UI plataforma-style): match header
+            Shadcn-style com map thumb + score + stats grid em vez do
+            text-only antigo. */}
+        <div
+          className="card"
+          style={{
+            display: "flex",
+            alignItems: "stretch",
+            gap: 0,
+            marginBottom: 28,
+            padding: 0,
+            overflow: "hidden",
+          }}
+        >
+          {/* Map thumb à esquerda */}
+          <div
+            style={{
+              position: "relative",
+              flexShrink: 0,
+              width: 160,
+              minHeight: 110,
+              background: "linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%)",
+              overflow: "hidden",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/maps/${match.map}.png`}
+              alt={match.map}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                opacity: 0.55,
+              }}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(to right, rgba(10,10,18,0.45), transparent)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: 10,
+                left: 14,
+                fontWeight: 800,
+                fontSize: 16,
+                color: "#fff",
+                letterSpacing: "-0.01em",
+                textShadow: "0 2px 6px rgba(0,0,0,0.85)",
+                textTransform: "capitalize",
+              }}
+            >
+              {match.map.replace("de_", "")}
             </div>
           </div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", textAlign: "right" }}>
-            <div>{match.highlights.length} highlights detectados</div>
-            <div style={{ color: "#FF6B35", fontWeight: 600, marginTop: 2 }}>
-              {selectedCount}/{maxScenes} cena{maxScenes !== 1 ? "s" : ""} selecionada{selectedCount !== 1 ? "s" : ""}
+
+          {/* Info center */}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: "16px 24px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: 24,
+                  fontWeight: 800,
+                  color: "#E8E8F0",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {match.score}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.4)",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {match.date}
+              </span>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, auto)",
+                gap: 24,
+                fontSize: 13,
+                color: "rgba(255,255,255,0.55)",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                  K/D
+                </div>
+                <div style={{ fontWeight: 700, color: "#E8E8F0", fontSize: 14 }}>
+                  {match.stats.kd}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                  HS
+                </div>
+                <div style={{ fontWeight: 700, color: "#E8E8F0", fontSize: 14 }}>
+                  {match.stats.hs}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                  ADR
+                </div>
+                <div style={{ fontWeight: 700, color: "#E8E8F0", fontSize: 14 }}>
+                  {match.stats.adr}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                  Rating
+                </div>
+                <div style={{ fontWeight: 700, color: "#FF6B35", fontSize: 14 }}>
+                  {match.stats.rating}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Selection counter à direita */}
+          <div
+            style={{
+              flexShrink: 0,
+              padding: "16px 22px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              gap: 4,
+              borderLeft: "1px solid rgba(255,255,255,0.06)",
+              minWidth: 200,
+            }}
+          >
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", textAlign: "right" }}>
+              {match.highlights.length} highlights detectados
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "#FF6B35",
+                fontWeight: 700,
+                fontFamily: "monospace",
+              }}
+            >
+              {selectedCount}/{maxScenes} cena
+              {maxScenes !== 1 ? "s" : ""}
             </div>
           </div>
         </div>

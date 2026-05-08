@@ -151,62 +151,89 @@
 }
 
 @layer components {
+  /* Sprint v5.6 (08/05/2026 Mathieu spec): "Faça a UI da página de
+     edição ficar mais parecida com o da plataforma nova". Atualizadas
+     classes legacy .card / .btn-primary / etc pra match Shadcn-style
+     usado em AppShell + MinhasDemosClient + outros (paleta gamer
+     hybrid laranja/preto com bordas brancas baixa-opacity). */
+
   .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    background: #FF6B35;
+    background: rgb(var(--color-primary));
     color: white;
     font-weight: 600;
-    padding: 12px 24px;
+    font-size: 13px;
+    padding: 9px 18px;
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: all 0.15s ease;
     cursor: pointer;
-    border: none;
+    border: 1px solid transparent;
+    box-shadow: 0 4px 14px rgba(255, 107, 53, 0.18);
   }
-  .btn-primary:hover { background: #CC4A1A; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary:hover {
+    background: rgb(var(--color-primary));
+    filter: brightness(1.1);
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.28);
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+    filter: none;
+  }
 
   .btn-ghost {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    border: 1px solid #2D2D44;
-    color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.65);
     font-weight: 500;
-    padding: 10px 20px;
+    font-size: 13px;
+    padding: 8px 16px;
     border-radius: 8px;
-    transition: border-color 0.2s, color 0.2s;
-    background: transparent;
+    transition: all 0.15s ease;
+    background: rgba(255, 255, 255, 0.02);
     cursor: pointer;
   }
-  .btn-ghost:hover { border-color: #FF6B35; color: #FF6B35; }
+  .btn-ghost:hover {
+    border-color: rgba(255, 107, 53, 0.35);
+    color: rgb(var(--color-primary));
+    background: rgba(255, 107, 53, 0.05);
+  }
 
+  /* Card style — match Shadcn Card.tsx (rounded-xl, border white/6,
+     bg white/[0.02]). Antes era #16213E sólido com borda #2D2D44 que
+     ficava visualmente inconsistente vs MinhasDemosClient. */
   .card {
-    background: #16213E;
-    border: 1px solid #2D2D44;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 12px;
     padding: 20px;
+    transition: border-color 0.15s ease;
   }
 
   .tag {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #FF6B35;
+    color: rgb(var(--color-primary));
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 3px 9px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    background: #1A1A2E;
-    border: 1px solid #2D2D44;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
   }
 }
