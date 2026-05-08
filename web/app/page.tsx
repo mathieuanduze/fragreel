@@ -128,32 +128,12 @@ export default async function Home() {
 
           {/* Sprint v5.7.6 (Mathieu spec 08/05): "faça uma flecha
               mostrando que tem conteúdo abaixo do hero". Scroll indicator
-              animado abaixo do CTA — texto sutil + chevron com bounce
-              gentle. Anchor #demo permite click pra scroll suave. */}
+              animado. CSS-only (page.tsx é Server Component, pode usar
+              className mas não onMouseEnter handlers). */}
           <a
             href="#demo"
             aria-label="Ver demo abaixo"
-            style={{
-              display: "inline-flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              marginTop: 64,
-              color: "rgba(255,255,255,0.30)",
-              textDecoration: "none",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              transition: "color 0.2s ease",
-              cursor: "pointer",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "rgba(255,107,53,0.85)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "rgba(255,255,255,0.30)";
-            }}
+            className="hero-scroll-indicator"
           >
             <span>Ver como funciona</span>
             <svg
