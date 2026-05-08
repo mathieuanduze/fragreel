@@ -5,6 +5,7 @@ import { getUser, type SessionUser } from "@/lib/session";
 import { useSteamGCStatus } from "@/lib/useSteamGCStatus";
 import SteamLoginModal from "./SteamLoginModal";
 import DownloadButton from "./DownloadButton";
+import MatchCard, { type MatchCardData } from "./MatchCard";
 
 /**
  * MatchesContent — orchestrador do flow Sprint DEMO-3.
@@ -426,32 +427,65 @@ function ReadyState({
       {matches && matches.count > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>
-            {matches.count} matches recentes (paginação completa em breve)
+            {matches.count} matches recentes
           </div>
-          {/* TODO Sprint 4: render match cards reais com data shape definitivo
-              do GC. Por enquanto raw preview pra debug. */}
-          {(matches.matches as Array<Record<string, unknown>>).map((m, i) => (
-            <div key={i} style={{
-              padding: 14,
-              background: "rgba(255,255,255,0.025)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 10,
-              fontSize: 12,
-              fontFamily: "ui-monospace, monospace",
-              color: "rgba(255,255,255,0.7)",
-            }}>
-              <div style={{ marginBottom: 4, fontSize: 13, color: "#E8E8F0" }}>
-                Match #{i + 1}
-              </div>
-              <div style={{ fontSize: 11, opacity: 0.6, wordBreak: "break-all" }}>
-                {JSON.stringify(m).slice(0, 300)}
-              </div>
-            </div>
+          {/* Sprint 4: cards visuais. Map raw GC proto → MatchCardData shape.
+              Sprint 5 expand: side panel com roster + 2 CTAs ao click. */}
+          {(matches.matches as Array<Record<string, unknown>>).map((raw, i) => (
+            <MatchCard
+              key={(raw.match_id as string) || (raw.sharecode as string) || `m-${i}`}
+              match={mapGCProtoToCardData(raw, i)}
+            />
           ))}
         </div>
       )}
     </div>
   );
+}
+
+// ── GC proto → MatchCardData mapping ─────────────────────────────────────────
+
+/**
+ * Map raw match proto (do steam_gc.js parseMatchProto) → MatchCardData.
+ *
+ * GC proto fields esperados (parseMatchProto em steam_gc_sidecar/steam_gc.js):
+ *   match_id, match_time, watchable {server_ip, ...}, sharecode, demo_url
+ *
+ * Sprint 5 vai enrichar com roundstats_legacy data (score, K/D, etc) — GC
+ * retorna em estrutura aninhada. Por enquanto MVP usa fallbacks.
+ */
+function mapGCProtoToCardData(raw: Record<string, unknown>, idx: number): MatchCardData {
+  const matchId = (raw.match_id as string) || (raw.sharecode as string) || `match-${idx}`;
+  const matchTimeUnix = raw.match_time
+    ? Number(raw.match_time) * 1000  // GC usa segundos
+    : undefined;
+
+  // Demo URL → status
+  const demoUrl = raw.demo_url as string | null | undefined;
+  let status: "downloaded" | "available" | "expired" | "unknown" = "unknown";
+  if (demoUrl) {
+    status = "available";
+    // TODO Sprint 5: cross-check com /demos local pra detectar "downloaded"
+    if (matchTimeUnix) {
+      const ageDays = (Date.now() - matchTimeUnix) / (1000 * 60 * 60 * 24);
+      if (ageDays > 30) status = "expired";
+    }
+  }
+
+  // Roundstats — Sprint 5 parse roundstats_legacy / roundstats_all
+  // pra extrair score CT/T + K/D do user. MVP retorna placeholders.
+  return {
+    id: matchId,
+    mapName: undefined,  // Sprint 5: extract from roundstats.map ou similar
+    score: undefined,    // Sprint 5: roundstats_legacy.team_scores[0]:[1]
+    mode: "Competitive", // Sprint 5: determinar via match_type
+    kd: undefined,       // Sprint 5: roundstats per-player
+    hsCount: undefined,
+    matchTime: matchTimeUnix,
+    demoUrl: demoUrl ?? null,
+    status,
+    outcome: null,       // Sprint 5: comparar score com user team
+  };
 }
 
 // ── Preview match card (mock pré-install) ────────────────────────────────────
