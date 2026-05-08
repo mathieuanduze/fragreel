@@ -312,19 +312,29 @@ export const HighlightScene: React.FC<Props> = ({
   // Sprint #6.2 — Bomb timer red bar (Major-style). CS2 bomb explode 40s
   // pós-plant. Mostra barra decrescendo do plant até explosion ou defuse.
   //
-  // Sprint #6.2.1 BUG FIX (Mathieu 05/05): timer não aparecia em defuse rounds.
-  // Causa: versão original usava bomb_action_timestamp como plant tick, mas em
-  // defuse rounds esse field é o DEFUSE tick (não plant). Backend agora popula
-  // bomb_planted_timestamp INDEPENDENTE de quem plantou. Editor usa esse field.
-  // Backwards-compat: fallback pra bomb_action_timestamp quando highlight é
-  // legacy (pré-Sprint #6.2.1) E bomb_action="plant_won" (mesma semântica).
+  // Sprint v5.7 (Mathieu 08/05/2026): "quando o inimigo é TR e ele planta a
+  //  bomba, o ticker não está aparecendo. Eu fiz um FR de um round onde
+  //  estava de CT, o timer não começou".
+  //
+  // Resolution: 3-tier fallback hierarchy pra plant time:
+  //   1. bomb_planted_timestamp (canonical, scorer v6.2.1+) — qualquer round
+  //   2. bomb_action_timestamp se bomb_action="plant_won" (user planted, legacy)
+  //   3. NEW: bomb_action_timestamp se bomb_action="defuse" — estima plant
+  //      como defuse - 35s. Defuses típicos ocorrem ~30-40s pós-plant; 35s
+  //      é boa aproximação e melhor que NÃO mostrar timer. Se highlight tá
+  //      em demo legacy SEM bomb_planted_timestamp populado, este fallback
+  //      garante timer visível pra defuse rounds (CT-side rendering).
   const BOMB_FUSE_TIME_SEC = 40.0;
+  const DEFUSE_PLANT_ESTIMATE_OFFSET = 35.0;
   const plantTimestamp =
     typeof highlight.bomb_planted_timestamp === "number"
       ? highlight.bomb_planted_timestamp
       : highlight.bomb_action === "plant_won" &&
         typeof highlight.bomb_action_timestamp === "number"
       ? highlight.bomb_action_timestamp
+      : highlight.bomb_action === "defuse" &&
+        typeof highlight.bomb_action_timestamp === "number"
+      ? highlight.bomb_action_timestamp - DEFUSE_PLANT_ESTIMATE_OFFSET
       : null;
   const showBombBar = bombTimerEnabled && plantTimestamp !== null;
   // Plant time relative to scene
@@ -1340,6 +1350,15 @@ export const HighlightScene: React.FC<Props> = ({
           else if (/knife|bayonet|karambit/.test(w)) weaponColor = "#4CAF82"; // knife
           else if (/grenade|nade|flash|smoke|molotov|incendiary/.test(w)) weaponColor = "#ff4444"; // grenades
 
+          // Sprint v5.7 (Mathieu spec 08/05/2026):
+          //   "killfeed ainda não está igual o CS. No CS, fica o nome do
+          //    jogador que matou e o nome do jogador que morreu."
+          // Format CS2 vanilla: [KILLER_NAME] [weapon icon + HS] [VICTIM_NAME]
+          // Killer = playerName (sempre o user, já que reel é POV dele).
+          // Victim = k.victim_name (do scorer, fallback "Inimigo").
+          const killerName = (playerName || "PLAYER").toUpperCase();
+          const victimName = (k.victim_name || "Inimigo").toUpperCase();
+
           return (
             <div
               key={i}
@@ -1348,16 +1367,12 @@ export const HighlightScene: React.FC<Props> = ({
                 opacity: enterProgress,
                 display: "flex",
                 alignItems: "center",
-                // Round 7 (07/05 noite tardia): Mathieu reportou killfeed
-                // "tá saindo muito grande". Bump down: gap 18→12, padding
-                // 10/12 → 7/8, fontSize 26/30 → 18/22 pra proporção mais
-                // CS2 vanilla.
-                gap: 12,
+                gap: 10,
                 padding: isHorizontal ? "7px 14px" : "8px 16px",
                 background: "rgba(0,0,0,0.82)",
                 backdropFilter: "blur(10px)",
                 borderRadius: 5,
-                fontSize: isHorizontal ? 18 : 22,
+                fontSize: isHorizontal ? 17 : 20,
                 fontWeight: 700,
                 color: theme.text,
                 fontFamily: theme.fontDisplay,
@@ -1365,6 +1380,24 @@ export const HighlightScene: React.FC<Props> = ({
                 boxShadow: "0 3px 10px rgba(0,0,0,0.4)",
               }}
             >
+              {/* Killer name (left) — sempre o user/playerName.
+                  Cor azul claro CT-style igual CS2 (#5D9CEC). */}
+              <span
+                style={{
+                  color: "#9DC4FF",
+                  fontWeight: 800,
+                  fontSize: isHorizontal ? 16 : 19,
+                  letterSpacing: "0.01em",
+                  whiteSpace: "nowrap",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.85)",
+                  maxWidth: isHorizontal ? 160 : 200,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={killerName}
+              >
+                {killerName}
+              </span>
               {/* Sprint Killfeed Icons (07/05 round 5) — SVG-only OU text-only,
                   nunca dual-layer. Mathieu print 07/05 mostrou texto "AK47"
                   visível ATRÁS do SVG laranja porque dual-layer anterior
@@ -1530,6 +1563,28 @@ export const HighlightScene: React.FC<Props> = ({
                 );
               })()}
               {/* HS modifier rendering encapsulado acima — dead block removido */}
+
+              {/* Victim name (right) — Sprint v5.7 (Mathieu spec). Cor
+                  vermelha T-side igual CS2 killfeed (#FF7A6E). Nome do
+                  jogador morto à direita, completing CS2 vanilla format
+                  [killer] [weapon+HS] [victim]. */}
+              <span
+                style={{
+                  color: "#FF8E83",
+                  fontWeight: 800,
+                  fontSize: isHorizontal ? 16 : 19,
+                  letterSpacing: "0.01em",
+                  whiteSpace: "nowrap",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.85)",
+                  maxWidth: isHorizontal ? 160 : 200,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  marginLeft: 2,
+                }}
+                title={victimName}
+              >
+                {victimName}
+              </span>
             </div>
           );
         })}
