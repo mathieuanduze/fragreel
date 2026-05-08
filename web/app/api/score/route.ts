@@ -45,7 +45,11 @@ const SCHEMA_VERSION = "1";
 // 07/05 — bump SCORER_VERSION pra Sprint #6.5 + Aesthetic. Client api_client.py
 // loga isso pra detectar deploy stale (response com versão antiga = Vercel
 // cache hit serving old code).
-const SCORER_VERSION = "v0.6.5-aesthetic-pov-longdist-800u";
+// Sprint v5.7.10 (08/05/2026 PC diag) — bump pra forçar re-score em
+// caches stale. Fixes: victim_name event-row capture (v5.7.4 commit
+// 86505f4), bomb_action_timestamp 2-tier fallback (sem exigir steamid
+// match estrito quando event tem steamid vazio).
+const SCORER_VERSION = "v0.7.0-victim-name-bomb-fallback";
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ScoreRequest {

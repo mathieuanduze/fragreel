@@ -523,6 +523,17 @@ function _enrichWithRoundContext(
 
     if (ctx.bomb_action) {
       const targetAction = ctx.bomb_action === "defuse" ? "defused" : "planted";
+      // Sprint v5.7.10 (Mathieu PC diag 08/05): bomb_action_timestamp ficava
+      // null mesmo com bomb_action setado. Causa: demoparser2 às vezes
+      // emite bomb_planted/bomb_defused com user_steamid vazio (caso
+      // de_mirage: 11/14 plants sem steamid). O filtro estrito
+      // be.player_steamid === player_steamid fazia o loop não achar match.
+      //
+      // Fix 2-tier: PREFER match com player_steamid (mais preciso),
+      // FALLBACK pra qualquer evento (round, action) — quando state já
+      // confirmou bomb_action, sabemos que user fez a ação, não precisa
+      // re-validar via steamid no event.
+      let foundMatch = false;
       for (const be of events.bomb_events) {
         if (
           be.round_num === round_num &&
@@ -531,7 +542,19 @@ function _enrichWithRoundContext(
         ) {
           ctx.bomb_action_tick = be.tick;
           ctx.bomb_action_timestamp = be.timestamp;
+          foundMatch = true;
           break;
+        }
+      }
+      // Fallback: ctx.bomb_action confirmado por round_state mas event
+      // não tem steamid bate. Pega o primeiro event matching round+action.
+      if (!foundMatch) {
+        for (const be of events.bomb_events) {
+          if (be.round_num === round_num && be.action === targetAction) {
+            ctx.bomb_action_tick = be.tick;
+            ctx.bomb_action_timestamp = be.timestamp;
+            break;
+          }
         }
       }
     }
