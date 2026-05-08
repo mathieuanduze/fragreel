@@ -537,6 +537,32 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             if (localRender) cancelLocalRender().catch(() => {});
             setShowAd(false);
           }}
+          /* Sprint v5.7 (Mathieu spec): "Gerei 2 fragreels, nenhum
+             deles mostram em meus fragreels". Wire setRecentRender
+             quando render local conclui — grava em localStorage com
+             specs completas pra "Meus FragReels" + "Gerar novamente".
+             Também limpa o edit draft (concluiu, não tá mais editando). */
+          onRenderComplete={(mp4Path) => {
+            const u = getUser();
+            setRecentRender({
+              matchId: match.id,
+              mapName: match.map,
+              playerName: match.player_name || u?.name || "Player",
+              playerSteamid: u?.steamid,
+              selectedHighlightIds: Array.from(selected).map(String),
+              mood,
+              orientation,
+              toggles: {
+                cinematic: killFlashEnabled,
+                hud: scoreboardEnabled,
+                xray: xrayEnabled,
+                music: musicEnabled,
+                bombTimer: bombTimerEnabled,
+              },
+              mp4Path,
+            });
+            clearEditDraft(match.id);
+          }}
         />
       )}
 

@@ -177,83 +177,106 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
 
   // ── UI ────────────────────────────────────────────────────────────────────
 
+  // Sprint v5.7 (08/05/2026 Mathieu spec): "Re-analisando jogadas de
+  // impacto" copy era confuso e datado. Renomeado pra match terminologia
+  // do AnalyzingDemoModal usado em /matches.
   const heading =
     phase === "looking_up"
-      ? "Procurando demo no FragReel local…"
+      ? "Localizando demo no PC…"
       : phase === "uploading"
-      ? "Re-enviando demo pro servidor…"
+      ? "Re-enviando demo pra análise…"
       : phase === "analyzing"
-      ? "Re-analisando jogadas de impacto…"
+      ? "Analisando demo…"
       : phase === "done"
       ? "Pronto! Abrindo highlights…"
       : phase === "client_offline"
       ? "FragReel não está rodando"
       : phase === "demo_not_found"
       ? "Demo não encontrada no PC"
-      : "Erro ao re-analisar";
+      : "Erro ao analisar";
 
-  // Sub-text contextual por fase. Bug #19 (28/04 — Mathieu reportou):
-  // copy "isso leva ~15s" mentia (real ficou em 47-60s). Removida promessa
-  // rígida — agora cada fase explica o que está fazendo, sem ETA falso.
-  // Range honesto: depends on demo size (50-200MB) + connection + server load.
   const sub =
     phase === "looking_up"
-      ? `Localizando demo no scanner local… (${elapsedSec}s)`
+      ? `Procurando o arquivo .dem no scanner local… (${elapsedSec}s)`
       : phase === "uploading"
-      ? `Enviando demo pro servidor (50-200MB dependendo da partida)… (${elapsedSec}s)`
+      ? `Enviando demo pra análise (50-200MB dependendo da partida)… (${elapsedSec}s)`
       : phase === "analyzing"
-      ? `Servidor está parseando eventos da partida e calculando highlights. Pode levar 30s a 2min dependendo do tamanho da demo. (${elapsedSec}s)`
+      ? `IA está processando rounds, kills e jogadas de impacto. Pode levar 30s a 2min dependendo do tamanho da demo. (${elapsedSec}s)`
       : phase === "done"
       ? "Redirecionando…"
       : phase === "client_offline"
       ? "Abra o FragReel no PC e tente de novo. Quando o ícone aparecer na bandeja, clique no botão abaixo."
       : phase === "demo_not_found"
-      ? "Esta demo pode ter sido deletada da sua pasta de demos. Volte à biblioteca pra ver as demos disponíveis."
-      : (errorMsg ?? "Tente de novo na biblioteca.");
+      ? "Esta demo pode ter sido deletada da pasta de replays/. Volte pra Minhas Demos e selecione outra — ou importe novamente via 'Importar .dem'."
+      : (errorMsg ?? "Tente de novo a partir de Minhas Demos.");
 
   const isWorking = phase === "looking_up" || phase === "uploading" || phase === "analyzing";
 
   return (
     <div
       style={{
-        minHeight: "calc(100vh - 64px)",
-        background: "#0D0D1A",
-        color: "#E8E8F0",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 24,
+        padding: "32px 16px",
+        minHeight: "60vh",
       }}
     >
       <div
         style={{
           textAlign: "center",
           maxWidth: 540,
-          background: "#131325",
-          border: "1px solid #2D2D44",
+          width: "100%",
+          background: "rgba(255,255,255,0.02)",
+          border: "1px solid rgba(255,255,255,0.06)",
           borderRadius: 12,
-          padding: "40px 32px",
+          padding: "36px 32px",
         }}
       >
-        <div style={{ fontSize: 56, marginBottom: 16 }}>
-          {phase === "done" ? "✅" : isWorking ? "🔄" : "⚠️"}
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            margin: "0 auto 18px",
+            borderRadius: 14,
+            background:
+              phase === "done"
+                ? "rgba(91,227,143,0.10)"
+                : isWorking
+                  ? "rgba(255,107,53,0.10)"
+                  : "rgba(255,107,53,0.08)",
+            border: `1px solid ${
+              phase === "done"
+                ? "rgba(91,227,143,0.30)"
+                : "rgba(255,107,53,0.25)"
+            }`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 26,
+          }}
+        >
+          {phase === "done" ? "✅" : isWorking ? "⏳" : "⚠️"}
         </div>
         <h2
           style={{
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: 700,
-            marginBottom: 12,
+            marginBottom: 10,
             color: "#E8E8F0",
+            letterSpacing: "-0.01em",
           }}
         >
           {heading}
         </h2>
         <p
           style={{
-            fontSize: 14,
+            fontSize: 13,
             lineHeight: 1.6,
-            color: "rgba(255,255,255,0.65)",
-            marginBottom: 24,
+            color: "rgba(255,255,255,0.55)",
+            marginBottom: 22,
+            maxWidth: 420,
+            margin: "0 auto 22px",
           }}
         >
           {sub}
@@ -264,9 +287,9 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
             style={{
               width: "100%",
               maxWidth: 320,
-              margin: "0 auto 24px",
-              height: 6,
-              background: "#1A1A2E",
+              margin: "0 auto 20px",
+              height: 5,
+              background: "rgba(255,255,255,0.04)",
               borderRadius: 999,
               overflow: "hidden",
               position: "relative",
@@ -295,30 +318,33 @@ export default function AutoReanalyze({ staleMatchId }: Props) {
           <Link
             href="/matches"
             style={{
-              display: "inline-block",
-              padding: "12px 24px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 20px",
               background: "#FF6B35",
               color: "white",
-              fontWeight: 700,
-              fontSize: 14,
+              fontWeight: 600,
+              fontSize: 13,
               borderRadius: 8,
               textDecoration: "none",
-              marginBottom: 12,
+              marginBottom: 6,
+              boxShadow: "0 4px 14px rgba(255,107,53,0.18)",
             }}
           >
-            ← Voltar à biblioteca
+            ← Voltar pra Minhas Demos
           </Link>
         )}
 
         <div
           style={{
-            fontSize: 11,
-            color: "rgba(255,255,255,0.35)",
-            marginTop: 16,
+            fontSize: 10,
+            color: "rgba(255,255,255,0.25)",
+            marginTop: 14,
             fontFamily: "monospace",
           }}
         >
-          match_id stale: {staleMatchId.slice(0, 24)}…
+          ref: {staleMatchId.slice(0, 24)}…
         </div>
       </div>
     </div>

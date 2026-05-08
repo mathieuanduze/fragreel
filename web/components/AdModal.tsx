@@ -54,6 +54,12 @@ type AdModalProps = {
    *  lands on the Desktop — no "download" button, just an "open folder"
    *  CTA once state=done. */
   localRenderMode?: boolean;
+  /** Sprint v5.7 (08/05/2026 Mathieu spec): "Gerei 2 fragreels, nenhum
+   *  deles mostram em meus fragreels". Callback fires UMA VEZ quando
+   *  render local conclui com sucesso (state="done" + output_mp4 set).
+   *  MatchClient usa pra gravar em recentRender (Meus FragReels) +
+   *  clear edit draft. */
+  onRenderComplete?: (mp4Path: string) => void;
 };
 
 function fmtTime(sec: number) {
@@ -61,7 +67,7 @@ function fmtTime(sec: number) {
   return `${sec}s`;
 }
 
-export default function AdModal({ onClose, formatLabel, renderDuration, downloadUrl, matchId, format, localRenderMode }: AdModalProps) {
+export default function AdModal({ onClose, formatLabel, renderDuration, downloadUrl, matchId, format, localRenderMode, onRenderComplete }: AdModalProps) {
   const [adElapsed, setAdElapsed]       = useState(0);
   const [adIndex, setAdIndex]           = useState(0);
   const [totalAdSeconds, setTotalAdSeconds] = useState(0);
@@ -357,6 +363,24 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
   const localOutputDir = localOutputPath
     ? localOutputPath.replace(/[\\/][^\\/]+$/, "")
     : null;
+
+  // Sprint v5.7 — fire onRenderComplete UMA vez quando render local
+  // termina com sucesso. Guarded contra re-fires via ref (state-based
+  // useEffect deps faria re-fire se setRecentRender atualizasse o
+  // localStatus indireto). MatchClient usa pra setRecentRender (Meus
+  // FragReels) + clearEditDraft.
+  const completeFiredRef = useRef(false);
+  useEffect(() => {
+    if (
+      !completeFiredRef.current &&
+      localStatus?.state === "done" &&
+      localOutputPath &&
+      onRenderComplete
+    ) {
+      completeFiredRef.current = true;
+      onRenderComplete(localOutputPath);
+    }
+  }, [localStatus?.state, localOutputPath, onRenderComplete]);
 
   const copyOutputPath = useCallback(async () => {
     if (!localOutputDir) return;
