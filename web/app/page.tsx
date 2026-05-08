@@ -180,8 +180,8 @@ export default async function Home() {
                 width: "100%",
                 maxWidth: 380,
                 borderRadius: 18,
-                border: "1px solid #2D2D44",
-                background: "#1A1A2E",
+                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(255,255,255,0.02)",
                 boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
                 objectFit: "cover",
               }}
@@ -287,7 +287,7 @@ export default async function Home() {
           de scoring + linha "você decide" reforçando agency do user.
           ui-ux-pro-max principles: SVG icons (não emoji), 150-300ms
           transitions, transform/opacity animations only. */}
-      <section style={{ padding: "84px 24px", background: "linear-gradient(180deg, #0D0D1A 0%, #14142A 50%, #0D0D1A 100%)", borderTop: "1px solid #2D2D44", borderBottom: "1px solid #2D2D44", position: "relative", overflow: "hidden" }}>
+      <section style={{ padding: "84px 24px", background: "linear-gradient(180deg, #0D0D1A 0%, #14142A 50%, #0D0D1A 100%)", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", position: "relative", overflow: "hidden" }}>
         {/* Ambient glow background */}
         <div aria-hidden style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: 900, height: 600, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,107,53,0.08) 0%, transparent 60%)", pointerEvents: "none" }} />
 
@@ -568,7 +568,7 @@ export default async function Home() {
       {/* ── FAQ — 06/05 (Mathieu spec): "Adicione um FAQ também no final".
           Native <details> tag pra accessibility (keyboard nav free, no JS).
           7 perguntas baseadas em dúvidas que aparecem em testes de campo. */}
-      <section style={{ padding: "72px 24px", borderTop: "1px solid #2D2D44" }}>
+      <section style={{ padding: "72px 24px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 36 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "#FF6B35", textTransform: "uppercase", marginBottom: 8 }}>
@@ -612,8 +612,8 @@ export default async function Home() {
               <details
                 key={item.q}
                 style={{
-                  background: "#1A1A2E",
-                  border: "1px solid #2D2D44",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
                   borderRadius: 10,
                   overflow: "hidden",
                 }}
@@ -652,7 +652,7 @@ export default async function Home() {
       </section>
 
       {/* ── CTA final ──────────────────────────────────────────────── */}
-      <section style={{ padding: "72px 24px", textAlign: "center", borderTop: "1px solid #2D2D44" }}>
+      <section style={{ padding: "72px 24px", textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <h2 style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-0.02em", marginBottom: 24 }}>
           Pronto?
         </h2>
@@ -664,7 +664,7 @@ export default async function Home() {
         </p>
       </section>
 
-      <footer style={{ padding: "32px 24px", borderTop: "1px solid #2D2D44", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+      <footer style={{ padding: "32px 24px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
         <div style={{ display: "flex", justifyContent: "center", gap: 18, flexWrap: "wrap", marginBottom: 12 }}>
           <Link href="/privacy" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>Privacidade</Link>
           <a href="https://github.com/mathieuanduze/fragreel-client" target="_blank" rel="noopener" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>GitHub (client)</a>

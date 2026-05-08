@@ -555,7 +555,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             style={{
               maxWidth: 480,
               background: "#13131f",
-              border: "1px solid #2D2D44",
+              border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: 14,
               padding: 28,
             }}
@@ -682,7 +682,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             style={{
               maxWidth: 440,
               background: "#13131f",
-              border: "1px solid #2D2D44",
+              border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: 14,
               padding: 28,
             }}
@@ -724,7 +724,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             style={{
               maxWidth: 460,
               background: "#13131f",
-              border: "1px solid #2D2D44",
+              border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: 14,
               padding: 28,
             }}
@@ -764,7 +764,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             style={{
               maxWidth: 440,
               background: "#13131f",
-              border: "1px solid #2D2D44",
+              border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: 14,
               padding: 28,
             }}
@@ -978,7 +978,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>A IA já escolheu os melhores. Você pode ajustar antes de gerar.</p>
 
           {isQueued && (
-            <div style={{ padding: "40px 32px", background: "#16213E", border: "1px solid #2D2D44", borderRadius: 14, textAlign: "center" }}>
+            <div style={{ padding: "40px 32px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, textAlign: "center" }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>⚙️</div>
               <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Analisando seus frags...</div>
               <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 380, margin: "0 auto 20px" }}>
@@ -986,7 +986,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
               </p>
 
               {/* Progress bar animada */}
-              <div style={{ height: 4, background: "#2D2D44", borderRadius: 99, maxWidth: 320, margin: "0 auto 16px", overflow: "hidden" }}>
+              <div style={{ height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 99, maxWidth: 320, margin: "0 auto 16px", overflow: "hidden" }}>
                 <div style={{
                   height: "100%",
                   width: "60%",
@@ -1368,7 +1368,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
             {FORMATS.map((f) => {
               const active = format === f.id;
               return (
-                <button key={f.id} onClick={() => setFormat(f.id)} style={{ padding: "20px", borderRadius: 12, border: active ? "2px solid #FF6B35" : "1px solid #2D2D44", background: active ? "rgba(255,107,53,0.06)" : "#16213E", cursor: "pointer", position: "relative", textAlign: "left", transition: "border-color 0.15s,background 0.15s" }}>
+                <button key={f.id} onClick={() => setFormat(f.id)} style={{ padding: "20px", borderRadius: 12, border: active ? "2px solid #FF6B35" : "1px solid rgba(255,255,255,0.08)", background: active ? "rgba(255,107,53,0.06)" : "rgba(255,255,255,0.02)", cursor: "pointer", position: "relative", textAlign: "left", transition: "border-color 0.15s,background 0.15s" }}>
                   {active && <div style={{ position: "absolute", top: 12, right: 12, width: 20, height: 20, borderRadius: "50%", background: "#FF6B35", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white" }}>✓</div>}
                   <div style={{ fontSize: 28, marginBottom: 10 }}>{f.icon}</div>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3, color: "#E8E8F0" }}>{f.label}</div>
@@ -1423,8 +1423,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                     style={{
                       padding: "14px 16px",
                       borderRadius: 10,
-                      border: active ? `2px solid ${m.color}` : "1px solid #2D2D44",
-                      background: active ? `${m.color}12` : "#16213E",
+                      border: active ? `2px solid ${m.color}` : "1px solid rgba(255,255,255,0.08)",
+                      background: active ? `${m.color}12` : "rgba(255,255,255,0.02)",
                       cursor: dimmed ? "not-allowed" : "pointer",
                       textAlign: "left",
                       position: "relative",
@@ -1450,8 +1450,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
               <div style={{
                 marginTop: 12,
                 padding: "10px 12px",
-                background: "#16213E",
-                border: "1px solid #2D2D44",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
                 borderRadius: 10,
               }}>
                 <div style={{
@@ -1475,7 +1475,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                         style={{
                           padding: "6px 14px",
                           borderRadius: 999,
-                          border: isActive ? `1px solid ${MOODS.find((m) => m.id === mood)?.color || "#FF6B35"}` : "1px solid #2D2D44",
+                          border: isActive ? `1px solid ${MOODS.find((m) => m.id === mood)?.color || "#FF6B35"}` : "1px solid rgba(255,255,255,0.08)",
                           background: isActive ? `${MOODS.find((m) => m.id === mood)?.color || "#FF6B35"}1F` : "transparent",
                           color: isActive ? "#fff" : "rgba(255,255,255,0.6)",
                           fontSize: 12,
@@ -1500,8 +1500,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                 marginTop: 16,
                 padding: "12px 14px",
                 borderRadius: 10,
-                background: "#16213E",
-                border: "1px solid #2D2D44",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1529,7 +1529,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                   height: 26,
                   borderRadius: 13,
                   border: "none",
-                  background: musicEnabled ? "#FF6B35" : "#2D2D44",
+                  background: musicEnabled ? "#FF6B35" : "rgba(255,255,255,0.10)",
                   cursor: "pointer",
                   transition: "background 0.15s",
                   flexShrink: 0,
@@ -1562,8 +1562,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                 marginTop: 12,
                 padding: "12px 14px",
                 borderRadius: 10,
-                background: "#16213E",
-                border: "1px solid #2D2D44",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1623,8 +1623,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                 marginTop: 12,
                 padding: "12px 14px",
                 borderRadius: 10,
-                background: "#16213E",
-                border: "1px solid #2D2D44",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1685,8 +1685,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
               marginTop: 12,
               padding: "12px 14px",
               borderRadius: 10,
-              background: "#16213E",
-              border: "1px solid #2D2D44",
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1740,8 +1740,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
               marginTop: 12,
               padding: "12px 14px",
               borderRadius: 10,
-              background: "#16213E",
-              border: "1px solid #2D2D44",
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -1820,8 +1820,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
                     style={{
                       padding: "14px 16px",
                       borderRadius: 10,
-                      border: active ? "2px solid #FF6B35" : "1px solid #2D2D44",
-                      background: active ? "rgba(255,107,53,0.06)" : "#16213E",
+                      border: active ? "2px solid #FF6B35" : "1px solid rgba(255,255,255,0.08)",
+                      background: active ? "rgba(255,107,53,0.06)" : "rgba(255,255,255,0.02)",
                       cursor: "pointer",
                       textAlign: "left",
                       position: "relative",
@@ -1850,7 +1850,7 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
         )}
 
         {/* CTA */}
-        <div style={{ padding: "24px 28px", background: "#16213E", border: "1px solid #2D2D44", borderRadius: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+        <div style={{ padding: "24px 28px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Pronto para gerar?</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>

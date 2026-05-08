@@ -71,7 +71,7 @@ export default function Nav() {
         zIndex: 50,
         background: "rgba(13,13,26,0.85)",
         backdropFilter: "blur(12px)",
-        borderBottom: "1px solid #2D2D44",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
       <div
@@ -136,8 +136,8 @@ export default function Nav() {
                   alignItems: "center",
                   gap: 8,
                   padding: "6px 12px",
-                  background: "#1A1A2E",
-                  border: "1px solid #2D2D44",
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.06)",
                   borderRadius: 8,
                   fontSize: 13,
                   color: "rgba(255,255,255,0.6)",
