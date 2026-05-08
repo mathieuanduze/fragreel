@@ -43,6 +43,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { getUser, logout, type SessionUser } from "@/lib/session";
 import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
+import ClientStatusChip from "./ClientStatusChip";
 import InstallingClientBanner from "./InstallingClientBanner";
 
 type NavItem = {
@@ -52,14 +53,14 @@ type NavItem = {
   badge?: string;
 };
 
-// Sprint DEMO-3 v3 (08/05/2026 Mathieu spec):
-// "no sidebar pode ter Match History, Upload demo (pra demo externa), e
-// uma sessão com as demos que já foram analisadas — onde ele vê o ranking
-// das kills com fotos dos players e seleciona". Substitui as abas top
-// "Match History | Minhas Demos" da Nav.tsx (que morre em pages logadas).
+// Sprint DEMO-3 v4 (08/05/2026 Mathieu spec — pivot v3 revertido):
+// /matches vira "Minhas Demos" (lista demos LOCAIS no PC, mesma data
+// source do antigo /library). /library vira "Demos Analisadas" (só
+// as que já passaram pela IA — match_id preenchido). Upload Demo
+// continua. Login Steam OpenID puro, sem auth code paste.
 const NAV_PRIMARY: NavItem[] = [
-  { href: "/matches",  label: "Match History",   icon: Trophy },
-  { href: "/upload",   label: "Upload Demo",     icon: UploadCloud },
+  { href: "/matches",  label: "Minhas Demos",     icon: FolderClock },
+  { href: "/upload",   label: "Upload Demo",      icon: UploadCloud },
   { href: "/library",  label: "Demos Analisadas", icon: Sparkles },
 ];
 
@@ -166,28 +167,32 @@ export default function AppShell({
 
       {/* ── MAIN CONTENT ────────────────────────────────────────────── */}
       <main className="flex-1 md:ml-[220px] min-h-screen">
-        {/* Topbar */}
-        {(title || topbarActions) && (
-          <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[rgb(var(--color-background))]/80 backdrop-blur-md">
-            <div className="flex items-center justify-between px-6 lg:px-8 h-[60px]">
-              <div className="min-w-0">
-                {title && (
-                  <h1 className="text-lg font-bold tracking-tight text-[rgb(var(--color-foreground))]">
-                    {title}
-                  </h1>
-                )}
-                {subtitle && (
-                  <p className="text-xs text-[rgb(var(--color-muted-foreground))] truncate">
-                    {subtitle}
-                  </p>
-                )}
-              </div>
-              {topbarActions && (
-                <div className="flex items-center gap-2 shrink-0">{topbarActions}</div>
+        {/* Topbar — DEMO-3 v4: Mathieu pediu manter o ClientStatusChip do
+            topo da página (antes vivia em Nav.tsx). Mostra status: checking
+            / Client conectado vN / Atualizar / Baixar client. Aparece
+            sempre, mesmo em pages sem title/topbarActions. */}
+        <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[rgb(var(--color-background))]/80 backdrop-blur-md">
+          <div className="flex items-center justify-between px-6 lg:px-8 h-[60px] gap-4">
+            <div className="min-w-0 flex-1">
+              {title && (
+                <h1 className="text-lg font-bold tracking-tight text-[rgb(var(--color-foreground))]">
+                  {title}
+                </h1>
+              )}
+              {subtitle && (
+                <p className="text-xs text-[rgb(var(--color-muted-foreground))] truncate">
+                  {subtitle}
+                </p>
               )}
             </div>
-          </header>
-        )}
+            <div className="flex items-center gap-3 shrink-0">
+              <ClientStatusChip />
+              {topbarActions && (
+                <div className="flex items-center gap-2">{topbarActions}</div>
+              )}
+            </div>
+          </div>
+        </header>
 
         {/* Content */}
         <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-[1400px]">

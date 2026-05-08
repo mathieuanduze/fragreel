@@ -2,6 +2,7 @@ import Nav from "@/components/Nav";
 import Link from "next/link";
 import { getLatestClientVersion } from "@/lib/server/getLatestClientVersion";
 import DownloadButton from "@/components/DownloadButton";
+import HeroCTA from "@/components/HeroCTA";
 
 const MAPS = [
   { id: "de_dust2",    name: "Dust2" },
@@ -129,34 +130,7 @@ export default async function Home() {
           {/* CTA hierarchy (Mathieu spec): primário deve ser MAIS chamativo
               do que secundários. Antes ambos tinham mesmo padding+fontSize.
               Agora primário cresce + glow + secondary vira link textual. */}
-          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
-            <DownloadButton
-              className="btn-primary"
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                padding: "18px 38px",
-                boxShadow: "0 8px 32px rgba(255,107,53,0.45), 0 0 0 1px rgba(255,107,53,0.3)",
-                transform: "scale(1)",
-                transition: "transform 0.15s",
-              }}
-            >
-              ⬇ Baixar grátis pro Windows{versionSuffix}
-            </DownloadButton>
-            <Link
-              href="/login"
-              style={{
-                fontSize: 14,
-                color: "rgba(255,255,255,0.55)",
-                textDecoration: "underline",
-                textDecorationColor: "rgba(255,255,255,0.2)",
-                textUnderlineOffset: 4,
-                fontWeight: 500,
-              }}
-            >
-              ou entrar com Steam
-            </Link>
-          </div>
+          <HeroCTA versionSuffix={versionSuffix} />
         </div>
       </section>
 
