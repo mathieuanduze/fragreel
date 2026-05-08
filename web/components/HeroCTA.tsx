@@ -56,26 +56,12 @@ export default function HeroCTA({ versionSuffix }: { versionSuffix: string }) {
         ⬇ Baixar grátis pro Windows{versionSuffix}
       </DownloadButton>
 
-      {hydrated && user ? (
-        <Link
-          href="/matches"
-          style={{
-            fontSize: 14,
-            color: "#FF6B35",
-            textDecoration: "none",
-            fontWeight: 600,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: "rgba(255,107,53,0.08)",
-            border: "1px solid rgba(255,107,53,0.25)",
-          }}
-        >
-          Ir pra Minhas Demos →
-        </Link>
-      ) : (
+      {/* Sprint v5.6.2 (Mathieu spec): "Ir pra Minhas Demos" só aparecia
+          em duplicidade (Nav top-right + aqui no hero). Mathieu specou
+          "tem que estar em cima à direita, junto com o login" — aquele
+          é o canonical. HeroCTA pra logged-in vira link textual sutil
+          "(já tá logado · ir pra plataforma)" pra não duplicar visual. */}
+      {hydrated && user ? null : (
         <Link
           href="/login"
           style={{

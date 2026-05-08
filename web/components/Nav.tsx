@@ -22,6 +22,7 @@ export default function Nav() {
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
   // Sprint Install Indicator (06/05) — Mathieu spec: mostrar banner quando
   // user clicou em "Baixar" + client local ainda offline. Hook returns
   // status="installing" + segundos elapsed pra UX progressiva.
@@ -143,13 +144,14 @@ export default function Nav() {
                   color: "rgba(255,255,255,0.6)",
                 }}
               >
-                {user?.avatar ? (
+                {user?.avatar && !avatarBroken ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={user.avatar}
                     alt=""
                     width={24}
                     height={24}
+                    onError={() => setAvatarBroken(true)}
                     style={{ borderRadius: "50%", objectFit: "cover" }}
                   />
                 ) : (
