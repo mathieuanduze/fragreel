@@ -51,7 +51,7 @@ import ClientStatusChip from "./ClientStatusChip";
 import InstallingClientBanner from "./InstallingClientBanner";
 import { getRecentRender } from "@/lib/recentRender";
 import {
-  getEditDraft,
+  getEditDrafts,
   clearEditDraft,
   editingForMinutes,
   type EditDraft,
@@ -101,20 +101,20 @@ export default function AppShell({
   const [user, setUser] = useState<SessionUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [hasRecentRender, setHasRecentRender] = useState(false);
-  const [editDraft, setEditDraftState] = useState<EditDraft | null>(null);
+  const [editDrafts, setEditDraftsState] = useState<EditDraft[]>([]);
   const clientStatus = useClientVersionStatus();
 
   useEffect(() => {
     setUser(getUser());
     setHasRecentRender(getRecentRender() !== null);
-    setEditDraftState(getEditDraft());
+    setEditDraftsState(getEditDrafts());
     setHydrated(true);
     const onFocus = () => {
       setUser(getUser());
       setHasRecentRender(getRecentRender() !== null);
-      setEditDraftState(getEditDraft());
+      setEditDraftsState(getEditDrafts());
     };
-    const onEditDraftChange = () => setEditDraftState(getEditDraft());
+    const onEditDraftChange = () => setEditDraftsState(getEditDrafts());
     window.addEventListener("focus", onFocus);
     window.addEventListener("storage", onFocus);
     window.addEventListener("editDraft:change", onEditDraftChange);
@@ -133,16 +133,21 @@ export default function AppShell({
     return () => clearInterval(id);
   }, []);
 
-  function handleDiscardEdit(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (confirm("Descartar essa edição? Os ajustes feitos serão perdidos.")) {
-      clearEditDraft();
-      // Se estiver na própria page de edição, navega pra Minhas Demos.
-      if (editDraft && pathname === `/match/${editDraft.matchId}`) {
-        router.push("/matches");
+  function handleDiscardEdit(matchId: string) {
+    return (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (
+        confirm("Descartar essa edição? Os ajustes feitos serão perdidos.")
+      ) {
+        clearEditDraft(matchId);
+        // Se estiver na própria page de edição descartada, navega pra
+        // Minhas Demos pra evitar ficar com page sem context.
+        if (pathname === `/match/${matchId}`) {
+          router.push("/matches");
+        }
       }
-    }
+    };
   }
 
   const handleLogout = () => {
@@ -192,14 +197,25 @@ export default function AppShell({
             active={pathname === NAV_PRIMARY[0].href}
           />
 
-          {/* Editando FragReel — fixo, mas estado depende do draft */}
-          <EditDraftItem
-            draft={hydrated ? editDraft : null}
-            active={
-              !!editDraft && pathname === `/match/${editDraft.matchId}`
-            }
-            onDiscard={handleDiscardEdit}
-          />
+          {/* Editando FragReel — fixo, mostra 1-3 drafts ativos.
+              Quando vazio: 1 item disabled "Editar FragReel · Nenhum".
+              Quando há drafts: N items laranja pulsantes (max 3) com X. */}
+          {!hydrated || editDrafts.length === 0 ? (
+            <EditDraftItem
+              draft={null}
+              active={false}
+              onDiscard={() => {}}
+            />
+          ) : (
+            editDrafts.map((d) => (
+              <EditDraftItem
+                key={d.matchId}
+                draft={d}
+                active={pathname === `/match/${d.matchId}`}
+                onDiscard={handleDiscardEdit(d.matchId)}
+              />
+            ))
+          )}
 
           {/* Meus FragReels — fixo, com badge "Novo" se há render < 1h */}
           <NavLink

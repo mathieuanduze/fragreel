@@ -42,6 +42,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import DownloadButton from "./DownloadButton";
 import ImportDemoModal from "./ImportDemoModal";
+import AnalyzingDemoModal from "./AnalyzingDemoModal";
 import {
   getLocalDemos,
   getDemoRoster,
@@ -540,6 +541,11 @@ function ExpandedContent({ demo }: { demo: LocalDemo }) {
   const ct = roster.roster.filter((p) => p.team === 3);
   const t = roster.roster.filter((p) => p.team === 2);
 
+  // Player atualmente sendo analisado (pra mostrar AnalyzingDemoModal full-screen)
+  const analyzingPlayer = analyzingSteamid
+    ? roster?.roster.find((p) => p.steamid === analyzingSteamid)
+    : null;
+
   return (
     <div className="p-4 space-y-4">
       <div className="text-[11px] text-white/45 leading-relaxed">
@@ -572,11 +578,19 @@ function ExpandedContent({ demo }: { demo: LocalDemo }) {
         />
       </div>
 
-      {analyzingSteamid && (
-        <div className="text-xs text-white/55 text-center pt-2 flex items-center justify-center gap-2">
-          <Loader2 size={12} className="animate-spin text-[#FF6B35]" />
-          Analisando partida... pode levar até 30s na primeira vez
-        </div>
+      {/* Sprint v5.5 (Mathieu spec): "Mate a página do re-mapeando kills
+          de impacto. Tem que ser: Analisando demo do ponto de vista do
+          [player name], tem que ter espaço pra ad". Modal full-screen
+          enquanto scoreDemoForPlayer roda (5-30s). */}
+      {analyzingPlayer && (
+        <AnalyzingDemoModal
+          playerName={
+            analyzingPlayer.name ||
+            `Player ${analyzingPlayer.steamid.slice(-4)}`
+          }
+          playerAvatar={avatars[analyzingPlayer.steamid]}
+          mapName={demo.map_name}
+        />
       )}
     </div>
   );

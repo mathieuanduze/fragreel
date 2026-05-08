@@ -1,36 +1,39 @@
 /**
- * Edit Draft — sessão ativa de edição de FragReel.
+ * Edit Drafts — múltiplas sessões ativas de edição (Sprint v5.5).
  *
- * Mathieu spec literal (Sprint v5.3, 08/05/2026):
- *   "Quando eu tô em /match, eu ainda preciso da sidebar pra navegar.
- *    Precisa ter uma das etapas com 'editar fragreel quando um fragreel
- *    tá sendo editado, salva esse status de edição"
+ * Mathieu spec evoluiu (08/05/2026):
+ *   v5.3: "Precisa ter etapa de editar fragreel quando um fragreel tá
+ *          sendo editado, salva esse status de edição"
+ *   v5.5: "Acho que o usuário poderia deixar até 3 edições simultâneas"
  *
  * Lifecycle:
- *   1. User entra em /match/[id] → setEditDraft({ matchId, mapName, ... })
- *   2. AppShell sidebar renderiza item "Editando: [Map]" laranja pulsante
- *   3. Click no sidebar item → navega de volta pra /match/[matchId]
- *   4. User altera selections (cenas, mood, toggles) → setEditDraft atualiza
- *   5. User clica "Gerar FragReel" + render success → clearEditDraft +
- *      setRecentRender (move pra "Meus FragReels")
- *   6. User pode descartar edição manualmente via X no sidebar item
+ *   1. User entra em /match/[id] → setEditDraft({ matchId, ... })
+ *      - Se já existe draft pro mesmo matchId, ATUALIZA (preserva startedAt)
+ *      - Se é matchId novo, ADICIONA (até 3)
+ *      - Se já tem 3 e é match novo, DESCARTA o mais antigo (oldest updatedAt)
+ *   2. AppShell sidebar renderiza N items (1-3) "Editando: <Map>"
+ *   3. User pode descartar individual via X em cada item
+ *   4. Render success → clearEditDraft(matchId) automático (TODO: AdModal hook)
  *
- * Storage: localStorage (sem TTL — draft persiste até user gerar ou
- * descartar). Diferente do RecentRender (TTL 1h).
+ * Storage: localStorage key fragreel_edit_drafts (plural). Migration
+ * automática do schema antigo (single object) é implícita: getEditDrafts
+ * lê o key novo, retorna [] se não existe. Schema antigo
+ * (fragreel_edit_draft singular) será limpo quando user clicar X em
+ * legacy item ou via TTL de 24h.
  *
- * Schema overlap intencional com FragReelSpec — ao gerar reel, o draft
- * vira RecentRender (mesmos campos + mp4Path).
+ * Notify: dispatchEvent("editDraft:change") em qualquer mutação pra
+ * AppShell sidebar re-renderizar imediato.
  */
 
-const KEY = "fragreel_edit_draft";
+const KEY = "fragreel_edit_drafts";
+const KEY_LEGACY = "fragreel_edit_draft"; // schema v5.3 single — migration soft
+const MAX_DRAFTS = 3;
 
 export interface EditDraft {
   matchId: string;
   mapName: string;
   playerName?: string;
   playerSteamid?: string;
-  // Snapshot das selections atuais — pode estar incompleto se user
-  // ainda não escolheu mood/etc.
   selectedHighlightIds?: string[];
   mood?: string;
   orientation?: "vertical" | "horizontal";
@@ -42,55 +45,127 @@ export interface EditDraft {
     bombTimer?: boolean;
   };
   musicTrack?: string;
-  /** Epoch ms — quando entrou em /match (pra mostrar "editando há Xmin"). */
   startedAt: number;
-  /** Epoch ms — última atualização (qualquer mudança no draft). */
   updatedAt: number;
 }
 
+function notifyChange() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event("editDraft:change"));
+}
+
+function readDrafts(): EditDraft[] {
+  if (typeof window === "undefined") return [];
+  try {
+    // Schema v5.5: array.
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return arr as EditDraft[];
+    }
+    // Migration soft: schema antigo v5.3 (single object) → vira array.
+    const legacy = localStorage.getItem(KEY_LEGACY);
+    if (legacy) {
+      const parsed = JSON.parse(legacy) as EditDraft;
+      if (parsed && parsed.matchId) {
+        const migrated = [parsed];
+        localStorage.setItem(KEY, JSON.stringify(migrated));
+        localStorage.removeItem(KEY_LEGACY);
+        return migrated;
+      }
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDrafts(drafts: EditDraft[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(drafts));
+    notifyChange();
+  } catch {
+    // Silent fail
+  }
+}
+
+/**
+ * Set/update um draft específico. Se matchId já existe, ATUALIZA preservando
+ * startedAt. Se é novo e já há MAX_DRAFTS, descarta o mais antigo (menor
+ * updatedAt).
+ */
 export function setEditDraft(
   draft: Omit<EditDraft, "startedAt" | "updatedAt">,
 ): void {
   if (typeof window === "undefined") return;
-  const existing = getEditDraft();
-  // Se já tem draft do mesmo match, preserva startedAt (data de início).
-  // Se mudou de match, reset startedAt.
-  const startedAt =
-    existing && existing.matchId === draft.matchId
-      ? existing.startedAt
-      : Date.now();
-  const payload: EditDraft = {
-    ...draft,
-    startedAt,
-    updatedAt: Date.now(),
-  };
-  try {
-    localStorage.setItem(KEY, JSON.stringify(payload));
-    // Notifica outros tabs / AppShell sidebar pra re-renderizar
-    window.dispatchEvent(new Event("editDraft:change"));
-  } catch {
-    // Silent fail — quota / disabled storage
+  const all = readDrafts();
+  const existingIdx = all.findIndex((d) => d.matchId === draft.matchId);
+  const now = Date.now();
+
+  if (existingIdx >= 0) {
+    // Update — preserva startedAt
+    all[existingIdx] = {
+      ...draft,
+      startedAt: all[existingIdx].startedAt,
+      updatedAt: now,
+    };
+  } else {
+    // New — append
+    const newDraft: EditDraft = {
+      ...draft,
+      startedAt: now,
+      updatedAt: now,
+    };
+    all.push(newDraft);
+    // Cap em MAX_DRAFTS — descarta o mais antigo se excedeu
+    if (all.length > MAX_DRAFTS) {
+      all.sort((a, b) => a.updatedAt - b.updatedAt); // mais antigo primeiro
+      all.shift(); // remove oldest
+    }
   }
+  writeDrafts(all);
 }
 
+/** Lista todas as edições ativas (max MAX_DRAFTS), ordenadas por updatedAt desc. */
+export function getEditDrafts(): EditDraft[] {
+  return readDrafts().sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/** Retorna 1 draft pra um matchId específico ou null. */
+export function getEditDraftByMatchId(matchId: string): EditDraft | null {
+  return readDrafts().find((d) => d.matchId === matchId) ?? null;
+}
+
+/** Compat helper — retorna o draft mais recente (1) pra UIs single-slot. */
 export function getEditDraft(): EditDraft | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as EditDraft;
-  } catch {
-    return null;
-  }
+  const all = getEditDrafts();
+  return all[0] ?? null;
 }
 
-export function clearEditDraft(): void {
+/** Remove um draft específico. */
+export function clearEditDraft(matchId?: string): void {
+  if (typeof window === "undefined") return;
+  if (!matchId) {
+    // Limpa tudo (compat com chamada legacy sem args)
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(KEY_LEGACY);
+    notifyChange();
+    return;
+  }
+  const all = readDrafts().filter((d) => d.matchId !== matchId);
+  writeDrafts(all);
+}
+
+export function clearAllEditDrafts(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(KEY);
-  window.dispatchEvent(new Event("editDraft:change"));
+  localStorage.removeItem(KEY_LEGACY);
+  notifyChange();
 }
 
-/** "Editando há 3min" / "Editando há 12min" — formato leve pro sidebar. */
 export function editingForMinutes(d: EditDraft): number {
   return Math.max(0, Math.floor((Date.now() - d.startedAt) / 60000));
 }
+
+export const MAX_EDIT_DRAFTS = MAX_DRAFTS;
