@@ -110,41 +110,13 @@ export default async function Home() {
             IA detecta seus melhores momentos, edita com cinematografia de Major, exporta em vertical. <strong style={{ color: "#E8E8F0", fontWeight: 700 }}>Sem CapCut, sem AllStar, sem editor manual.</strong>
           </p>
 
-          {/* PC requirement indicator (Mathieu spec 06/05): "Precisa ser
-              claro no mobile e PC que pra gerar fragreel precisa estar
-              logado no PC". Hero = primeiro touchpoint. */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 26, padding: "7px 14px", background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 8, fontSize: 12, fontWeight: 600, color: "#60a5fa", letterSpacing: "0.02em" }}>
-            <span>🖥️</span>
-            Render roda no seu Windows · CS2 lê as demos local
-          </div>
+          {/* Sprint v5.7 (Mathieu 08/05/2026): "Render roda no seu
+              Windows" + 4 stats chips (1v3 CLUTCH, DEFUSE, PLANT WON,
+              ACE) removidos — "polui muito". Hero foca em: badge CS2,
+              H1, descrição, CTA primary. STATS const mantida pq pode
+              ser reusada em /pricing ou /how-it-works no futuro. */}
+          <div style={{ marginBottom: 4 }} />
 
-          {/* Sprint v5.6 (LP plataforma-style): chips Shadcn-aligned com
-              paleta hybrid (white/[0.02] bg, white/[0.06] border) em vez
-              do antigo #1A1A2E sólido. */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
-            {STATS.map((s) => (
-              <div
-                key={s.label}
-                style={{
-                  padding: "6px 14px",
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 8,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  transition: "border-color 0.15s ease",
-                }}
-              >
-                <span style={{ fontSize: 11, fontWeight: 800, color: s.color, letterSpacing: "0.05em" }}>{s.label}</span>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{s.sub}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA hierarchy (Mathieu spec): primário deve ser MAIS chamativo
-              do que secundários. Antes ambos tinham mesmo padding+fontSize.
-              Agora primário cresce + glow + secondary vira link textual. */}
           <HeroCTA versionSuffix={versionSuffix} />
         </div>
       </section>
