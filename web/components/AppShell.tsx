@@ -64,23 +64,17 @@ type NavItem = {
   badge?: string;
 };
 
-// Sprint DEMO-3 v5 (08/05/2026 Mathieu spec):
-// "Minhas Demos e Demos Analisadas são redundantes — user não vai
-// entender a diferença". Unificado em 1 tela só (/matches) com expand
-// inline. Upload Demo virou ação na topbar (modal). Renders Recentes
-// é item conditional (só aparece se tem render < 1h em localStorage).
-// Reportar Bug é link novo.
+// Sprint v5.4 (08/05/2026 Mathieu spec): "quero seções fixas no sidebar".
+// Nada conditional — sempre mostra os 4 itens. Estados vazios handled
+// pela page destino (empty state com CTA pra começar).
+//
+// Edição em andamento (EditDraft) renderizada como NavLink especial
+// entre Minhas Demos e Meus FragReels com indicador laranja pulsante
+// quando há draft.
 const NAV_PRIMARY: NavItem[] = [
-  { href: "/matches",       label: "Minhas Demos",     icon: FolderClock },
+  { href: "/matches",  label: "Minhas Demos",   icon: FolderClock },
+  { href: "/renders",  label: "Meus FragReels", icon: Film },
 ];
-
-// Meus FragReels — conditional render no sidebar (só aparece se há reel
-// gerado < 1h em localStorage). Mathieu spec v5.2: "Você não criou a
-// seção meus fragreels onde guardamos o histórico do gerado e podemos
-// guardar as specs do que foi gerado. CTA: gerar fragreel novamente".
-const NAV_RENDERS: NavItem = {
-  href: "/renders",       label: "Meus FragReels",   icon: Film,
-};
 
 const NAV_SECONDARY: NavItem[] = [
   { href: "/report-bug",    label: "Reportar Bug",     icon: Bug },
@@ -189,29 +183,32 @@ export default function AppShell({
           <div className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-[rgb(var(--color-muted-foreground))]">
             Plataforma
           </div>
-          {NAV_PRIMARY.map((item) => (
-            <NavLink key={item.href} item={item} active={pathname === item.href} />
-          ))}
+          {/* Sprint v5.4 (Mathieu spec): "quero seções fixas no sidebar".
+              Render Minhas Demos sempre. Editando FragReel sempre — fade
+              quando não há draft, laranja pulsante quando há. Meus
+              FragReels sempre — page destino mostra empty state. */}
+          <NavLink
+            item={NAV_PRIMARY[0]}
+            active={pathname === NAV_PRIMARY[0].href}
+          />
 
-          {/* Conditional: edição em andamento. Sprint v5.3 (Mathieu spec):
-              "Precisa ter uma das etapas com 'editar fragreel' quando um
-               fragreel tá sendo editado, salva esse status de edição".
-              Aparece em laranja com pulse + X pra descartar. */}
-          {hydrated && editDraft && (
-            <EditDraftItem
-              draft={editDraft}
-              active={pathname === `/match/${editDraft.matchId}`}
-              onDiscard={handleDiscardEdit}
-            />
-          )}
+          {/* Editando FragReel — fixo, mas estado depende do draft */}
+          <EditDraftItem
+            draft={hydrated ? editDraft : null}
+            active={
+              !!editDraft && pathname === `/match/${editDraft.matchId}`
+            }
+            onDiscard={handleDiscardEdit}
+          />
 
-          {/* Conditional: só renderiza se tem render < 1h em localStorage */}
-          {hydrated && hasRecentRender && (
-            <NavLink
-              item={NAV_RENDERS}
-              active={pathname === NAV_RENDERS.href}
-            />
-          )}
+          {/* Meus FragReels — fixo, com badge "Novo" se há render < 1h */}
+          <NavLink
+            item={{
+              ...NAV_PRIMARY[1],
+              badge: hydrated && hasRecentRender ? "Novo" : undefined,
+            }}
+            active={pathname === NAV_PRIMARY[1].href}
+          />
 
           {NAV_SECONDARY.length > 0 && (
             <>
@@ -306,24 +303,46 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 }
 
 /**
- * EditDraftItem — sidebar item conditional pra edição em andamento.
+ * EditDraftItem — sidebar item FIXO pra edição.
  *
- * Sprint v5.3 (08/05/2026 Mathieu spec). Aparece quando getEditDraft()
- * tem um draft, com:
- *   - Lapis icon laranja pulsante
- *   - "Editando: <Map>" + "Há Xmin"
- *   - X botão à direita pra descartar (com confirmação)
- *   - Active state quando user tá em /match/[matchId] do draft
+ * Sprint v5.4 (08/05/2026 Mathieu spec): "quero seções fixas no sidebar".
+ * Renderiza sempre — quando não há draft, fica em estado fade/disabled
+ * com label "Editar FragReel" (não-clickable, sem destino). Quando há
+ * draft, vira laranja pulsante "Editando: <Map>" + "há Xmin" + X
+ * pra descartar.
  */
 function EditDraftItem({
   draft,
   active,
   onDiscard,
 }: {
-  draft: EditDraft;
+  draft: EditDraft | null;
   active: boolean;
   onDiscard: (e: React.MouseEvent) => void;
 }) {
+  // ── Estado vazio: fade/disabled, sem destino ──
+  if (!draft) {
+    return (
+      <div
+        className={cn(
+          "group relative flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-colors",
+          "text-[rgb(var(--color-foreground))]/30 cursor-default",
+        )}
+        title="Nenhuma edição em andamento. Vá em Minhas Demos pra começar."
+      >
+        <Pencil
+          size={15}
+          className="shrink-0 text-[rgb(var(--color-foreground))]/30"
+        />
+        <span className="truncate">Editar FragReel</span>
+        <span className="ml-auto text-[9px] text-[rgb(var(--color-foreground))]/35 italic">
+          Nenhum
+        </span>
+      </div>
+    );
+  }
+
+  // ── Estado ativo: laranja pulsante com discard X ──
   const minutes = editingForMinutes(draft);
   const mapPretty =
     draft.mapName.replace(/^de_/, "").charAt(0).toUpperCase() +
@@ -348,9 +367,7 @@ function EditDraftItem({
           Editando: {mapPretty}
         </div>
         <div className="text-[10px] text-[rgb(var(--color-primary))]/65 font-normal">
-          {minutes < 1
-            ? "iniciado agora"
-            : `há ${minutes}min`}
+          {minutes < 1 ? "iniciado agora" : `há ${minutes}min`}
         </div>
       </div>
       <button
