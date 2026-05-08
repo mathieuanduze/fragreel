@@ -75,7 +75,14 @@ export default async function Home() {
       <Nav />
 
       {/* ── Hero — enxuto, foco no headline + CTAs ───────────────────── */}
-      <section style={{ paddingTop: 130, paddingBottom: 60, paddingLeft: 24, paddingRight: 24, textAlign: "center", position: "relative", overflow: "hidden" }}>
+      {/* Sprint v5.7.5 (Mathieu spec 08/05): "Deixe mais espaço pra
+          hero da página olhe como o vídeo do celular está criando um
+          corte seco no backlight do CTA". Bumped paddingBottom 60 → 160
+          pro orange glow da CTA principal (box-shadow ~32px spread +
+          rgba 0.45 alpha) ter espaço pra fade gradual antes do próximo
+          section começar. Antes 60px era apertado: glow ~80px alto,
+          comia o início da section seguinte. */}
+      <section style={{ paddingTop: 130, paddingBottom: 160, paddingLeft: 24, paddingRight: 24, textAlign: "center", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: 60, left: "50%", transform: "translateX(-50%)", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,107,53,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
 
         <div style={{ maxWidth: 860, margin: "0 auto", position: "relative" }}>
@@ -126,7 +133,7 @@ export default async function Home() {
             trocar por <video autoPlay muted loop playsInline> + <source src="<R2 url>" />)
           Right: features grid + map pool inline
           Mobile: collapse via grid auto-fit minmax 320px. */}
-      <section style={{ padding: "0 24px 60px", maxWidth: 1100, margin: "0 auto" }}>
+      <section style={{ padding: "20px 24px 60px", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
