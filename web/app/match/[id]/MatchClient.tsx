@@ -488,7 +488,9 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
   const formatLabel = FORMATS.find((f) => f.id === format)?.label ?? "vídeo";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0D0D1A", color: "#E8E8F0" }}>
+    <div style={{ color: "#E8E8F0" }}>
+      {/* Sprint v5.2: removido min-h-screen + background — AppShell handle.
+          Antes era top-level page wrapper, agora é content dentro do AppShell. */}
       {showAd && (
         <AdModal
           formatLabel={formatLabel}
@@ -753,14 +755,10 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
           </div>
         </div>
       )}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "96px 24px 60px" }}>
-
-        {/* Breadcrumb */}
-        <div style={{ marginBottom: 28, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
-          <Link href="/matches" style={{ color: "inherit", textDecoration: "none" }}>Minhas Demos</Link>
-          {" / "}
-          <span style={{ color: "rgba(255,255,255,0.7)" }}>{match.map} · {match.date}</span>
-        </div>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 0 60px" }}>
+        {/* Sprint v5.2: removido padding 96px top (era pra Nav fixed), removido
+            breadcrumb (AppShell topbar agora mostra "Editar FragReel · Map ·
+            Score"). Sidebar disponível pra navegação. */}
 
         {/* Match header */}
         <div className="card" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 24, marginBottom: 40, padding: "24px 28px" }}>

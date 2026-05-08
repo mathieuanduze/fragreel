@@ -66,9 +66,12 @@ const NAV_PRIMARY: NavItem[] = [
   { href: "/matches",       label: "Minhas Demos",     icon: FolderClock },
 ];
 
-// Renders Recentes — conditional render no sidebar (ver AppShell render).
+// Meus FragReels — conditional render no sidebar (só aparece se há reel
+// gerado < 1h em localStorage). Mathieu spec v5.2: "Você não criou a
+// seção meus fragreels onde guardamos o histórico do gerado e podemos
+// guardar as specs do que foi gerado. CTA: gerar fragreel novamente".
 const NAV_RENDERS: NavItem = {
-  href: "/renders",       label: "Renders Recentes", icon: Film,
+  href: "/renders",       label: "Meus FragReels",   icon: Film,
 };
 
 const NAV_SECONDARY: NavItem[] = [

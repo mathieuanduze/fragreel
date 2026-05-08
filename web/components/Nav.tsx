@@ -101,13 +101,30 @@ export default function Nav() {
                   "Mapear jogadas de impacto", e a /match/{id} é o
                   destino de edição/formato. O hist\u00f3rico de renders
                   foi intencionalmente descartado (decisão do user). */}
-              {/* DEMO-3 v3 (08/05/2026 Mathieu spec): "as abas
-                  superiores Match History | Minhas Demos morrem e fica
-                  tudo na visão dashboard". Navegação 100% via sidebar
-                  AppShell (Match History / Upload Demo / Demos
-                  Analisadas). Top bar mantida só com logo + client +
-                  user chip pra pages que ainda não migraram pra
-                  AppShell (/match/[id], /demo/[sha], /dashboard). */}
+              {/* Sprint v5.2 (Mathieu spec): "tem que estar em cima à
+                  direita, junto com o login" — CTA "Ir pra Minhas Demos"
+                  pra logged user. Antes vivia só no hero via HeroCTA,
+                  agora também no top-right de qualquer page que ainda
+                  use Nav (LP, /privacy, /pro). */}
+              <Link
+                href="/matches"
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#FF6B35",
+                  background: "rgba(255,107,53,0.10)",
+                  border: "1px solid rgba(255,107,53,0.30)",
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "background 0.15s",
+                }}
+              >
+                Ir pra Minhas Demos →
+              </Link>
 
               {/* Client status (online/offline) */}
               <ClientStatusChip />

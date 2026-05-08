@@ -1,28 +1,25 @@
-import Nav from "@/components/Nav";
+import AppShell from "@/components/AppShell";
 import { getMatch } from "@/lib/api";
 import MatchClient from "./MatchClient";
 import LocalMatchFetcher from "./LocalMatchFetcher";
 
+/**
+ * /match/[id] — Sprint v5.2 (08/05/2026 Mathieu spec):
+ *   "Quando eu tô em /match, eu ainda preciso da sidebar pra navegar".
+ *
+ * Migrado de Nav top-bar antiga pra AppShell sidebar (consistente com
+ * /matches /renders /report-bug). MatchClient renderiza dentro do
+ * content area do AppShell.
+ */
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   // Estratégia hibrida (Sprint I.5 + Bug #10 V2):
-  //
-  // 1. Server Component tenta Railway primeiro
-  //    → preserva SSR pra users com matches já uploadados pro Railway
-  //    → response rápida em CDN cache hit
-  //
-  // 2. Se Railway 200: renderiza MatchClient direto (caminho atual)
-  //
-  // 3. Se Railway 404: renderiza <LocalMatchFetcher /> Client Component que:
-  //    a. Tenta getLocalMatch(id) no cliente FragReel local (127.0.0.1:5775)
-  //       → Sprint I.5: cliente salva match em ~/.fragreel/matches/ pós parse_and_score_locally
-  //    b. Se cliente local TEM match: renderiza MatchClient com dados locais
-  //    c. Se cliente local NÃO tem (404 ou offline): cai pro AutoReanalyze
-  //       (Bug #10 V2 — força re-upload com cliente local)
-  //
-  // Server Component não pode falar com 127.0.0.1 (servidor Vercel ≠ user PC).
-  // Por isso a etapa 3 vai pro Client Component.
+  //   1. Server Component tenta Railway primeiro (CDN cache fast-path)
+  //   2. Se Railway 200: renderiza MatchClient direto
+  //   3. Se Railway 404: LocalMatchFetcher tenta cliente local (127.0.0.1:5775)
+  //      → Bug #10 V2: cai pro AutoReanalyze se cliente também 404
+  // Server Component não fala com 127.0.0.1 (Vercel ≠ user PC), por isso etapa 3 é Client.
   let match;
   try {
     match = await getMatch(id);
@@ -32,19 +29,23 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   }
 
   if (!match) {
-    // Sprint I.5: Client Component vai checar cliente local + fallback AutoReanalyze
     return (
-      <>
-        <Nav />
+      <AppShell title="Carregando partida..." subtitle="Buscando dados no servidor ou cliente local">
         <LocalMatchFetcher matchId={id} />
-      </>
+      </AppShell>
     );
   }
 
+  const mapPretty =
+    match.map.replace(/^de_/, "").charAt(0).toUpperCase() +
+    match.map.replace(/^de_/, "").slice(1);
+
   return (
-    <>
-      <Nav />
+    <AppShell
+      title={`Editar FragReel · ${mapPretty}`}
+      subtitle={`${match.score} · ${match.date}`}
+    >
       <MatchClient match={match} />
-    </>
+    </AppShell>
   );
 }
