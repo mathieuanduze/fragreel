@@ -17,6 +17,8 @@ import { getUser } from "@/lib/session";
 import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
+import AffiliateBanner from "@/components/AffiliateBanner";
+import { pickProductForSlot } from "@/lib/affiliateProducts";
 import UpdateRequiredModal from "@/components/UpdateRequiredModal";
 
 const CS2_TICKRATE = 64;
@@ -1142,9 +1144,32 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
           )}
         </div>
 
-        {/* Ad — entre highlights e seletor de formato */}
+        {/* Ad — entre highlights e seletor de formato.
+            Plano monetização v2 (07/05): substitui placeholder AdSlot por
+            AffiliateBanner real. Pick produto baseado no match.id (seed
+            estável — mesmo match = mesmo produto entre re-renders).
+            Spot principal de match-page: hardware affiliate. */}
         <div style={{ marginBottom: 32 }}>
-          <AdSlot id="match-rectangle" size="banner" label="Patrocinado · Razer · Gear up for victory" />
+          {(() => {
+            // Seed estável: hash simples do match.id pra produto consistente
+            const seed = (match.id || "0")
+              .split("")
+              .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+            const product = pickProductForSlot("match-page", seed);
+            if (!product) {
+              // Fallback pro AdSlot legacy se catalog vazio
+              return (
+                <AdSlot
+                  id="match-rectangle"
+                  size="banner"
+                  label="Patrocinado · Razer · Gear up for victory"
+                />
+              );
+            }
+            return (
+              <AffiliateBanner product={product} trackingSlot="match-page-banner" />
+            );
+          })()}
         </div>
 
         {/* Format selector */}
