@@ -101,32 +101,13 @@ export default function Nav() {
                   "Mapear jogadas de impacto", e a /match/{id} é o
                   destino de edição/formato. O hist\u00f3rico de renders
                   foi intencionalmente descartado (decisão do user). */}
-              <Link
-                href="/matches"
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: path === "/matches" ? "#FF6B35" : "rgba(255,255,255,0.6)",
-                  textDecoration: "none",
-                }}
-              >
-                Match History
-              </Link>
-              <Link
-                href="/library"
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: path === "/library" ? "#FF6B35" : "rgba(255,255,255,0.6)",
-                  textDecoration: "none",
-                }}
-              >
-                Minhas Demos
-              </Link>
+              {/* DEMO-3 v3 (08/05/2026 Mathieu spec): "as abas
+                  superiores Match History | Minhas Demos morrem e fica
+                  tudo na visão dashboard". Navegação 100% via sidebar
+                  AppShell (Match History / Upload Demo / Demos
+                  Analisadas). Top bar mantida só com logo + client +
+                  user chip pra pages que ainda não migraram pra
+                  AppShell (/match/[id], /demo/[sha], /dashboard). */}
 
               {/* Client status (online/offline) */}
               <ClientStatusChip />
