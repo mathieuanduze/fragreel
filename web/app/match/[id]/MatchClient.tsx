@@ -15,6 +15,8 @@ import {
 } from "@/lib/local";
 import { getUser } from "@/lib/session";
 import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
+import { setEditDraft, clearEditDraft } from "@/lib/editDraft";
+import { setRecentRender } from "@/lib/recentRender";
 import AdSlot from "@/components/AdSlot";
 import AdModal from "@/components/AdModal";
 import AffiliateBanner from "@/components/AffiliateBanner";
@@ -259,6 +261,39 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isQueued = match.highlights.length === 0;
+
+  // Sprint v5.3 (Mathieu spec): persiste draft de edição em localStorage.
+  // AppShell sidebar usa pra mostrar item "Editando: <Map>" laranja
+  // pulsante. Atualiza a cada mudança de selection/mood/orientation/etc.
+  useEffect(() => {
+    setEditDraft({
+      matchId: match.id,
+      mapName: match.map,
+      playerName: match.player_name || undefined,
+      selectedHighlightIds: Array.from(selected).map(String),
+      mood,
+      orientation,
+      toggles: {
+        cinematic: killFlashEnabled,
+        hud: scoreboardEnabled,
+        xray: xrayEnabled,
+        music: musicEnabled,
+        bombTimer: bombTimerEnabled,
+      },
+    });
+  }, [
+    match.id,
+    match.map,
+    match.player_name,
+    selected,
+    mood,
+    orientation,
+    killFlashEnabled,
+    scoreboardEnabled,
+    xrayEnabled,
+    musicEnabled,
+    bombTimerEnabled,
+  ]);
 
   // When queued: tick elapsed counter + poll for highlights every 15s
   useEffect(() => {

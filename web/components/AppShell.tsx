@@ -39,6 +39,8 @@ import {
   Sparkles,
   Bug,
   Film,
+  Pencil,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -48,6 +50,12 @@ import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import ClientStatusChip from "./ClientStatusChip";
 import InstallingClientBanner from "./InstallingClientBanner";
 import { getRecentRender } from "@/lib/recentRender";
+import {
+  getEditDraft,
+  clearEditDraft,
+  editingForMinutes,
+  type EditDraft,
+} from "@/lib/editDraft";
 
 type NavItem = {
   href: string;
@@ -99,21 +107,27 @@ export default function AppShell({
   const [user, setUser] = useState<SessionUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [hasRecentRender, setHasRecentRender] = useState(false);
+  const [editDraft, setEditDraftState] = useState<EditDraft | null>(null);
   const clientStatus = useClientVersionStatus();
 
   useEffect(() => {
     setUser(getUser());
     setHasRecentRender(getRecentRender() !== null);
+    setEditDraftState(getEditDraft());
     setHydrated(true);
     const onFocus = () => {
       setUser(getUser());
       setHasRecentRender(getRecentRender() !== null);
+      setEditDraftState(getEditDraft());
     };
+    const onEditDraftChange = () => setEditDraftState(getEditDraft());
     window.addEventListener("focus", onFocus);
     window.addEventListener("storage", onFocus);
+    window.addEventListener("editDraft:change", onEditDraftChange);
     return () => {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onFocus);
+      window.removeEventListener("editDraft:change", onEditDraftChange);
     };
   }, []);
 
@@ -124,6 +138,18 @@ export default function AppShell({
     }, 60_000);
     return () => clearInterval(id);
   }, []);
+
+  function handleDiscardEdit(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm("Descartar essa edição? Os ajustes feitos serão perdidos.")) {
+      clearEditDraft();
+      // Se estiver na própria page de edição, navega pra Minhas Demos.
+      if (editDraft && pathname === `/match/${editDraft.matchId}`) {
+        router.push("/matches");
+      }
+    }
+  }
 
   const handleLogout = () => {
     logout();
@@ -166,6 +192,19 @@ export default function AppShell({
           {NAV_PRIMARY.map((item) => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}
+
+          {/* Conditional: edição em andamento. Sprint v5.3 (Mathieu spec):
+              "Precisa ter uma das etapas com 'editar fragreel' quando um
+               fragreel tá sendo editado, salva esse status de edição".
+              Aparece em laranja com pulse + X pra descartar. */}
+          {hydrated && editDraft && (
+            <EditDraftItem
+              draft={editDraft}
+              active={pathname === `/match/${editDraft.matchId}`}
+              onDiscard={handleDiscardEdit}
+            />
+          )}
+
           {/* Conditional: só renderiza se tem render < 1h em localStorage */}
           {hydrated && hasRecentRender && (
             <NavLink
@@ -262,6 +301,65 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
           {item.badge}
         </span>
       )}
+    </Link>
+  );
+}
+
+/**
+ * EditDraftItem — sidebar item conditional pra edição em andamento.
+ *
+ * Sprint v5.3 (08/05/2026 Mathieu spec). Aparece quando getEditDraft()
+ * tem um draft, com:
+ *   - Lapis icon laranja pulsante
+ *   - "Editando: <Map>" + "Há Xmin"
+ *   - X botão à direita pra descartar (com confirmação)
+ *   - Active state quando user tá em /match/[matchId] do draft
+ */
+function EditDraftItem({
+  draft,
+  active,
+  onDiscard,
+}: {
+  draft: EditDraft;
+  active: boolean;
+  onDiscard: (e: React.MouseEvent) => void;
+}) {
+  const minutes = editingForMinutes(draft);
+  const mapPretty =
+    draft.mapName.replace(/^de_/, "").charAt(0).toUpperCase() +
+    draft.mapName.replace(/^de_/, "").slice(1);
+
+  return (
+    <Link
+      href={`/match/${draft.matchId}`}
+      className={cn(
+        "group relative flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium transition-all border",
+        active
+          ? "bg-[rgb(var(--color-primary))]/15 text-[rgb(var(--color-primary))] border-[rgb(var(--color-primary))]/30"
+          : "bg-[rgb(var(--color-primary))]/[0.05] text-[rgb(var(--color-primary))]/85 border-[rgb(var(--color-primary))]/15 hover:bg-[rgb(var(--color-primary))]/10 hover:border-[rgb(var(--color-primary))]/25",
+      )}
+    >
+      <div className="relative shrink-0">
+        <Pencil size={15} className="text-[rgb(var(--color-primary))]" />
+        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[rgb(var(--color-primary))] animate-pulse" />
+      </div>
+      <div className="flex-1 min-w-0 leading-tight">
+        <div className="truncate text-[13px] font-semibold">
+          Editando: {mapPretty}
+        </div>
+        <div className="text-[10px] text-[rgb(var(--color-primary))]/65 font-normal">
+          {minutes < 1
+            ? "iniciado agora"
+            : `há ${minutes}min`}
+        </div>
+      </div>
+      <button
+        onClick={onDiscard}
+        className="shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-[rgb(var(--color-primary))]/55 hover:text-[rgb(var(--color-primary))] transition-colors"
+        title="Descartar edição"
+      >
+        <X size={11} />
+      </button>
     </Link>
   );
 }
