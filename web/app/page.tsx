@@ -25,26 +25,58 @@ const STATS = [
 // v0.7.0 LP rewrite (05/05): reduzido pós-feedback Mathieu "tem muito texto".
 // Update 05/05 #2: "Como funciona" pode ter mais texto — section principal
 // de explicação do produto, vale dar contexto. Demais sections continuam tight.
+// Sprint v5.7.7 (Mathieu spec 08/05): "essa parte tá meio boring + não
+// diz mais como é o processo". Steps reescritos pra refletir flow real
+// pós-DEMO-3 v5: 6 steps com icon SVG paths, accent colors (gradient
+// laranja → azul ao longo do flow), highlights concretos.
 const steps = [
   {
     num: "01",
-    title: "Baixe o client",
-    desc: "FragReel.exe pra Windows (~120 MB). Login Steam pra detectar suas demos. Sem assinatura, sem cadastro extra.",
+    title: "Conecte sua Steam",
+    desc: "Login OAuth — sem senha, sem cadastro extra. Baixa o client gratuito pro Windows (~120 MB) e é isso.",
+    accent: "#FF6B35",
+    iconPath: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+    highlight: "Sem assinatura. Sem trial.",
   },
   {
     num: "02",
-    title: "Escolha a partida",
-    desc: "O client lista as demos que o CS2 já salva no seu PC + qualquer .dem que você baixar (HLTV, CSGOStats). Click na que você quer.",
+    title: "Escolha sua partida",
+    desc: "O cliente detecta automaticamente as demos do CS2 no seu PC. Importou .dem de HLTV/CSGOStats/FACEIT? Aparece junto.",
+    accent: "#FF8A4C",
+    iconPath: "M22 12h-4l-3 9L9 3l-3 9H2",
+    highlight: "Map thumb · score · KD por card",
   },
   {
     num: "03",
-    title: "Veja 1 anúncio",
-    desc: "Render leva ~15-20min no seu PC (HLAE captura + ffmpeg encode + Remotion edit). Você assiste 1 ad de 30s — é o que sustenta o site grátis.",
+    title: "Pick o protagonista",
+    desc: "Vê o roster da partida com fotos do Steam de cada player. Click no que vai estrelar o reel — IA analisa kills do ponto de vista dele.",
+    accent: "#FFA060",
+    iconPath: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 11l-3-3-3 3 M19 8v6",
+    highlight: "5v5 visível · escolha qualquer um",
   },
   {
     num: "04",
-    title: "MP4 no Desktop",
-    desc: "Vídeo final pronto na sua área de trabalho (~30-40 MB). Vertical pra TikTok/Reels/Shorts ou horizontal pra YouTube/Twitch — você escolhe na hora.",
+    title: "Personalize seu reel",
+    desc: "Selecione até 5 cenas. Escolha mood (heroico, épico, intenso), trilha, formato (vertical TikTok ou horizontal YouTube), HUD com bomb timer, x-ray, kill cam.",
+    accent: "#9DC4FF",
+    iconPath: "M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6",
+    highlight: "Você decide cada detalhe",
+  },
+  {
+    num: "05",
+    title: "Render no seu PC",
+    desc: "~15-20min usando HLAE + ffmpeg + Remotion no seu Windows. 1 anúncio de 30s sustenta o site grátis. Tudo local — vídeo NUNCA sai do seu PC.",
+    accent: "#7FB3FF",
+    iconPath: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4",
+    highlight: "Privacy-first · render local",
+  },
+  {
+    num: "06",
+    title: "Compartilha",
+    desc: "MP4 final pronto na sua área de trabalho (~30-40 MB). Posta direto no TikTok/Reels/Shorts/YouTube. Histórico em \"Meus FragReels\" pra re-gerar variações.",
+    accent: "#5D9CEC",
+    iconPath: "M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8 M16 6l-4-4-4 4 M12 2v13",
+    highlight: "Vertical · horizontal · 30-40 MB",
   },
 ];
 
@@ -529,75 +561,228 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Como funciona — 4 steps tightened ───────────────────────── */}
-      <section style={{ padding: "60px 24px" }}>
-        <div style={{ maxWidth: 880, margin: "0 auto" }}>
-          <h2 style={{ textAlign: "center", fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 40 }}>
-            Como funciona
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
-            {steps.map((s) => (
-              <div
-                key={s.num}
-                style={{
-                  padding: "20px 18px",
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 12,
-                  transition: "border-color 0.15s ease",
-                }}
-              >
+      {/* ── Como funciona — Sprint v5.7.7 (Mathieu spec): "tá meio boring +
+          não diz mais como é o processo". Refeito com 6 steps refletindo
+          flow real DEMO-3 v5 (login → demo → player → personalize →
+          render → share). Visual: timeline vertical com gradient laranja→
+          azul, ícones SVG inline, highlight stat por step. */}
+      <section style={{ padding: "80px 24px", position: "relative" }}>
+        {/* Ambient glow background */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: "30%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 800,
+            height: 600,
+            borderRadius: "50%",
+            background:
+              "radial-gradient(ellipse, rgba(255,107,53,0.05) 0%, transparent 60%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div style={{ maxWidth: 920, margin: "0 auto", position: "relative" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "5px 12px",
+                background: "rgba(255,107,53,0.10)",
+                border: "1px solid rgba(255,107,53,0.25)",
+                borderRadius: 999,
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#FF6B35",
+                letterSpacing: "0.14em",
+                marginBottom: 14,
+                textTransform: "uppercase",
+              }}
+            >
+              Como funciona
+            </div>
+            <h2
+              style={{
+                fontSize: "clamp(28px, 4vw, 40px)",
+                fontWeight: 900,
+                letterSpacing: "-0.025em",
+                margin: 0,
+                lineHeight: 1.1,
+              }}
+            >
+              Do .dem ao reel viral em{" "}
+              <span style={{ color: "#FF6B35" }}>6 passos</span>.
+            </h2>
+            <p
+              style={{
+                fontSize: 15,
+                color: "rgba(255,255,255,0.55)",
+                lineHeight: 1.55,
+                maxWidth: 540,
+                margin: "12px auto 0",
+              }}
+            >
+              Pipeline completo: login Steam → escolha partida → seleciona
+              player → personaliza → render local → MP4 pronto.
+            </p>
+          </div>
+
+          {/* Timeline vertical com gradient line connecting steps */}
+          <div style={{ position: "relative" }}>
+            {/* Vertical gradient connector line — visible only on md+ */}
+            <div
+              aria-hidden
+              className="howto-connector"
+              style={{
+                position: "absolute",
+                left: 36,
+                top: 36,
+                bottom: 36,
+                width: 2,
+                background:
+                  "linear-gradient(180deg, #FF6B35 0%, #FF8A4C 25%, #FFA060 45%, #9DC4FF 65%, #7FB3FF 85%, #5D9CEC 100%)",
+                opacity: 0.35,
+                borderRadius: 2,
+              }}
+            />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {steps.map((s) => (
                 <div
+                  key={s.num}
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    background: "rgba(255,107,53,0.10)",
-                    border: "1px solid rgba(255,107,53,0.25)",
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 800,
-                    fontSize: 12,
-                    marginBottom: 14,
-                    color: "#FF6B35",
-                    fontFamily: "monospace",
+                    gap: 20,
+                    alignItems: "flex-start",
+                    position: "relative",
                   }}
                 >
-                  {s.num}
+                  {/* Number + icon medallion */}
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      width: 72,
+                      height: 72,
+                      borderRadius: 16,
+                      background: `linear-gradient(135deg, ${s.accent}22 0%, ${s.accent}08 100%)`,
+                      border: `1px solid ${s.accent}40`,
+                      boxShadow: `0 4px 20px ${s.accent}15`,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      position: "relative",
+                      zIndex: 1,
+                    }}
+                  >
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={s.accent}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d={s.iconPath} />
+                    </svg>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 800,
+                        color: s.accent,
+                        fontFamily: "monospace",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {s.num}
+                    </span>
+                  </div>
+
+                  {/* Card content */}
+                  <div
+                    style={{
+                      flex: 1,
+                      padding: "16px 20px",
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 12,
+                      transition: "border-color 0.15s ease",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        marginBottom: 6,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 800,
+                          color: "#E8E8F0",
+                          letterSpacing: "-0.01em",
+                          margin: 0,
+                        }}
+                      >
+                        {s.title}
+                      </h3>
+                      {s.highlight && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: s.accent,
+                            background: `${s.accent}15`,
+                            border: `1px solid ${s.accent}35`,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {s.highlight}
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      style={{
+                        fontSize: 13.5,
+                        color: "rgba(255,255,255,0.62)",
+                        lineHeight: 1.55,
+                        margin: 0,
+                      }}
+                    >
+                      {s.desc}
+                    </p>
+                  </div>
                 </div>
-                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: "#E8E8F0" }}>{s.title}</h3>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.55 }}>{s.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Ad transparency — chip de fluxo + privacy (Sprint v5.6 platform-style) ─── */}
-      <section style={{ padding: "60px 24px", maxWidth: 680, margin: "0 auto", textAlign: "center" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 14,
-            padding: "12px 20px",
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 12,
-            fontSize: 12,
-            color: "rgba(255,255,255,0.55)",
-            flexWrap: "wrap",
-            justifyContent: "center",
-          }}
-        >
-          <span>🎮 Jogue</span>
-          <span style={{ color: "#2D2D44" }}>→</span>
-          <span>📺 30s ad</span>
-          <span style={{ color: "#2D2D44" }}>→</span>
-          <span style={{ color: "#FF6B35", fontWeight: 700 }}>🎬 MP4</span>
-        </div>
-        <div style={{ marginTop: 16, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+      {/* ── Privacy disclaimer compacto (Sprint v5.7.7: chip "🎮→📺→🎬"
+          removido, redundante com os steps acima). ─────────────────── */}
+      <section
+        style={{
+          padding: "20px 24px 60px",
+          maxWidth: 680,
+          margin: "0 auto",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
           🔒 Vídeos nunca saem do seu PC.{" "}
           <Link href="/privacy" style={{ color: "#FF6B35", textDecoration: "none", borderBottom: "1px dotted #FF6B35" }}>Privacidade</Link>
         </div>
