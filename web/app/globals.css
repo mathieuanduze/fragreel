@@ -1,15 +1,29 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Sprint DEMO-3 v2 (08/05/2026) — shadcn/ui setup com paleta gaming híbrida.
+   Mathieu spec: "manteria as cores que você escolheu — laranja, preto, azul,
+   um misto" (Linear/Vercel polidez + gaming feel).
+   Paleta:
+     - bg/surface/card: dark gaming deeper (vs current generic dark)
+     - primary: laranja CT (#FF6B35) — accent principal
+     - secondary: azul CT (#5D9CEC) — counterweight cinematográfico
+     - destructive: vermelho T (#dc2626) — eventos críticos
+   ───────────────────────────────────────────────────────────────────────── */
+
 @theme {
-  --color-bg:          #0D0D1A;
-  --color-surface:     #1A1A2E;
-  --color-card:        #16213E;
-  --color-border:      #2D2D44;
+  /* Legacy tokens (mantém compat com componentes existentes) */
+  --color-bg:          #0A0A12;        /* mais profundo (era #0D0D1A) */
+  --color-surface:     #131320;        /* card subtle (era #1A1A2E) */
+  --color-card:        #1A1A2E;        /* card destacado */
+  --color-border:      rgba(255,255,255,0.06);  /* sutil (era #2D2D44) */
   --color-dim:         #3A3A55;
   --color-muted:       #666680;
   --color-orange:      #FF6B35;
   --color-orange-dim:  #CC4A1A;
   --color-orange-glow: #FF6B3520;
+  --color-blue-ct:     #5D9CEC;        /* azul CT — accent secundário */
+  --color-blue-glow:   #5D9CEC20;
 
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
@@ -17,6 +31,37 @@
   --animate-fade-in:   fade-in 0.4s ease-out;
   --animate-slide-up:  slide-up 0.5s ease-out;
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4,0,0.6,1) infinite;
+
+  /* shadcn/ui design tokens (Tailwind v4 @theme) */
+  --color-background: 10 10 18;          /* #0A0A12 */
+  --color-foreground: 232 232 240;       /* #E8E8F0 */
+
+  --color-card: 19 19 32;                /* #131320 */
+  --color-card-foreground: 232 232 240;
+
+  --color-popover: 19 19 32;
+  --color-popover-foreground: 232 232 240;
+
+  --color-primary: 255 107 53;           /* #FF6B35 laranja CT */
+  --color-primary-foreground: 255 255 255;
+
+  --color-secondary: 93 156 236;         /* #5D9CEC azul CT */
+  --color-secondary-foreground: 255 255 255;
+
+  --color-muted: 26 26 38;               /* #1A1A26 */
+  --color-muted-foreground: 150 150 170;
+
+  --color-accent: 26 26 38;
+  --color-accent-foreground: 232 232 240;
+
+  --color-destructive: 220 38 38;        /* #dc2626 vermelho T */
+  --color-destructive-foreground: 255 255 255;
+
+  --color-border: 255 255 255 / 0.06;
+  --color-input: 255 255 255 / 0.08;
+  --color-ring: 255 107 53;              /* focus ring laranja */
+
+  --radius: 0.5rem;
 }
 
 /* 06/05 BUG FIX (Mathieu reportou: animação scan-sweep da section AI
