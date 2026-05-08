@@ -25,37 +25,33 @@
  *   - error
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   RefreshCw,
   Download,
-  ChevronDown,
   ChevronUp,
   Sparkles,
-  Clock,
   Trophy,
   AlertCircle,
   UploadCloud,
-  CheckCircle2,
   Loader2,
 } from "lucide-react";
 import AppShell from "./AppShell";
 import { Card } from "./ui/card";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import DownloadButton from "./DownloadButton";
 import ImportDemoModal from "./ImportDemoModal";
 import {
   getLocalDemos,
   getDemoRoster,
+  scoreDemoForPlayer,
   pingLocalClient,
   LocalClientOffline,
   type LocalDemo,
   type DemoRosterPlayer,
   type DemoRosterResponse,
 } from "@/lib/local";
-import { useClientVersionStatus } from "@/lib/useClientVersionStatus";
 import { getUser, type SessionUser } from "@/lib/session";
 
 type Status =
@@ -72,6 +68,44 @@ interface AvatarMap {
   [steamid: string]: string;
 }
 
+// ── Demo expiry semáforo (ported from LibraryContent) ─────────────────────
+// Demos do Steam matchmaking expiram na Valve em 7-14 dias. User precisa
+// saber se ainda dá pra re-baixar. Heurística baseada em mtime do file.
+type ExpiryStatus = "green" | "yellow" | "red";
+
+function expiryStatus(epoch: number): {
+  status: ExpiryStatus;
+  label: string;
+  days: number;
+} {
+  const ageDays = Math.floor((Date.now() - epoch * 1000) / 86_400_000);
+  if (ageDays < 5) {
+    return { status: "green", label: "Disponível na Valve", days: ageDays };
+  }
+  if (ageDays < 13) {
+    const remaining = Math.max(1, 13 - ageDays);
+    return {
+      status: "yellow",
+      label: `Expira em ~${remaining}d`,
+      days: ageDays,
+    };
+  }
+  return {
+    status: "red",
+    label: "Provavelmente expirou",
+    days: ageDays,
+  };
+}
+
+const EXPIRY_COLORS: Record<
+  ExpiryStatus,
+  { bg: string; border: string; text: string }
+> = {
+  green: { bg: "rgba(91,227,143,0.12)", border: "rgba(91,227,143,0.45)", text: "#5be38f" },
+  yellow: { bg: "rgba(251,191,36,0.12)", border: "rgba(251,191,36,0.45)", text: "#fbbf24" },
+  red: { bg: "rgba(255,107,53,0.12)", border: "rgba(255,107,53,0.45)", text: "#ff6b35" },
+};
+
 export default function MinhasDemosClient() {
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -81,12 +115,7 @@ export default function MinhasDemosClient() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [filterMode, setFilterMode] = useState<"all" | "analyzed" | "pending">(
-    "all",
-  );
   const [expanded, setExpanded] = useState<string | null>(null);
-
-  const clientVersion = useClientVersionStatus();
 
   useEffect(() => {
     setUser(getUser());
@@ -183,19 +212,10 @@ export default function MinhasDemosClient() {
     };
   }, [status, load]);
 
-  const filtered = useMemo(() => {
-    if (!demos) return [];
-    if (filterMode === "all") return demos;
-    if (filterMode === "analyzed") return demos.filter((d) => !!d.match_id);
-    return demos.filter((d) => !d.match_id);
-  }, [demos, filterMode]);
-
-  const counts = useMemo(() => {
-    const all = demos?.length || 0;
-    const analyzed = demos?.filter((d) => !!d.match_id).length || 0;
-    const pending = all - analyzed;
-    return { all, analyzed, pending };
-  }, [demos]);
+  // Sprint v5.1 (Mathieu spec): "não acho que faça sentido a tag analisada
+  // e pendente, ali faz sentido aquela informação de vencimento da demo".
+  // Sem filter tabs — lista única ordenada por mtime desc (já vem assim
+  // do backend). Status "analisada/pendente" reflete só no CTA do card.
 
   if (!hydrated || !user || status === "skeleton") {
     return (
@@ -235,34 +255,21 @@ export default function MinhasDemosClient() {
       {status === "empty" && <EmptyState onImport={() => setImportOpen(true)} />}
       {status === "list" && demos && (
         <>
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1.5 mb-4">
-            <FilterTab
-              active={filterMode === "all"}
-              count={counts.all}
-              onClick={() => setFilterMode("all")}
-            >
-              Todas
-            </FilterTab>
-            <FilterTab
-              active={filterMode === "analyzed"}
-              count={counts.analyzed}
-              onClick={() => setFilterMode("analyzed")}
-            >
-              Analisadas
-            </FilterTab>
-            <FilterTab
-              active={filterMode === "pending"}
-              count={counts.pending}
-              onClick={() => setFilterMode("pending")}
-            >
-              Pendentes
-            </FilterTab>
+          {/* Stats line — substituting filter tabs */}
+          <div className="text-[11px] text-white/45 mb-4 px-1 flex items-center gap-3">
+            <span>
+              <span className="text-white/80 font-semibold">{demos.length}</span>{" "}
+              {demos.length === 1 ? "demo" : "demos"} no seu PC
+            </span>
+            <span className="text-white/20">·</span>
+            <span>
+              ordenadas pelas mais recentes
+            </span>
           </div>
 
           {/* Cards */}
           <div className="space-y-3">
-            {filtered.map((d) => (
+            {demos.map((d) => (
               <DemoCard
                 key={d.sha1}
                 demo={d}
@@ -272,52 +279,12 @@ export default function MinhasDemosClient() {
                 }
               />
             ))}
-            {filtered.length === 0 && (
-              <div className="text-center py-12 text-sm text-white/50">
-                Nenhuma demo na categoria{" "}
-                <span className="text-white/80">{filterMode}</span>
-              </div>
-            )}
           </div>
         </>
       )}
 
       {importOpen && <ImportDemoModal onClose={() => setImportOpen(false)} />}
     </AppShell>
-  );
-}
-
-// ── Filter tab ─────────────────────────────────────────────────────────────
-
-function FilterTab({
-  children,
-  count,
-  active,
-  onClick,
-}: {
-  children: React.ReactNode;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-2 ${
-        active
-          ? "bg-[#FF6B35]/15 text-[#FF6B35] border border-[#FF6B35]/30"
-          : "bg-white/[0.02] text-white/55 border border-white/5 hover:bg-white/[0.05] hover:text-white/80"
-      }`}
-    >
-      <span>{children}</span>
-      <span
-        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-          active ? "bg-[#FF6B35]/20" : "bg-white/[0.05]"
-        }`}
-      >
-        {count}
-      </span>
-    </button>
   );
 }
 
@@ -332,8 +299,6 @@ function DemoCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const router = useRouter();
-  const isAnalyzed = !!demo.match_id;
   const date = new Date(demo.mtime * 1000).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",
@@ -388,17 +353,10 @@ function DemoCard({
         {/* Info */}
         <div className="flex-1 min-w-0 px-4 py-3 flex flex-col justify-center gap-1">
           <div className="flex items-center gap-2 flex-wrap">
-            {isAnalyzed ? (
-              <Badge variant="success">
-                <CheckCircle2 size={11} />
-                Analisada
-              </Badge>
-            ) : (
-              <Badge variant="warning">
-                <Clock size={11} />
-                Pendente
-              </Badge>
-            )}
+            {/* Sprint v5.1 (Mathieu spec): badge de vencimento Valve em vez de
+                "Analisada/Pendente". Status verde/amarelo/vermelho semáforo
+                baseado em age da demo (Valve expira em ~7-14d). */}
+            <ExpiryBadge mtime={demo.mtime} />
             <span className="text-[11px] text-white/40 font-mono">
               {date}
             </span>
@@ -458,23 +416,10 @@ function DemoCard({
         <div className="flex items-center pr-4 shrink-0">
           {!expanded ? (
             <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-all ${
-                isAnalyzed
-                  ? "bg-[#FF6B35]/10 text-[#FF6B35] border border-[#FF6B35]/25 group-hover:bg-[#FF6B35]/20"
-                  : "bg-white/[0.04] text-white/65 border border-white/[0.08] group-hover:bg-white/[0.08]"
-              }`}
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-semibold transition-all bg-[#FF6B35]/10 text-[#FF6B35] border border-[#FF6B35]/25 group-hover:bg-[#FF6B35]/20"
             >
-              {isAnalyzed ? (
-                <>
-                  <Sparkles size={12} />
-                  Editar reel
-                </>
-              ) : (
-                <>
-                  <ChevronDown size={12} />
-                  Analisar
-                </>
-              )}
+              <Sparkles size={12} />
+              Mapear players
             </div>
           ) : (
             <ChevronUp size={16} className="text-[#FF6B35]" />
@@ -500,6 +445,9 @@ function ExpandedContent({ demo }: { demo: LocalDemo }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [avatars, setAvatars] = useState<AvatarMap>({});
+  // Player atualmente sendo analisado (post-click). Mostra Loader2 nele.
+  const [analyzingSteamid, setAnalyzingSteamid] = useState<string | null>(null);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fetchedAvatarsRef = useRef(false);
 
   useEffect(() => {
@@ -542,11 +490,29 @@ function ExpandedContent({ demo }: { demo: LocalDemo }) {
     }
   }
 
-  function handleSelectPlayer(steamid: string) {
-    // Vai pro /demo/[sha] que dispara scoreDemoForPlayer + redirect /match/[id].
-    // TODO próximo PR (Mathieu spec): trocar player inline no /match/[id]
-    // header dropdown (em vez de re-selecionar aqui se já analisada).
-    router.push(`/demo/${demo.sha1}?steamid=${steamid}`);
+  async function handleSelectPlayer(steamid: string) {
+    // Sprint v5.1 (Mathieu spec): "Mata a página escolha o player pois ele
+    // já foi escolhido na última página. Vai direto pra página Mapeando
+    // plays de impacto → /Demo".
+    //
+    // Antes: redirect /demo/[sha]?steamid=X → re-roster picker → score → /match/[id]
+    // Agora: scoreDemoForPlayer direto + redirect /match/[id] (1 hop só).
+    setAnalyzingSteamid(steamid);
+    setAnalyzeError(null);
+    try {
+      const result = (await scoreDemoForPlayer(demo.sha1, steamid)) as {
+        match_id?: string;
+        id?: string;
+      };
+      const matchId = result.match_id || result.id;
+      if (!matchId) {
+        throw new Error("Backend não retornou match_id");
+      }
+      router.push(`/match/${matchId}`);
+    } catch (e) {
+      setAnalyzeError((e as Error).message);
+      setAnalyzingSteamid(null);
+    }
   }
 
   if (loading) {
@@ -581,12 +547,19 @@ function ExpandedContent({ demo }: { demo: LocalDemo }) {
         analisados sob a perspectiva desse jogador.
       </div>
 
+      {analyzeError && (
+        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5 font-mono">
+          {analyzeError}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <TeamColumn
           label="CT"
           color={TEAM_COLOR[3]}
           players={ct}
           avatars={avatars}
+          analyzingSteamid={analyzingSteamid}
           onSelect={handleSelectPlayer}
         />
         <TeamColumn
@@ -594,9 +567,17 @@ function ExpandedContent({ demo }: { demo: LocalDemo }) {
           color={TEAM_COLOR[2]}
           players={t}
           avatars={avatars}
+          analyzingSteamid={analyzingSteamid}
           onSelect={handleSelectPlayer}
         />
       </div>
+
+      {analyzingSteamid && (
+        <div className="text-xs text-white/55 text-center pt-2 flex items-center justify-center gap-2">
+          <Loader2 size={12} className="animate-spin text-[#FF6B35]" />
+          Analisando partida... pode levar até 30s na primeira vez
+        </div>
+      )}
     </div>
   );
 }
@@ -606,12 +587,14 @@ function TeamColumn({
   color,
   players,
   avatars,
+  analyzingSteamid,
   onSelect,
 }: {
   label: string;
   color: string;
   players: DemoRosterPlayer[];
   avatars: AvatarMap;
+  analyzingSteamid: string | null;
   onSelect: (steamid: string) => void;
 }) {
   return (
@@ -636,6 +619,8 @@ function TeamColumn({
             player={p}
             avatarUrl={avatars[p.steamid]}
             teamColor={color}
+            analyzing={analyzingSteamid === p.steamid}
+            disabled={analyzingSteamid !== null && analyzingSteamid !== p.steamid}
             onClick={() => onSelect(p.steamid)}
           />
         ))}
@@ -648,11 +633,15 @@ function PlayerRow({
   player,
   avatarUrl,
   teamColor,
+  analyzing,
+  disabled,
   onClick,
 }: {
   player: DemoRosterPlayer;
   avatarUrl: string | undefined;
   teamColor: string;
+  analyzing: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   const initials = (player.name || "??")
@@ -665,7 +654,14 @@ function PlayerRow({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-lg border border-white/[0.05] bg-white/[0.02] hover:border-[#FF6B35]/40 hover:bg-[#FF6B35]/[0.05] hover:shadow-[0_0_15px_rgba(255,107,53,0.1)] transition-all p-2.5 cursor-pointer flex items-center gap-3"
+      disabled={disabled || analyzing}
+      className={`w-full text-left rounded-lg border transition-all p-2.5 flex items-center gap-3 ${
+        analyzing
+          ? "border-[#FF6B35]/60 bg-[#FF6B35]/[0.10] shadow-[0_0_20px_rgba(255,107,53,0.2)] cursor-wait"
+          : disabled
+            ? "border-white/[0.04] bg-white/[0.01] opacity-40 cursor-not-allowed"
+            : "border-white/[0.05] bg-white/[0.02] hover:border-[#FF6B35]/40 hover:bg-[#FF6B35]/[0.05] hover:shadow-[0_0_15px_rgba(255,107,53,0.1)] cursor-pointer"
+      }`}
     >
       <div
         className="shrink-0 w-9 h-9 rounded-md overflow-hidden border-2"
@@ -698,11 +694,53 @@ function PlayerRow({
           {player.kills}/{player.deaths} · {player.headshots} HS
         </div>
       </div>
-      <Sparkles
-        size={14}
-        className="text-[#FF6B35]/60 group-hover:text-[#FF6B35] shrink-0"
-      />
+      {analyzing ? (
+        <Loader2 size={14} className="animate-spin text-[#FF6B35] shrink-0" />
+      ) : (
+        <Sparkles
+          size={14}
+          className="text-[#FF6B35]/60 group-hover:text-[#FF6B35] shrink-0"
+        />
+      )}
     </button>
+  );
+}
+
+// ── ExpiryBadge ───────────────────────────────────────────────────────────
+
+function ExpiryBadge({ mtime }: { mtime: number }) {
+  const exp = expiryStatus(mtime);
+  const palette = EXPIRY_COLORS[exp.status];
+  return (
+    <span
+      title={`Demo de ${exp.days}d atrás · janela Valve ~7-14d`}
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color: palette.text,
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        padding: "3px 8px",
+        borderRadius: 999,
+        letterSpacing: "0.04em",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: palette.text,
+          boxShadow: `0 0 6px ${palette.text}`,
+          flexShrink: 0,
+        }}
+      />
+      {exp.label}
+    </span>
   );
 }
 
