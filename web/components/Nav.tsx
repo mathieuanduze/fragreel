@@ -102,6 +102,19 @@ export default function Nav() {
                   destino de edição/formato. O hist\u00f3rico de renders
                   foi intencionalmente descartado (decisão do user). */}
               <Link
+                href="/matches"
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: path === "/matches" ? "#FF6B35" : "rgba(255,255,255,0.6)",
+                  textDecoration: "none",
+                }}
+              >
+                Match History
+              </Link>
+              <Link
                 href="/library"
                 style={{
                   padding: "6px 14px",
