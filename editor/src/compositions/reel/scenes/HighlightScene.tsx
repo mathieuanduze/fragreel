@@ -402,17 +402,40 @@ export const HighlightScene: React.FC<Props> = ({
           em vertical com blend mood-aware. */}
       {gameplaySrc ? (
         <>
-          {/* Layer 0 — letterbox background (visível só em vertical) */}
+          {/* Round 11 fix (07/05 noite tardia) — vertical: blurred video
+              background preenche letterbox em vez de gradient mood
+              vazio. Mathieu reportou que letterbox 74% (objectFit:contain
+              com aspect 2.13:1 video em frame 0.56:1) parecia "padding
+              enorme". Solução padrão Instagram Reels / TikTok pra video
+              horizontal forçado em vertical: mesmo video em layer
+              background com blur + dim, sharp video em layer foreground.
+              Letterbox vira "extensão visual" do gameplay em vez de
+              espaço vazio. */}
           {!isHorizontal && (
-            <AbsoluteFill
-              style={{
-                background: `
-                  radial-gradient(circle at 30% 30%, ${moodDef.color}25 0%, transparent 55%),
-                  radial-gradient(circle at 70% 70%, ${theme.orange}18 0%, transparent 55%),
-                  linear-gradient(180deg, #08080f 0%, #14141f 50%, #08080f 100%)
-                `,
-              }}
-            />
+            <AbsoluteFill style={{ overflow: "hidden" }}>
+              <OffthreadVideo
+                src={gameplaySrc}
+                playbackRate={gameplayRate}
+                startFrom={Math.round(sceneSkipSec * FPS)}
+                muted
+                style={{
+                  width: "120%",
+                  height: "120%",
+                  marginLeft: "-10%",
+                  marginTop: "-10%",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                  filter: "blur(48px) brightness(0.42) saturate(0.85)",
+                }}
+              />
+              {/* Subtle vignette por cima do blur pra dar foco no centro */}
+              <AbsoluteFill
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.45) 90%)",
+                }}
+              />
+            </AbsoluteFill>
           )}
           <AbsoluteFill style={{ transform: `scale(${zoom})` }}>
             <OffthreadVideo
