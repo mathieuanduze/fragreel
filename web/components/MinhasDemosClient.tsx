@@ -43,6 +43,7 @@ import { Button } from "./ui/button";
 import DownloadButton from "./DownloadButton";
 import ImportDemoModal from "./ImportDemoModal";
 import AnalyzingDemoModal from "./AnalyzingDemoModal";
+import MinhasDemosOnboarding from "./MinhasDemosOnboarding";
 import {
   getLocalDemos,
   getDemoRoster,
@@ -278,6 +279,10 @@ export default function MinhasDemosClient() {
       {status === "empty" && <EmptyState onImport={() => setImportOpen(true)} />}
       {status === "list" && demos && (
         <>
+          {/* Sprint v5.7.9 — onboarding banner pra primeira visita.
+              Some sozinho via flag localStorage após X dismiss. */}
+          <MinhasDemosOnboarding />
+
           {/* Stats line — substituting filter tabs */}
           <div className="text-[11px] text-white/45 mb-4 px-1 flex items-center gap-3">
             <span>
@@ -860,20 +865,75 @@ function ErrorState({
 }
 
 function EmptyState({ onImport }: { onImport: () => void }) {
+  // Sprint v5.7.9 (Mathieu spec): empty state autoexplicativo —
+  // user precisa entender QUE elas vêm de DOWNLOAD manual no CS2.
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-4 max-w-2xl mx-auto">
-      <div className="h-14 w-14 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mb-4">
-        <Trophy size={26} className="text-white/40" />
+    <div className="max-w-2xl mx-auto py-8 px-2">
+      <div className="text-center mb-7">
+        <div className="h-14 w-14 mx-auto rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mb-4">
+          <Trophy size={26} className="text-white/40" />
+        </div>
+        <h2 className="text-lg font-semibold mb-1.5">
+          Nenhuma demo no seu PC ainda
+        </h2>
+        <p className="text-sm text-white/55 max-w-md mx-auto leading-relaxed">
+          O FragReel só lê demos que <strong className="text-white/85">VOCÊ baixou</strong>.
+          Você tem 2 jeitos de adicionar:
+        </p>
       </div>
-      <h2 className="text-lg font-semibold mb-1.5">Nenhuma demo detectada</h2>
-      <p className="text-sm text-white/55 max-w-md mx-auto mb-6 leading-relaxed">
-        FragReel lê os .dem que o CS2 salva quando você baixa uma partida do
-        Watch tab. Demos importadas (HLTV/CSGOStats) também aparecem aqui.
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Path 1 — CS2 Watch */}
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="text-xl">🎮</div>
+            <h3 className="text-sm font-bold text-white">
+              Suas próprias matches
+            </h3>
+          </div>
+          <ol className="text-[12.5px] text-white/65 leading-relaxed space-y-1.5 ml-0.5">
+            <li>
+              <span className="text-emerald-400 font-semibold">1.</span> Abra o
+              CS2
+            </li>
+            <li>
+              <span className="text-emerald-400 font-semibold">2.</span> Vai em{" "}
+              <span className="text-white/85">Watch → Your Matches</span>
+            </li>
+            <li>
+              <span className="text-emerald-400 font-semibold">3.</span> Clique{" "}
+              <span className="text-white/85">Download</span> na partida que
+              você quer
+            </li>
+            <li>
+              <span className="text-emerald-400 font-semibold">4.</span> Volta
+              aqui — aparece sozinha
+            </li>
+          </ol>
+        </div>
+
+        {/* Path 2 — Import HLTV/CSGOStats */}
+        <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.04] p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="text-xl">📥</div>
+            <h3 className="text-sm font-bold text-white">
+              Demo de pro player
+            </h3>
+          </div>
+          <p className="text-[12.5px] text-white/65 leading-relaxed mb-3">
+            Baixou uma .dem do HLTV, CSGOStats ou FACEIT? Importa direto.
+          </p>
+          <Button onClick={onImport} size="sm" variant="outline">
+            <UploadCloud size={13} />
+            Importar .dem
+          </Button>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-white/35 text-center mt-5 max-w-md mx-auto">
+        Importante: não pegamos suas últimas matches automaticamente — só
+        as que você baixou.
       </p>
-      <Button onClick={onImport}>
-        <UploadCloud size={14} />
-        Importar .dem manualmente
-      </Button>
     </div>
   );
 }
