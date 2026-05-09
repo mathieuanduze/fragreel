@@ -191,13 +191,22 @@ export const REACTION_PAD_PLANT_SEC = 4.5;
 // final". Bumped 4.0 → 6.0s.
 // Sprint v5.7.13 (09/05/2026, terceira reportagem do mesmo bug):
 // Mathieu segue reportando "defuse cortado". 6s não foi suficiente.
-// Bumped 6.0 → 8.5s — cobre:
-//   - defuse animation tail (~5s sem kit, ~10s com kit no extremo)
-//   - "Bomba defusada" notif CS2 native (~3s)
-//   - buffer pra timing drift do cluster capture
-// Trade-off: pode adicionar 2-3s de "user idle pós-defuse" no pior caso,
-// mas Mathieu prefere ver defuse completo do que cortado.
-export const REACTION_PAD_DEFUSE_SEC = 8.5;
+// Bumped 6.0 → 8.5s.
+// Sprint v5.7.18 (09/05/2026 round 3, QUINTA reportagem):
+// Mathieu: "fiz defuse SEM defuser, dura mais do que quando vc defusa
+// COM defuser". Eu tinha invertido as durações no comment anterior —
+// CS2 game logic real:
+//    COM kit  = 5s anim  (defuser elétrico)
+//    SEM kit  = 10s anim (defuse manual)
+// 8.5s cortava no SEM-kit. Bumped 8.5 → 12.0s. Cálculo:
+//   - 10s anim no-kit (worst case)
+//   - 2s pra "Bomba defusada" notif aparecer + ler
+//   - = 12s
+// Coordenado com capture_script V2_DEFUSE_POST_BUFFER_S = 13.0s
+// (1s safety > scene render duration). Aplicação universal —
+// regra de negócio (rule_user_feedback_is_universal_spec): TODO user
+// que defusa sem kit precisa ver defuse completo, não opcional.
+export const REACTION_PAD_DEFUSE_SEC = 12.0;
 
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
 // Orientation deste arquivo).
@@ -360,7 +369,7 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
     if (highlight.bomb_action === "plant_won") {
       reactionForThis = REACTION_PAD_PLANT_SEC; // 3.0s — "Bomba foi armada" notif
     } else if (highlight.bomb_action === "defuse") {
-      reactionForThis = REACTION_PAD_DEFUSE_SEC; // 4.0s — "Bomba defusada" notif
+      reactionForThis = REACTION_PAD_DEFUSE_SEC; // 12.0s — defuse no-kit (10s) + notif
     }
   }
 
