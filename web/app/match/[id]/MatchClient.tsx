@@ -533,6 +533,8 @@ export default function MatchClient({ match: initialMatch, targetSteamid, target
           matchId={match.id}
           format={format}
           localRenderMode={localRender}
+          mapName={match.map}
+          playerName={match.player_name || getUser()?.name || undefined}
           onClose={() => {
             if (localRender) cancelLocalRender().catch(() => {});
             setShowAd(false);

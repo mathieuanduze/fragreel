@@ -7,6 +7,7 @@ import {
   openLocalRenderOutput,
   type LocalRenderSession,
 } from "@/lib/local";
+import RenderReadyScreen from "@/components/RenderReadyScreen";
 
 const AD_DURATION = 30;
 // Render é mais pesado que análise — exige 2 ads completos (60s cumulativos)
@@ -60,6 +61,10 @@ type AdModalProps = {
    *  MatchClient usa pra gravar em recentRender (Meus FragReels) +
    *  clear edit draft. */
   onRenderComplete?: (mp4Path: string) => void;
+  /** Sprint v5.7.17: passados pra RenderReadyScreen montar o share text
+   *  default ("Meu FragReel no Inferno 🎯Mathieu — fragreel.gg"). */
+  mapName?: string;
+  playerName?: string;
 };
 
 function fmtTime(sec: number) {
@@ -67,7 +72,7 @@ function fmtTime(sec: number) {
   return `${sec}s`;
 }
 
-export default function AdModal({ onClose, formatLabel, renderDuration, downloadUrl, matchId, format, localRenderMode, onRenderComplete }: AdModalProps) {
+export default function AdModal({ onClose, formatLabel, renderDuration, downloadUrl, matchId, format, localRenderMode, onRenderComplete, mapName, playerName }: AdModalProps) {
   const [adElapsed, setAdElapsed]       = useState(0);
   const [adIndex, setAdIndex]           = useState(0);
   const [totalAdSeconds, setTotalAdSeconds] = useState(0);
@@ -572,6 +577,24 @@ export default function AdModal({ onClose, formatLabel, renderDuration, download
     );
   }
   // ── /Bug #20 ───────────────────────────────────────────────────────────────
+
+  // Sprint v5.7.17 (Mathieu 09/05/2026): pós-render local com sucesso ⇒
+  // ao invés de mostrar o último ad com botão "Abrir FragReel" no rodapé,
+  // troca POR uma tela dedicada com vídeo embedado + share buttons. O ad
+  // fica só durante o RENDER em si (que é onde a espera real acontece).
+  // Quando concluiu, user merece celebração + atalho de share, não mais ad.
+  if (localRenderMode && canDownload && localOutputPath) {
+    return (
+      <RenderReadyScreen
+        mp4Path={localOutputPath}
+        mapName={mapName}
+        playerName={playerName}
+        onOpenVideo={handleOpenOutput}
+        onOpenFolder={localOutputDir ? copyOutputPath : undefined}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <div
