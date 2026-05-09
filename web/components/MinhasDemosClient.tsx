@@ -340,6 +340,26 @@ function DemoCard({
   const mapPretty = prettyMap(demo.map_name);
   const mapImg = `/maps/${demo.map_name}.png`;
 
+  // Sprint v5.7.12 (Mathieu spec 09/05/2026): "as demos que o user
+  // faz upload, poderiam ser taggadas como uploaded, ou, se o user
+  // logado, não participa da .dem=upload".
+  //
+  // Heurística: LocalDemo.player_kills + player_deaths são filtrados
+  // pelo steamid do user logado no parser (parsed.player_kills só
+  // inclui kills onde attacker_steamid === user_steamid). Se ambos
+  // são 0 numa partida com rounds reais, user não estava na demo →
+  // é upload (HLTV/CSGOStats/FACEIT/Pro demo).
+  //
+  // Edge cases tolerados:
+  //   - User joinou late e morreu zero vezes (raro): falso positivo.
+  //     Aceitável — pelo menos sinal "esta demo é diferente"
+  //   - Spectator real: também pareceria upload. Spec edge case raro
+  //     em workflow normal de player que loga + joga.
+  const isUploadDemo =
+    demo.player_kills === 0 &&
+    demo.player_deaths === 0 &&
+    totalRounds >= 5;
+
   return (
     <div
       className={`group rounded-xl border transition-all overflow-hidden ${
@@ -385,6 +405,16 @@ function DemoCard({
                 "Analisada/Pendente". Status verde/amarelo/vermelho semáforo
                 baseado em age da demo (Valve expira em ~7-14d). */}
             <ExpiryBadge mtime={demo.mtime} />
+            {/* Sprint v5.7.12 (Mathieu): badge "📥 Importada" pra demos
+                onde user não participou (heurística player_kills+deaths=0). */}
+            {isUploadDemo && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-violet-400 bg-violet-500/[0.10] border border-violet-500/30 px-1.5 py-0.5 rounded"
+                title="Você não participou desta partida — provavelmente importou de fora (HLTV/CSGOStats/FACEIT)"
+              >
+                📥 Importada
+              </span>
+            )}
             <span className="text-[11px] text-white/40 font-mono">
               {date}
             </span>

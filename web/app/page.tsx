@@ -646,15 +646,16 @@ export default async function Home() {
             </p>
           </div>
 
-          {/* Timeline vertical com gradient line connecting steps */}
-          <div style={{ position: "relative" }}>
-            {/* Vertical gradient connector line — Sprint v5.7.10 (Mathieu
-                spec): "veja no print que a linha ficou na frente dos
-                ícones". Adicionado zIndex 0 + bumped left -1px pra
-                centralizar atrás dos medallions (que ganham zIndex 1).
-                Linha agora atrás, medallions à frente. Reduzido bottom
-                spread agora que são 5 steps (linha não passa do último
-                medallion). */}
+          {/* Timeline vertical com gradient line connecting steps.
+              Sprint v5.7.12 (Mathieu round 2 — z-index ainda quebrado):
+              Tentativa anterior usou zIndex 0/1 mas linha continuou na
+              frente — porque cada step row criava stacking context
+              novo via `display: flex; position: relative` que isolava
+              os zIndex internos do contexto da linha.
+              Fix definitivo: container ganha isolation: isolate +
+              line vai pra zIndex: -1 (sempre atrás de tudo dentro do
+              isolation context). */}
+          <div style={{ position: "relative", isolation: "isolate" }}>
             <div
               aria-hidden
               className="howto-connector"
@@ -668,7 +669,7 @@ export default async function Home() {
                   "linear-gradient(180deg, #FF6B35 0%, #FF8A4C 22%, #FFA060 42%, #9DC4FF 65%, #5D9CEC 100%)",
                 opacity: 0.30,
                 borderRadius: 2,
-                zIndex: 0,
+                zIndex: -1,
               }}
             />
 
