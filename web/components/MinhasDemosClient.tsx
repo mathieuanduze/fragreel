@@ -311,7 +311,16 @@ export default function MinhasDemosClient() {
         </>
       )}
 
-      {importOpen && <ImportDemoModal onClose={() => setImportOpen(false)} />}
+      {importOpen && (
+        <ImportDemoModal
+          onClose={() => setImportOpen(false)}
+          // Sprint v5.7.14 (Mathieu): "depois do import, auto refresh
+          // seria bom pra aparecer em minhas demos". load(true) força
+          // refresh=1 query no scanner — pega a demo recém-salva pelo
+          // /demos/import endpoint do client.
+          onSuccess={() => void load(true)}
+        />
+      )}
     </AppShell>
   );
 }

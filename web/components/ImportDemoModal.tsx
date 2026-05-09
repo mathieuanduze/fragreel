@@ -33,7 +33,16 @@ const MAX_SIZE = 500 * 1024 * 1024;
 
 type Phase = "idle" | "uploading" | "success" | "error";
 
-export default function ImportDemoModal({ onClose }: { onClose: () => void }) {
+export default function ImportDemoModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  /** Sprint v5.7.14 (Mathieu 09/05): "depois do import, auto refresh
+   *  seria bom pra aparecer em minhas demos". Parent passa callback
+   *  pra forçar re-fetch da lista de demos pós-upload bem-sucedido. */
+  onSuccess?: () => void;
+}) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
@@ -86,6 +95,10 @@ export default function ImportDemoModal({ onClose }: { onClose: () => void }) {
         xhr.send(fd);
       });
       setPhase("success");
+      // Sprint v5.7.14: dispara onSuccess imediato pra parent re-fetch
+      // a lista. router.refresh() sozinho não bastava porque /matches
+      // é client component e useEffect não re-roda em refresh.
+      if (onSuccess) onSuccess();
       setTimeout(() => {
         onClose();
         router.refresh();
