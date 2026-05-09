@@ -19,31 +19,17 @@ Config.setPixelFormat("yuv420p");
 // (50MB) e perto do limite WhatsApp/Telegram. Plataformas vão re-encodar
 // pra 2-4Mbps então estamos no sweet spot — qualquer bit acima é jogado fora.
 //
-// Sprint v5.7.16 (Mathieu 09/05/2026): "70mb pra 2min é pesado? blur
-// backdrop tá deixando pesado?"
+// Sprint v5.7.16 (Mathieu 09/05/2026 round 2 — descoberta tardia):
+// PIPELINE TEM 2 ENCODINGS:
+//   1. Remotion render → .mov intermediário (este config)
+//   2. ffmpeg concat (hlae_runner.py) → MP4 final ← REAL output user vê
 //
-// Diagnóstico: setVideoBitrate("7M") força bitrate FIXO em cada frame.
-// Cenas estáticas (intro fade, blur backdrop calmo, outro) gastam 7M
-// igual cenas de ação. Desperdício: ~30-40% do filesize são bits que
-// não melhoram qualidade visual.
+// Settings AQUI afetam só o intermediário .mov. Como ffmpeg sempre
+// re-encoda pra MP4 final, settings finais (preset, crf) vivem no
+// hlae_runner.py:1954-1962.
 //
-// Switch pra CRF (Constant Rate Factor):
-//   - ffmpeg decide bitrate por região/frame
-//   - Áreas blurry/estáticas → low bitrate (eficiente)
-//   - Gameplay sharp + ação rápida → high bitrate (preserva detalhe)
-//   - Mesma qualidade VISUAL, filesize ~30-40% menor
-//
-// CRF 23 é o sweet spot ffmpeg "good quality":
-//   18 = visually lossless (huge files)
-//   23 = high quality (default ffmpeg)
-//   28 = acceptable quality (smaller files)
-//
-// Trade: filesize varia (não é previsível como bitrate fixo). Cenas
-// sintéticas (Outro stats) podem render em 1-2MB. Cenas com gameplay
-// rápido em 6-8MB. Average para reel 90s típico: 30-50MB.
-//
-// Numbers esperados pra 2min reel mixed (gameplay + intro/outro):
-//   antes (7M fixed): ~70MB
-//   depois (CRF 23):  ~40-50MB (~35% redução)
-Config.setCrf(23);
+// Manter Remotion intermediate em alta qualidade (CRF 18 = quase
+// lossless) garante que ffmpeg final tem source bom pra trabalhar.
+// .mov intermediário é deletado pós-render, filesize não importa.
+Config.setCrf(18);
 Config.setEnforceAudioTrack(false);
