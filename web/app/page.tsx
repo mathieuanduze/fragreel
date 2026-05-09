@@ -680,18 +680,26 @@ export default async function Home() {
                   style={{
                     display: "flex",
                     gap: 20,
-                    alignItems: "flex-start",
+                    alignItems: "center",
                     position: "relative",
                   }}
                 >
-                  {/* Number + icon medallion */}
+                  {/* Number + icon medallion — Sprint v5.7.13 (Mathieu round 3):
+                      "ícones parecem transparentes e deixam a linha
+                       parecendo tá na frente". Causa real: bg gradient
+                       accent22→accent08 era ~10-15% opacity, deixava a
+                       linha visível através. Fix: background sólido
+                       (#0D0D1A) abaixo do gradient — medallion vira
+                       opaco, linha some atrás dele.
+                      Plus: alignItems flex-start → center pra alinhar
+                       medallion vertical com card text. */}
                   <div
                     style={{
                       flexShrink: 0,
                       width: 72,
                       height: 72,
                       borderRadius: 16,
-                      background: `linear-gradient(135deg, ${s.accent}22 0%, ${s.accent}08 100%)`,
+                      background: `#0D0D1A linear-gradient(135deg, ${s.accent}22 0%, ${s.accent}08 100%)`,
                       border: `1px solid ${s.accent}40`,
                       boxShadow: `0 4px 20px ${s.accent}15`,
                       display: "flex",
