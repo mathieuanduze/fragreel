@@ -19,16 +19,31 @@ Config.setPixelFormat("yuv420p");
 // (50MB) e perto do limite WhatsApp/Telegram. Plataformas vão re-encodar
 // pra 2-4Mbps então estamos no sweet spot — qualquer bit acima é jogado fora.
 //
-// Sprint v5.7.15 (Mathieu 09/05/2026): "tô achando a qualidade muito
-// baixa, não tem uma qualidade um pouco melhor, mas que não pegue tanto
-// espaço pra baixar?"
-// Bumped 4M → 7M. Numbers reais:
-//   4 Mbps × 90s = 45 MB
-//   7 Mbps × 90s = 79 MB
-// 7M é o "sweet spot" entre qualidade e share — TikTok/Instagram aceitam
-// até 25Mbps mas re-comprimem agressivamente acima de 8Mbps. 7M dá
-// preserva mais detalhe na recompression sem sair do "shareable".
-// Trade: filesize ~75% maior, mas ainda dentro do limite de Discord
-// Nitro (50MB) / Whatsapp (100MB) pra reels curtos.
-Config.setVideoBitrate("7M");
+// Sprint v5.7.16 (Mathieu 09/05/2026): "70mb pra 2min é pesado? blur
+// backdrop tá deixando pesado?"
+//
+// Diagnóstico: setVideoBitrate("7M") força bitrate FIXO em cada frame.
+// Cenas estáticas (intro fade, blur backdrop calmo, outro) gastam 7M
+// igual cenas de ação. Desperdício: ~30-40% do filesize são bits que
+// não melhoram qualidade visual.
+//
+// Switch pra CRF (Constant Rate Factor):
+//   - ffmpeg decide bitrate por região/frame
+//   - Áreas blurry/estáticas → low bitrate (eficiente)
+//   - Gameplay sharp + ação rápida → high bitrate (preserva detalhe)
+//   - Mesma qualidade VISUAL, filesize ~30-40% menor
+//
+// CRF 23 é o sweet spot ffmpeg "good quality":
+//   18 = visually lossless (huge files)
+//   23 = high quality (default ffmpeg)
+//   28 = acceptable quality (smaller files)
+//
+// Trade: filesize varia (não é previsível como bitrate fixo). Cenas
+// sintéticas (Outro stats) podem render em 1-2MB. Cenas com gameplay
+// rápido em 6-8MB. Average para reel 90s típico: 30-50MB.
+//
+// Numbers esperados pra 2min reel mixed (gameplay + intro/outro):
+//   antes (7M fixed): ~70MB
+//   depois (CRF 23):  ~40-50MB (~35% redução)
+Config.setCrf(23);
 Config.setEnforceAudioTrack(false);
