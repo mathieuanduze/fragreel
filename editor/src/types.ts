@@ -104,6 +104,14 @@ export type Highlight = {
   // bomb_action_timestamp = defuse tick, não plant). Null se round
   // sem plant ou highlight legacy (pré-Sprint #6.2.1).
   bomb_planted_timestamp?: number;
+  /** Sprint v5.7.15 (Mathieu 09/05/2026 — placar 7x0 fixed bug): score
+   *  CT/T acumulado ANTES desse round. Editor HudV2 usa pra mostrar
+   *  placar correto NO MOMENTO do highlight em vez de match.score
+   *  final repetido em todos.
+   *  Fallback: se undefined (highlight legacy pré-v0.7.2 scorer),
+   *  HighlightScene cai pra parse de match.score como antes. */
+  score_ct_at_round?: number;
+  score_t_at_round?: number;
   // Round 4c Fase 1.27 — alive timeline pra counter ao vivo. Inclui TODAS
   // deaths do round (não só user kills da Fase 1.23). Editor renderiza
   // counter navegando essa timeline em tempo real (sceneTime → encontra

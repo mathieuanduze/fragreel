@@ -1261,11 +1261,21 @@ export const HighlightScene: React.FC<Props> = ({
           orientation={orientation}
           roundNum={highlight.round_num}
           scoreCt={(() => {
-            // Parse match.score "11-3" → CT score
+            // Sprint v5.7.15 (Mathieu fix "placar 7x0 parado"):
+            // PREFER score_ct_at_round (acumulado pré-round desse highlight)
+            // FALLBACK pra match.score split (highlights legacy pré-scorer
+            // v0.7.2 não têm o field — quase certo final score, melhor
+            // que zero).
+            if (typeof highlight.score_ct_at_round === "number") {
+              return highlight.score_ct_at_round;
+            }
             const parts = (match.score || "0-0").split("-").map((s) => parseInt(s.trim(), 10) || 0);
             return parts[0] ?? 0;
           })()}
           scoreT={(() => {
+            if (typeof highlight.score_t_at_round === "number") {
+              return highlight.score_t_at_round;
+            }
             const parts = (match.score || "0-0").split("-").map((s) => parseInt(s.trim(), 10) || 0);
             return parts[1] ?? 0;
           })()}

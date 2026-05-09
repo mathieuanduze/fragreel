@@ -454,6 +454,31 @@ function _scoreRound(
     end = roundBankers(start + MIN_CLIP_LEN, 1);
   }
 
+  // Sprint v5.7.15 (Mathieu 09/05/2026): "placar virtual fica parado no
+  // 7x0 o tempo todo, ele não vai mudando condizente ao round".
+  // Causa: editor recebia scoreCt/T do match.score (final) ao invés do
+  // score AT THAT ROUND. Fix scorer-side: computa score acumulado pré-
+  // round e popula em score_ct_at_round / score_t_at_round. Editor lê
+  // direto sem precisar acesso a events.rounds[].
+  let score_ct_at_round = 0;
+  let score_t_at_round = 0;
+  for (const rs of events.rounds) {
+    if (rs.round_num >= round_num) continue;
+    // winner_team derivation: state.user_team + state.user_won OR
+    // direct rs.winner_team if available. Fallback: skip (counts não
+    // bate mas não rebenta).
+    const winnerTeam = (rs as RoundState & { winner_team?: number }).winner_team;
+    if (winnerTeam === 3) score_ct_at_round += 1;
+    else if (winnerTeam === 2) score_t_at_round += 1;
+    // Fallback se winner_team direto não vier — derive via user_won + user_team:
+    // se user_team=3 + user_won → CT venceu ESSE round
+    else if (rs.user_team === 3 && rs.user_won) score_ct_at_round += 1;
+    else if (rs.user_team === 2 && rs.user_won) score_t_at_round += 1;
+    // Senão, fallback inverso: user perdeu, outro time venceu
+    else if (rs.user_team === 3 && rs.user_won === false) score_t_at_round += 1;
+    else if (rs.user_team === 2 && rs.user_won === false) score_ct_at_round += 1;
+  }
+
   return {
     rank: 0, // set por scoreKills após sort
     round_num,
@@ -473,6 +498,10 @@ function _scoreRound(
     bomb_action_tick: ctx.bomb_action_tick,
     bomb_action_timestamp: ctx.bomb_action_timestamp,
     bomb_planted_timestamp: ctx.bomb_planted_timestamp,
+    // Sprint v5.7.15 — score AT esse round pra editor HUD não mostrar
+    // sempre o final score em todos os highlights.
+    score_ct_at_round,
+    score_t_at_round,
   };
 }
 

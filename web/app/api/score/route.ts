@@ -54,7 +54,11 @@ const SCHEMA_VERSION = "1";
 // vazio, mas state.bomb_defused_by="" → scorer === check fail → defuse
 // perdido. Fix: heurística orphan event (action vazia + user side correto +
 // user_won) detecta defuse/plant_won.
-const SCORER_VERSION = "v0.7.1-orphan-bomb-attribution";
+// Sprint v5.7.15 (Mathieu 09/05): "placar virtual fica parado no 7x0".
+// Bug: editor lia score do match.score (final) sempre. Fix scorer-side:
+// emite score_ct_at_round / score_t_at_round per highlight (acumulado
+// pré-round). Editor HudV2 usa direto.
+const SCORER_VERSION = "v0.7.2-score-at-round";
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ScoreRequest {

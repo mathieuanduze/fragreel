@@ -19,9 +19,16 @@ Config.setPixelFormat("yuv420p");
 // (50MB) e perto do limite WhatsApp/Telegram. Plataformas vão re-encodar
 // pra 2-4Mbps então estamos no sweet spot — qualquer bit acima é jogado fora.
 //
-// Trade-off: 4Mbps em 1080p30 é "good" (não "excellent"). Pra material de
-// gameplay com câmera estática + ação rápida, é o suficiente. Se o usuário
-// premium quiser qualidade master, podemos expor toggle "high quality" no
-// futuro (mas default DEVE ser shareable).
-Config.setVideoBitrate("4M");
+// Sprint v5.7.15 (Mathieu 09/05/2026): "tô achando a qualidade muito
+// baixa, não tem uma qualidade um pouco melhor, mas que não pegue tanto
+// espaço pra baixar?"
+// Bumped 4M → 7M. Numbers reais:
+//   4 Mbps × 90s = 45 MB
+//   7 Mbps × 90s = 79 MB
+// 7M é o "sweet spot" entre qualidade e share — TikTok/Instagram aceitam
+// até 25Mbps mas re-comprimem agressivamente acima de 8Mbps. 7M dá
+// preserva mais detalhe na recompression sem sair do "shareable".
+// Trade: filesize ~75% maior, mas ainda dentro do limite de Discord
+// Nitro (50MB) / Whatsapp (100MB) pra reels curtos.
+Config.setVideoBitrate("7M");
 Config.setEnforceAudioTrack(false);

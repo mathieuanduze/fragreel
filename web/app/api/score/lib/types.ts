@@ -161,6 +161,11 @@ export interface Highlight {
    *  bomb_action_timestamp = defuse tick, não plant). Null se round
    *  não teve plant. */
   bomb_planted_timestamp?: number | null;
+  /** Sprint v5.7.15 (Mathieu 09/05): score CT acumulado ANTES desse
+   *  round. Editor HUD usa pra mostrar placar correto AT THAT round
+   *  em vez do final score do match repetido em todos highlights. */
+  score_ct_at_round?: number;
+  score_t_at_round?: number;
 }
 
 export type ClutchSituation = "1v2" | "1v3" | "1v4" | "1v5";
