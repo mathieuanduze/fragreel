@@ -521,6 +521,40 @@ function _enrichWithRoundContext(
       ctx.bomb_action = "plant_won";
     }
 
+    // Sprint v5.7.13 (Mathieu 09/05/2026): "ele não identifica meu
+    // defuse no scoring".
+    // Root cause: parser v0.6.53 keep bomb_events com user_steamid vazio
+    // (demoparser2 às vezes não extrai). Mas quando empty, state.bomb_*_by
+    // fica "" → check estrito === player_steamid falha → defuse perdido.
+    //
+    // Fallback heurístico: se há bomb event no round com action matching
+    // mas attribution vazia, E user é do team que venceu via aquela ação:
+    //   - defused event + user CT + won → user provavelmente defusou
+    //   - planted event + user T + won → user provavelmente plantou_won
+    // Imperfeito (poderia ser teammate) mas melhor que NUNCA detectar
+    // defuse em demos com steamid extraction broken.
+    if (!ctx.bomb_action && state.user_won) {
+      const isUserCT = state.user_team === 3;
+      const isUserT = state.user_team === 2;
+      const hasOrphanDefuse = events.bomb_events.some(
+        (be) =>
+          be.round_num === round_num &&
+          be.action === "defused" &&
+          (!be.player_steamid || be.player_steamid === ""),
+      );
+      const hasOrphanPlant = events.bomb_events.some(
+        (be) =>
+          be.round_num === round_num &&
+          be.action === "planted" &&
+          (!be.player_steamid || be.player_steamid === ""),
+      );
+      if (hasOrphanDefuse && isUserCT) {
+        ctx.bomb_action = "defuse";
+      } else if (hasOrphanPlant && isUserT) {
+        ctx.bomb_action = "plant_won";
+      }
+    }
+
     if (ctx.bomb_action) {
       const targetAction = ctx.bomb_action === "defuse" ? "defused" : "planted";
       // Sprint v5.7.10 (Mathieu PC diag 08/05): bomb_action_timestamp ficava

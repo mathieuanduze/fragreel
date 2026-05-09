@@ -49,7 +49,12 @@ const SCHEMA_VERSION = "1";
 // caches stale. Fixes: victim_name event-row capture (v5.7.4 commit
 // 86505f4), bomb_action_timestamp 2-tier fallback (sem exigir steamid
 // match estrito quando event tem steamid vazio).
-const SCORER_VERSION = "v0.7.0-victim-name-bomb-fallback";
+// Sprint v5.7.13 (Mathieu 09/05/2026): "ele não identifica meu defuse no
+// scoring". Bug encontrado: parser v0.6.53 keep bomb_events com user_steamid
+// vazio, mas state.bomb_defused_by="" → scorer === check fail → defuse
+// perdido. Fix: heurística orphan event (action vazia + user side correto +
+// user_won) detecta defuse/plant_won.
+const SCORER_VERSION = "v0.7.1-orphan-bomb-attribution";
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ScoreRequest {

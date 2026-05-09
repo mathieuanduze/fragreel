@@ -188,11 +188,16 @@ export const REACTION_PAD_SEC = 2.0;
 // bumped 5→7s pra mov ter frames suficientes.
 export const REACTION_PAD_PLANT_SEC = 4.5;
 // Round 4d Sprint v5.7 (08/05/2026 Mathieu): "meu defuse não ficou até o
-// final". Bumped 4.0 → 6.0s. Defuse animation completa em ~10s (sem kit)
-// ou ~5s (com kit) — bomb_action_timestamp marca COMPLETION mas se cluster
-// captura/render rate distort timing, 4s pad pode não cobrir + buffer pra
-// "Bomba defusada" notif (~3s). 6s = animation tail + notif + safety.
-export const REACTION_PAD_DEFUSE_SEC = 6.0;
+// final". Bumped 4.0 → 6.0s.
+// Sprint v5.7.13 (09/05/2026, terceira reportagem do mesmo bug):
+// Mathieu segue reportando "defuse cortado". 6s não foi suficiente.
+// Bumped 6.0 → 8.5s — cobre:
+//   - defuse animation tail (~5s sem kit, ~10s com kit no extremo)
+//   - "Bomba defusada" notif CS2 native (~3s)
+//   - buffer pra timing drift do cluster capture
+// Trade-off: pode adicionar 2-3s de "user idle pós-defuse" no pior caso,
+// mas Mathieu prefere ver defuse completo do que cortado.
+export const REACTION_PAD_DEFUSE_SEC = 8.5;
 
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
 // Orientation deste arquivo).
