@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLatestClientVersion } from "@/lib/useLatestClientVersion";
+import { useLatestClientVersion, refreshLatestClientVersion } from "@/lib/useLatestClientVersion";
 import { triggerClientUpdate, pingLocalClient, getLocalClientVersion } from "@/lib/local";
 import { isOutdated } from "@/lib/version-compare";
 import DownloadButton from "./DownloadButton";
@@ -46,6 +46,15 @@ export default function UpdateRequiredModal({ localVersion, onClose }: Props) {
   // Última release publicada no GitHub (antes vinha hardcoded em lib/version.ts).
   // Pode ser null em loading / erro de API — todos os callsites abaixo têm fallback.
   const { latest } = useLatestClientVersion();
+
+  // Sprint v5.7.18 (Mathieu 09/05/2026 round 3): "ele sempre faz aparecer
+  // a versão anterior do client". Force refresh do cache GitHub no mount
+  // do modal — quando user vai atualizar, o CTA "Atualizar pra vX" tem
+  // que mostrar a vX REAL, não uma stale do cache 5min anterior.
+  // Custo: 1 fetch extra cada vez que modal abre. Ganho: banner correto.
+  useEffect(() => {
+    refreshLatestClientVersion();
+  }, []);
 
   const handleUpdate = async () => {
     setState("updating");

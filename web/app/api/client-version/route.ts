@@ -26,9 +26,19 @@ import { getLatestClientVersion } from "@/lib/server/getLatestClientVersion";
  */
 
 // Next 16 tornou GET handlers dinâmicos por padrão. Declarar revalidate
-// aqui faz o route ser statically generated com ISR de 5min — cached em
-// 99%+ dos requests, só refreshing o upstream a cada 5min.
-export const revalidate = 300;
+// aqui faz o route ser statically generated com ISR.
+//
+// Sprint v5.7.18 (Mathieu 09/05/2026 round 3): "ele sempre faz aparecer
+// a versão anterior do client e só quando baixo ele aparece a mais nova".
+// Causa: revalidate 300s = web pode mostrar latest 5min stale. Quando
+// release nova sai (típico durante sprint ativa), banner aparece com
+// versão N-1 enquanto download bypass cache pega N real.
+//
+// Bumped 300 → 60s. GitHub rate limit é 60req/h sem auth — 60s = 60req/h
+// no pior caso (1 user contínuo), aceitável pra fase atual de tráfego
+// baixo. Quando audiência crescer, migrar pra ETag-based revalidation
+// (conditional GETs não consomem rate limit).
+export const revalidate = 60;
 
 export async function GET() {
   const data = await getLatestClientVersion();

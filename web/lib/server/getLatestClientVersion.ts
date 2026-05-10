@@ -11,14 +11,15 @@
  *   - Server Components (ex: app/page.tsx) que renderizam a versão
  *     direto no HTML sem precisar hidratar hook client
  *
- * Cache: 60s via fetch({ next: { revalidate: 60 } }). Next compartilha
+ * Cache: 30s via fetch({ next: { revalidate: 30 } }). Next compartilha
  * esse cache entre chamadas do mesmo server instance, então múltiplos
  * Server Components que chamem isso no mesmo render compartilham 1 fetch.
  *
- * Reduzido de 300s pra 60s em 28/04 — release v0.4.2 demorou 5min visíveis
- * no site após publicação no GitHub. 60s é compromisso entre UX (release
- * aparece rápido) e respeito ao rate limit da GitHub API (60 req/h sem
- * auth). 60s = ~60 req/h em cold sites, OK.
+ * History: 300s → 60s (28/04, release v0.4.2 demorou 5min visíveis) →
+ * 30s (v5.7.18 09/05, "banner mostra versão N-1"). Trade-off vs rate
+ * limit (60req/h GitHub sem auth): 30s = 120req/h no pior caso. Pode
+ * estourar — mas hook client TEM TTL de 60s + refresh-on-mount-do-modal,
+ * então fetch real é menos frequente que a constante sugere.
  *
  * Failure mode: retorna `{ latest: null, error }` em qualquer falha
  * (rate limit 403, repo inexistente, JSON malformado, network). Callsites
@@ -43,7 +44,7 @@ export async function getLatestClientVersion(): Promise<LatestRelease> {
         Accept: "application/vnd.github+json",
         "User-Agent": "fragreel-web",
       },
-      next: { revalidate: 60 },
+      next: { revalidate: 30 },
     });
 
     if (!res.ok) {

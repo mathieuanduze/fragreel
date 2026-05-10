@@ -40,7 +40,13 @@ export interface LatestClientVersion {
   error: string | null;
 }
 
-const TTL_MS = 5 * 60 * 1000; // 5min — casa com revalidate do route
+// Sprint v5.7.18 (Mathieu 09/05/2026 round 3): bumped 5min → 60s.
+// Era 5min casado com route revalidate=300, mas isso fazia o banner
+// mostrar versão N-1 quando releases saíam em sequência rápida (sprint
+// ativa). Agora 60s casa com route revalidate=60, máximo 1min de stale.
+// UpdateRequiredModal também faz refreshLatestClientVersion() on mount
+// pra garantir que CTA "Atualizar pra vX" mostra a vX real.
+const TTL_MS = 60 * 1000;
 
 type CacheEntry = {
   fetchedAt: number;
