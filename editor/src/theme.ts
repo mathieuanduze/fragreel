@@ -194,19 +194,21 @@ export const REACTION_PAD_PLANT_SEC = 4.5;
 // Bumped 6.0 → 8.5s.
 // Sprint v5.7.18 (09/05/2026 round 3, QUINTA reportagem):
 // Mathieu: "fiz defuse SEM defuser, dura mais do que quando vc defusa
-// COM defuser". Eu tinha invertido as durações no comment anterior —
-// CS2 game logic real:
+// COM defuser". CS2 game logic real:
 //    COM kit  = 5s anim  (defuser elétrico)
 //    SEM kit  = 10s anim (defuse manual)
-// 8.5s cortava no SEM-kit. Bumped 8.5 → 12.0s. Cálculo:
-//   - 10s anim no-kit (worst case)
-//   - 2s pra "Bomba defusada" notif aparecer + ler
-//   - = 12s
-// Coordenado com capture_script V2_DEFUSE_POST_BUFFER_S = 13.0s
-// (1s safety > scene render duration). Aplicação universal —
-// regra de negócio (rule_user_feedback_is_universal_spec): TODO user
-// que defusa sem kit precisa ver defuse completo, não opcional.
-export const REACTION_PAD_DEFUSE_SEC = 12.0;
+// Sprint v5.7.18 round 4 (10/05/2026 SEXTA reportagem):
+// Mathieu: "seguimos sem bomb defuse completo". 12.0 não foi suficiente.
+// Bumped 12.0 → 14.0s. Em CS2 a "Bomba defusada" notif red bar dura
+// 3-4s readable + outro 1s de transition pré-fade. Plus a defuse anim
+// pode ter 0.5-1s de wind-down extra antes do bomb_event fire.
+// Calc final:
+//   - 10s defuse anim no-kit (worst)
+//   - 4s notification "Bomba defusada"
+//   - = 14s pra cobrir end-to-end + fade-out clean
+// Coordenado com capture_script V2_DEFUSE_POST_BUFFER_S = 15.0s
+// (1s safety > scene render duration).
+export const REACTION_PAD_DEFUSE_SEC = 14.0;
 
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
 // Orientation deste arquivo).
@@ -369,7 +371,7 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
     if (highlight.bomb_action === "plant_won") {
       reactionForThis = REACTION_PAD_PLANT_SEC; // 3.0s — "Bomba foi armada" notif
     } else if (highlight.bomb_action === "defuse") {
-      reactionForThis = REACTION_PAD_DEFUSE_SEC; // 12.0s — defuse no-kit (10s) + notif
+      reactionForThis = REACTION_PAD_DEFUSE_SEC; // 14.0s — defuse no-kit (10s) + notif (4s)
     }
   }
 

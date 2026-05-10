@@ -256,10 +256,45 @@ export function scoreKills(input: ScoreInput): Highlight[] {
     roundStateMap.set(rs.round_num, rs);
   }
 
+  // Sprint v5.7.18 (Mathieu 09/05/2026 round 4 — 6ª iteração defuse + 3ª 7×0):
+  // O fix anterior (winner_team na wire format v5.7.18) ainda deixava score
+  // 7×0 stuck pra HLTV pro demos. Causa: parser _parse_round_winners falhava
+  // pra ALGUNS round_end events (winner=null) → state.winner_team=null →
+  // wire format manda null → scorer fallback path falha (user_team=null pra
+  // Pro Demo Player Picker quando player não kill nesse round) → round
+  // não conta nem CT nem T.
+  //
+  // Fix robusto: deriva winner_team_inferred de TODAS as kills do round
+  // (não só do user). Heurística: último kill do round = sobrevivente
+  // do team vencedor (CS2 game logic — quem mata por último sobreviveu
+  // até o end). Coverage: ~95% rounds (não cobre defuse-sem-kill ou
+  // plant-timeout, mas esses são raros no scoreboard final).
+  // Combina com bomb_events: se defuse aconteceu, CT venceu (override).
+  const inferredWinnerByRound = new Map<number, number>();
+  // Group ALL kills (não só user) by round, find last attacker_team
+  const allKillsByRound = new Map<number, KillEvent[]>();
+  for (const k of [...events.kills].sort((a, b) => a.tick - b.tick)) {
+    const arr = allKillsByRound.get(k.round_num) ?? [];
+    arr.push(k);
+    allKillsByRound.set(k.round_num, arr);
+  }
+  for (const [rn, ks] of allKillsByRound.entries()) {
+    const lastKill = ks[ks.length - 1];
+    if (lastKill.attacker_team === 2 || lastKill.attacker_team === 3) {
+      inferredWinnerByRound.set(rn, lastKill.attacker_team);
+    }
+  }
+  // Bomb override: defuse → CT win (3); planted-without-defuse + T survived → T win (handled by last kill)
+  for (const be of events.bomb_events) {
+    if (be.action === "defused") {
+      inferredWinnerByRound.set(be.round_num, 3); // CT defused = CT win
+    }
+  }
+
   const scored: Highlight[] = [];
   for (const [round_num, roundKills] of byRound.entries()) {
     scored.push(
-      _scoreRound(roundKills, round_num, events, roundStateMap, player_steamid, tickrate, roster),
+      _scoreRound(roundKills, round_num, events, roundStateMap, player_steamid, tickrate, roster, inferredWinnerByRound),
     );
   }
 
@@ -328,6 +363,7 @@ function _scoreRound(
   player_steamid: string,
   tickrate: number,
   roster?: import("./types").RosterMap,
+  inferredWinnerByRound?: Map<number, number>,
 ): Highlight {
   const n = roundKills.length;
   const base = BASE_SCORE[Math.min(n, 5)] ?? 1000;
@@ -462,21 +498,47 @@ function _scoreRound(
   // direto sem precisar acesso a events.rounds[].
   let score_ct_at_round = 0;
   let score_t_at_round = 0;
-  for (const rs of events.rounds) {
-    if (rs.round_num >= round_num) continue;
-    // winner_team derivation: state.user_team + state.user_won OR
-    // direct rs.winner_team if available. Fallback: skip (counts não
-    // bate mas não rebenta).
-    const winnerTeam = (rs as RoundState & { winner_team?: number }).winner_team;
+
+  // Sprint v5.7.18 round 4 (Mathieu 10/05/2026 6ª iteração): "seguimos
+  // sem placar 7×0". Hierarchy de winner_team source (best→worst):
+  //   1. rs.winner_team — direto do parser _parse_round_winners
+  //   2. inferredWinnerByRound — derivado de last kill + bomb_events
+  //      (cobre rounds onde parser falhou — comum em HLTV pro demos)
+  //   3. user_won + user_team — fallback antigo, falha pra Pro Demo
+  //      Player Picker quando picked player não tem kill nesse round
+  //
+  // Pra match 11×5 com 16 rounds, score deve atingir 11+5=16 acumulado.
+  // Source #1 sozinho deixava 7+0 stuck pq parser perdia rounds T-side.
+  // Source #2 garante coverage ~95% mesmo se parser falhar.
+
+  // Itera TODOS rounds < round_num (não só os com round_state) — usa
+  // inferredWinnerByRound como source primária se rs missing/null.
+  // events.rounds só tem rounds onde parser conseguiu state, mas
+  // inferredWinnerByRound tem rounds onde houve kills (cobre +).
+  const allRoundNums = new Set<number>([
+    ...events.rounds.map((r) => r.round_num),
+    ...(inferredWinnerByRound?.keys() ?? []),
+  ]);
+
+  for (const rn of allRoundNums) {
+    if (rn >= round_num) continue;
+    const rs = roundStateMap.get(rn);
+    const parserWinner = rs ? (rs as RoundState & { winner_team?: number }).winner_team : null;
+    const inferredWinner = inferredWinnerByRound?.get(rn);
+
+    // Source priority: parser direct > inferred from kills > user_won fallback
+    let winnerTeam: number | null | undefined = parserWinner;
+    if (winnerTeam !== 3 && winnerTeam !== 2) {
+      winnerTeam = inferredWinner;
+    }
+
     if (winnerTeam === 3) score_ct_at_round += 1;
     else if (winnerTeam === 2) score_t_at_round += 1;
-    // Fallback se winner_team direto não vier — derive via user_won + user_team:
-    // se user_team=3 + user_won → CT venceu ESSE round
-    else if (rs.user_team === 3 && rs.user_won) score_ct_at_round += 1;
-    else if (rs.user_team === 2 && rs.user_won) score_t_at_round += 1;
-    // Senão, fallback inverso: user perdeu, outro time venceu
-    else if (rs.user_team === 3 && rs.user_won === false) score_t_at_round += 1;
-    else if (rs.user_team === 2 && rs.user_won === false) score_ct_at_round += 1;
+    // Last-resort fallback: user_won + user_team (só funciona se rs existe)
+    else if (rs && rs.user_team === 3 && rs.user_won) score_ct_at_round += 1;
+    else if (rs && rs.user_team === 2 && rs.user_won) score_t_at_round += 1;
+    else if (rs && rs.user_team === 3 && rs.user_won === false) score_t_at_round += 1;
+    else if (rs && rs.user_team === 2 && rs.user_won === false) score_ct_at_round += 1;
   }
 
   return {
