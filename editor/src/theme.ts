@@ -197,18 +197,18 @@ export const REACTION_PAD_PLANT_SEC = 4.5;
 // COM defuser". CS2 game logic real:
 //    COM kit  = 5s anim  (defuser elétrico)
 //    SEM kit  = 10s anim (defuse manual)
-// Sprint v5.7.18 round 4 (10/05/2026 SEXTA reportagem):
-// Mathieu: "seguimos sem bomb defuse completo". 12.0 não foi suficiente.
-// Bumped 12.0 → 14.0s. Em CS2 a "Bomba defusada" notif red bar dura
-// 3-4s readable + outro 1s de transition pré-fade. Plus a defuse anim
-// pode ter 0.5-1s de wind-down extra antes do bomb_event fire.
-// Calc final:
-//   - 10s defuse anim no-kit (worst)
-//   - 4s notification "Bomba defusada"
-//   - = 14s pra cobrir end-to-end + fade-out clean
-// Coordenado com capture_script V2_DEFUSE_POST_BUFFER_S = 15.0s
-// (1s safety > scene render duration).
-export const REACTION_PAD_DEFUSE_SEC = 14.0;
+// Sprint v5.7.18 round 4 (10/05) TENTOU bump 12→14s, MAS root cause real
+// foi outro (round 5, 11/05): bomb_action vinha null pro picked player
+// Pro Demo Picker → editor usava 2s default ao invés de 12s defuse pad.
+// Fix real foi no scorer (v0.7.4-event-based-bomb-action — derives
+// bomb_action por EVENT, não por player). Com bomb_action correto,
+// 12s já cobre defuse no-kit (10s anim) + notif (1-2s readable). Não
+// precisa bump mais. Revert 14 → 12.
+//
+// Mathieu push-back (11/05): "desarmar bomba sem defuse no cs dura 10
+// segundos, não tinha porque cortar no meio assim" — ele tava certo,
+// 12s era suficiente, problema era reaction pad NÃO sendo aplicado.
+export const REACTION_PAD_DEFUSE_SEC = 12.0;
 
 // Tipo duck-typed pra evitar circular import com types.ts (que importa
 // Orientation deste arquivo).
@@ -371,7 +371,7 @@ export const effectiveSceneEndSec = (highlight: _HighlightInput): number => {
     if (highlight.bomb_action === "plant_won") {
       reactionForThis = REACTION_PAD_PLANT_SEC; // 3.0s — "Bomba foi armada" notif
     } else if (highlight.bomb_action === "defuse") {
-      reactionForThis = REACTION_PAD_DEFUSE_SEC; // 14.0s — defuse no-kit (10s) + notif (4s)
+      reactionForThis = REACTION_PAD_DEFUSE_SEC; // 12.0s — 10s anim + 2s notif
     }
   }
 

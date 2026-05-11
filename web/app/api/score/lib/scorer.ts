@@ -617,31 +617,37 @@ function _enrichWithRoundContext(
     // Root cause: parser v0.6.53 keep bomb_events com user_steamid vazio
     // (demoparser2 às vezes não extrai). Mas quando empty, state.bomb_*_by
     // fica "" → check estrito === player_steamid falha → defuse perdido.
+
+    // Sprint v5.7.18 round 5 (Mathieu 11/05/2026, 7ª iteração defuse):
+    // "desarmar bomba sem defuse no cs dura 10s, não tinha porque cortar
+    // no meio". Diagnóstico: bomb_action ficava null mesmo com
+    // bomb_action_timestamp populado → editor caía pro REACTION_PAD_SEC
+    // default de 2s ao invés de 14s pra defuse → scene cortava 2s após
+    // defuse complete. Causa: para Pro Demo Player Picker (HLTV demos):
+    //   - parser não atribuía bomb_defused_by ao picked player
+    //     (steamid vazio na event row)
+    //   - orphan fallback exigia user_team === 3 + user_won
+    //   - user_team era null pra round onde picked player teve 0 kills
+    //   - orphan fallback skip → bomb_action permanece null
     //
-    // Fallback heurístico: se há bomb event no round com action matching
-    // mas attribution vazia, E user é do team que venceu via aquela ação:
-    //   - defused event + user CT + won → user provavelmente defusou
-    //   - planted event + user T + won → user provavelmente plantou_won
-    // Imperfeito (poderia ser teammate) mas melhor que NUNCA detectar
-    // defuse em demos com steamid extraction broken.
-    if (!ctx.bomb_action && state.user_won) {
-      const isUserCT = state.user_team === 3;
-      const isUserT = state.user_team === 2;
-      const hasOrphanDefuse = events.bomb_events.some(
-        (be) =>
-          be.round_num === round_num &&
-          be.action === "defused" &&
-          (!be.player_steamid || be.player_steamid === ""),
+    // Fix v5.7.18 round 5: bomb_action é EVENT-BASED, não player-based.
+    // Se há bomb_defused event no round → bomb_action = "defuse" sempre
+    // (round encerrou com defuse, scene deve mostrar até o final).
+    // Se há bomb_planted SEM defuse + user T-side + user_won → "plant_won".
+    // Não importa QUEM defusou — o que importa é que o ROUND encerrou
+    // com aquela ação (afeta visualmente o final da scene).
+    if (!ctx.bomb_action) {
+      const hasDefuseInRound = events.bomb_events.some(
+        (be) => be.round_num === round_num && be.action === "defused",
       );
-      const hasOrphanPlant = events.bomb_events.some(
-        (be) =>
-          be.round_num === round_num &&
-          be.action === "planted" &&
-          (!be.player_steamid || be.player_steamid === ""),
+      const hasPlantInRound = events.bomb_events.some(
+        (be) => be.round_num === round_num && be.action === "planted",
       );
-      if (hasOrphanDefuse && isUserCT) {
+      if (hasDefuseInRound) {
+        // Round terminou com defuse — visualmente é defuse closing.
         ctx.bomb_action = "defuse";
-      } else if (hasOrphanPlant && isUserT) {
+      } else if (hasPlantInRound && state.user_team === 2 && state.user_won) {
+        // Plant sem defuse + user T-side + ganhou = plant_won.
         ctx.bomb_action = "plant_won";
       }
     }

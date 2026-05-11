@@ -58,7 +58,7 @@ const SCHEMA_VERSION = "1";
 // Bug: editor lia score do match.score (final) sempre. Fix scorer-side:
 // emite score_ct_at_round / score_t_at_round per highlight (acumulado
 // pré-round). Editor HudV2 usa direto.
-const SCORER_VERSION = "v0.7.3-inferred-winner";
+const SCORER_VERSION = "v0.7.4-event-based-bomb-action";
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 
 interface ScoreRequest {
